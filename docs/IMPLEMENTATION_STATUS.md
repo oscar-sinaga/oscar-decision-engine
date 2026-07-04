@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~40%
-- Current phase: Phase 4 complete — versioned rule and decision table management
-- Latest local commit: (this commit) `feat(rules): add versioned rule management`
+- Completion: ~48%
+- Current phase: Phase 5 complete — ordered strategy management
+- Latest local commit: (this commit) `feat(strategy): add ordered strategy management`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -31,15 +31,17 @@
    - audit events for every transition (created/updated/submitted/activated/rejected/retired);
    - `rule.approve` permission gate for activation (analyst cannot activate; auditor read-only).
 
+5. **Strategy management** — strategy CRUD, versioned ordered steps with validation against rule-set/decision-table/scorecard registries and the feature registry; submit/approve lifecycle; activation enforces **one active strategy per product+segment across all strategies** and verifies referenced configs have active versions; rollback (reason mandatory) reactivates a retired version; rule-set management endpoints; audit events for every transition; underwriter-cannot-activate authorization test per PRD §6.11.
+
 ## Current Phase
 
-- Phase 5: Strategy management and activation.
+- Phase 6: Decision history search API.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (82 files), pytest 62 passed |
+| Backend checks | Passing | ruff format+check, mypy strict (87 files), pytest 70 passed |
 | Frontend checks | Not started | Scaffold planned after backend core |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
@@ -50,7 +52,6 @@
 
 ## Known Limitations
 
-- Strategy management is seed-only (no CRUD APIs yet) — Phase 5.
 - Simulation, manual-review decisioning, governance, monitoring endpoints not yet implemented (Phases 7–10).
 - Maker-checker (approver ≠ maker) is not yet enforced — Phase 9.
 - PII masking of traces is deny-list-of-key-names based; `pii.view` permission does not yet unlock unmasked views (masking is applied at persistence).
@@ -61,5 +62,5 @@
 
 ## Next Work
 
-1. Phase 5: strategy CRUD, activation with single-active constraint, rollback.
-2. Phase 6: decision history search API.
+1. Phase 6: decision history search API.
+2. Phase 7: side-effect-free simulation.
