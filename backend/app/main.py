@@ -1,6 +1,7 @@
 """FastAPI application factory for OSCAR Decision Engine."""
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.shared.config import get_settings
@@ -22,6 +23,14 @@ def create_app() -> FastAPI:
         ),
     )
     app.add_middleware(CorrelationMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Correlation-Id"],
+        expose_headers=["X-Request-ID", "X-Correlation-ID"],
+    )
     register_error_handlers(app)
     app.include_router(api_router)
 

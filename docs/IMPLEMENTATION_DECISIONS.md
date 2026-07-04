@@ -102,3 +102,14 @@
 - **Reasoning:** Preserves the documented separation of decide vs override permissions while keeping the underwriter queue workable; fraud contradiction is the genuinely high-risk override in MVP scope.
 - **Consequences:** Underwriters resolve ordinary borderline cases; only RISK_MANAGER/ADMIN can approve fraud-routed cases. Supervisor approval flows remain Phase 2.
 - **Related documents/files:** `backend/app/modules/manual_review/service.py`, `docs/13_manual_review_design.md`, `docs/14_audit_governance.md`.
+
+### ADR-009 — Workbench runs as a client-side SPA against the FastAPI backend
+
+- **Date:** 2026-07-04
+- **Status:** Accepted
+- **Context:** The workbench is an internal tool authenticated with bearer tokens; docs/15 allows SSR/SPA options via SvelteKit.
+- **Options considered:** (a) SSR with server-side session handling and an API proxy, (b) SPA (`ssr = false`) calling the API directly with CORS.
+- **Decision:** SPA mode. The token lives in localStorage, every request carries `Authorization: Bearer`, the backend allows the workbench dev/preview origins via CORS, and authorization remains enforced server-side (frontend permission checks are UX only). Node adapter retained for containerized serving.
+- **Reasoning:** Removes duplicated auth plumbing for an internal tool, keeps the OpenAPI-backed FastAPI service the single security boundary, and simplifies Docker deployment.
+- **Consequences:** No SSR data loading; a `/v1/meta` endpoint supplies registry/enum metadata for dropdowns and the condition builder.
+- **Related documents/files:** `frontend/src/routes/+layout.ts`, `frontend/src/lib/api/client.ts`, `backend/app/main.py` (CORS), `backend/app/api/v1/meta.py`.

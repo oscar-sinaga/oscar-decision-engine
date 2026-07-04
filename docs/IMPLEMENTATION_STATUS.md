@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~72%
-- Current phase: Phase 10 complete — monitoring metrics
-- Latest local commit: (this commit) `feat(monitoring): add decision metrics endpoint`
+- Completion: ~85%
+- Current phase: Phase 11 complete — SvelteKit workbench
+- Latest local commit: (this commit) `feat(ui): build SvelteKit risk policy workbench`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -43,16 +43,18 @@
 
 10. **Monitoring** — `GET /v1/monitoring/decision-summary` (product/channel/date filters): total applications, approval/reject/manual-review/error rates, per-decision counts, top-10 reason codes, decision latency P95 (SQL `percentile_cont` over trace latency), open manual-review queue size; `monitoring.view` permission; no PII in metric labels.
 
+11. **SvelteKit workbench** — SvelteKit (Svelte 5 runes) + TypeScript strict + Tailwind CSS 4, SPA mode (ADR-009), typed API client with the backend error envelope, auth store + route guard, and all docs/09 screens: login, dashboard KPIs, decision history + trace detail (timeline, rule evidence, masked snapshot), rules (list/create with guided condition builder/detail with lifecycle + dry-run tester), strategies (list/detail with step editor, activation, rollback), simulator (payload editor + active-vs-draft compare), manual review (queue/case detail with analyst decision form), audit log with before/after diffs, admin (users, roles, pending approvals). Backend gained CORS (workbench origins) and `/v1/meta`. Gates: prettier, eslint, svelte-check strict (0 errors), Vitest 12 tests, production build; Playwright e2e specs for critical flows (run in Phase 12 against the compose stack).
+
 ## Current Phase
 
-- Phase 11: SvelteKit frontend workbench.
+- Phase 12: Compose E2E, hardening, final validation.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (103 files), pytest 93 passed |
-| Frontend checks | Not started | Scaffold planned after backend core |
+| Backend checks | Passing | ruff format+check, mypy strict (104 files), pytest 93 passed |
+| Frontend checks | Passing | prettier, eslint, svelte-check strict, Vitest 12 tests, production build |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
 | Authorization tests | Passing | 401/403 tests: anonymous, underwriter execute, API-client trace access |
@@ -71,5 +73,5 @@
 
 ## Next Work
 
-1. Phase 11: SvelteKit + TypeScript + Tailwind workbench (all screens per docs/09).
-2. Phase 12: Compose E2E and hardening.
+1. Phase 12: full docker compose stack validation + Playwright E2E + PII/security sweep.
+2. Phase 13: documentation sync + final report.

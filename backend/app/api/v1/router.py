@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.api.v1.meta import router as meta_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.decisions.router import router as decisions_router
@@ -31,3 +32,4 @@ api_router.include_router(strategies_router)
 api_router.include_router(audit_router)
 api_router.include_router(governance_router)
 api_router.include_router(admin_router)
+api_router.include_router(meta_router)
