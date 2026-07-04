@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~68%
-- Current phase: Phase 9 complete — governance and maker-checker
-- Latest local commit: (this commit) `feat(governance): implement maker-checker controls`
+- Completion: ~72%
+- Current phase: Phase 10 complete — monitoring metrics
+- Latest local commit: (this commit) `feat(monitoring): add decision metrics endpoint`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -41,15 +41,17 @@
 
 9. **Governance** — maker-checker enforced on every rule/decision-table/scorecard/strategy activation (creator cannot approve own change); approval-request queue created on submit and resolved on activate/reject (`GET /v1/approvals`); business audit log API with event/entity/actor/correlation/date filters (`GET /v1/audit-logs`, `audit.view`); admin RBAC endpoints (user list, role matrix, role assignment with `USER_ROLES_CHANGED` audit).
 
+10. **Monitoring** — `GET /v1/monitoring/decision-summary` (product/channel/date filters): total applications, approval/reject/manual-review/error rates, per-decision counts, top-10 reason codes, decision latency P95 (SQL `percentile_cont` over trace latency), open manual-review queue size; `monitoring.view` permission; no PII in metric labels.
+
 ## Current Phase
 
-- Phase 10: Monitoring metrics.
+- Phase 11: SvelteKit frontend workbench.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (100 files), pytest 90 passed |
+| Backend checks | Passing | ruff format+check, mypy strict (103 files), pytest 93 passed |
 | Frontend checks | Not started | Scaffold planned after backend core |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
@@ -69,5 +71,5 @@
 
 ## Next Work
 
-1. Phase 10: monitoring decision-summary metrics endpoint.
-2. Phase 11: SvelteKit frontend workbench.
+1. Phase 11: SvelteKit + TypeScript + Tailwind workbench (all screens per docs/09).
+2. Phase 12: Compose E2E and hardening.
