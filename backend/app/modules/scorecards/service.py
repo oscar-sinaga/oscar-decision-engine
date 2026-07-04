@@ -18,13 +18,18 @@ from app.engine.decision_table import find_overlapping_rows, parse_decision_tabl
 from app.engine.scorecard import parse_scorecard_config
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
+from app.modules.governance.service import (
+    ensure_maker_checker,
+    open_approval_request,
+    resolve_approval_request,
+)
 from app.modules.scorecards.models import (
     DecisionTable,
     DecisionTableVersion,
     Scorecard,
     ScorecardVersion,
 )
-from app.shared.domain.enums import ConfigStatus
+from app.shared.domain.enums import ApprovalStatus, ConfigStatus
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from app.shared.domain.version_lifecycle import (
     activate_version,
@@ -225,6 +230,14 @@ async def submit_config_version(
 ) -> Any:
     before = version.status
     submit_for_approval(version)
+    open_approval_request(
+        session,
+        entity_type=f"{kind.entity_type}_VERSION",
+        entity_id=entity.code,
+        entity_version=str(version.version),
+        requested_by=actor,
+        change_summary=version.version_note,
+    )
     record_audit_event(
         session,
         event_type=f"{kind.entity_type}_VERSION_SUBMITTED",
@@ -248,10 +261,20 @@ async def activate_config_version(
     actor: User,
     reason: str | None,
 ) -> Any:
+    ensure_maker_checker(version.created_by, actor)
     previous_active = next((v for v in entity.versions if v.status == ConfigStatus.ACTIVE), None)
     before = version.status
     activate_version(version, previous_active)
     version.approved_by = actor.id
+    await resolve_approval_request(
+        session,
+        entity_type=f"{kind.entity_type}_VERSION",
+        entity_id=entity.code,
+        entity_version=str(version.version),
+        status=ApprovalStatus.APPROVED,
+        decided_by=actor,
+        decision_reason=reason,
+    )
     record_audit_event(
         session,
         event_type=f"{kind.entity_type}_VERSION_ACTIVATED",

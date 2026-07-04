@@ -15,6 +15,11 @@ from sqlalchemy.orm import selectinload
 from app.engine.features import DERIVED_FEATURES, KNOWN_FEATURES
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
+from app.modules.governance.service import (
+    ensure_maker_checker,
+    open_approval_request,
+    resolve_approval_request,
+)
 from app.modules.rules.models import RuleSet
 from app.modules.scorecards.models import (
     DecisionTable,
@@ -28,7 +33,7 @@ from app.modules.strategies.schemas import (
     StrategyCreateRequest,
     StrategyVersionCreateRequest,
 )
-from app.shared.domain.enums import ConfigStatus, StepType
+from app.shared.domain.enums import ApprovalStatus, ConfigStatus, StepType
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from app.shared.domain.version_lifecycle import (
     ensure_editable,
@@ -293,6 +298,14 @@ async def submit_strategy_version(
 ) -> StrategyVersion:
     before = version.status
     submit_for_approval(version)
+    open_approval_request(
+        session,
+        entity_type="STRATEGY_VERSION",
+        entity_id=strategy.strategy_code,
+        entity_version=str(version.version),
+        requested_by=actor,
+        change_summary=version.version_note,
+    )
     record_audit_event(
         session,
         event_type="STRATEGY_VERSION_SUBMITTED",
@@ -313,6 +326,15 @@ async def reject_strategy_version(
 ) -> StrategyVersion:
     before = version.status
     reject_version(version)
+    await resolve_approval_request(
+        session,
+        entity_type="STRATEGY_VERSION",
+        entity_id=strategy.strategy_code,
+        entity_version=str(version.version),
+        status=ApprovalStatus.REJECTED,
+        decided_by=actor,
+        decision_reason=reason,
+    )
     record_audit_event(
         session,
         event_type="STRATEGY_VERSION_REJECTED",
@@ -365,6 +387,7 @@ async def activate_strategy_version(
         raise ConflictError(
             f"Version {version.version} is {version.status}; submit for approval first"
         )
+    ensure_maker_checker(version.created_by, actor)
     await _verify_references_activatable(session, version)
     before = version.status
     retired = await _retire_competing_active_versions(session, strategy, version)
@@ -372,6 +395,15 @@ async def activate_strategy_version(
     version.activated_at = datetime.now(UTC)
     version.activated_by = actor.id
     version.effective_from = datetime.now(UTC)
+    await resolve_approval_request(
+        session,
+        entity_type="STRATEGY_VERSION",
+        entity_id=strategy.strategy_code,
+        entity_version=str(version.version),
+        status=ApprovalStatus.APPROVED,
+        decided_by=actor,
+        decision_reason=reason,
+    )
     record_audit_event(
         session,
         event_type="STRATEGY_VERSION_ACTIVATED",

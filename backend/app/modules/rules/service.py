@@ -11,10 +11,15 @@ from app.engine.dsl import RuleDefinition, collect_condition_fields, parse_rule_
 from app.engine.features import KNOWN_FEATURES
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
+from app.modules.governance.service import (
+    ensure_maker_checker,
+    open_approval_request,
+    resolve_approval_request,
+)
 from app.modules.reason_codes.models import ReasonCode
 from app.modules.rules.models import Rule, RuleVersion
 from app.modules.rules.schemas import RuleCreateRequest, RuleVersionUpdateRequest
-from app.shared.domain.enums import ConfigStatus
+from app.shared.domain.enums import ApprovalStatus, ConfigStatus
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from app.shared.domain.version_lifecycle import (
     activate_version,
@@ -200,6 +205,14 @@ async def submit_rule_version(
 ) -> RuleVersion:
     before = version.status
     submit_for_approval(version)
+    approval = open_approval_request(
+        session,
+        entity_type="RULE_VERSION",
+        entity_id=rule.rule_code,
+        entity_version=str(version.version),
+        requested_by=actor,
+        change_summary=version.version_note,
+    )
     record_audit_event(
         session,
         event_type="RULE_VERSION_SUBMITTED",
@@ -210,6 +223,7 @@ async def submit_rule_version(
         actor=actor,
         before_value={"status": before},
         after_value={"status": version.status},
+        metadata={"approval_request_id": approval.request_id},
     )
     await session.commit()
     return version
@@ -218,10 +232,20 @@ async def submit_rule_version(
 async def activate_rule_version(
     session: AsyncSession, rule: Rule, version: RuleVersion, actor: User, reason: str | None
 ) -> RuleVersion:
+    ensure_maker_checker(version.created_by, actor)
     previous_active = next((v for v in rule.versions if v.status == ConfigStatus.ACTIVE), None)
     before = version.status
     activate_version(version, previous_active)
     version.approved_by = actor.id
+    approval = await resolve_approval_request(
+        session,
+        entity_type="RULE_VERSION",
+        entity_id=rule.rule_code,
+        entity_version=str(version.version),
+        status=ApprovalStatus.APPROVED,
+        decided_by=actor,
+        decision_reason=reason,
+    )
     record_audit_event(
         session,
         event_type="RULE_VERSION_ACTIVATED",
@@ -236,6 +260,7 @@ async def activate_rule_version(
             "status": version.status,
             "retired_version": previous_active.version if previous_active else None,
         },
+        metadata={"approval_request_id": approval.request_id if approval else None},
     )
     await session.commit()
     logger.info(
@@ -250,6 +275,15 @@ async def reject_rule_version(
 ) -> RuleVersion:
     before = version.status
     reject_version(version)
+    await resolve_approval_request(
+        session,
+        entity_type="RULE_VERSION",
+        entity_id=rule.rule_code,
+        entity_version=str(version.version),
+        status=ApprovalStatus.REJECTED,
+        decided_by=actor,
+        decision_reason=reason,
+    )
     record_audit_event(
         session,
         event_type="RULE_VERSION_REJECTED",

@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~63%
-- Current phase: Phase 8 complete — manual review workflow
-- Latest local commit: (this commit) `feat(review): add manual review workflow`
+- Completion: ~68%
+- Current phase: Phase 9 complete — governance and maker-checker
+- Latest local commit: (this commit) `feat(governance): implement maker-checker controls`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -39,15 +39,17 @@
 
 8. **Manual review** — queue with status/priority/assignee/product/date filters; case detail with masked applicant/loan/vehicle summaries, system decision + reason codes + trace link; assignment; analyst decision kept separate from the system decision with mandatory override reason when they differ, reason-code requirement for rejects, and `manual_review.override` required to approve fraud-investigation cases (ADR-008); escalation and document-request transitions; audit events for every action.
 
+9. **Governance** — maker-checker enforced on every rule/decision-table/scorecard/strategy activation (creator cannot approve own change); approval-request queue created on submit and resolved on activate/reject (`GET /v1/approvals`); business audit log API with event/entity/actor/correlation/date filters (`GET /v1/audit-logs`, `audit.view`); admin RBAC endpoints (user list, role matrix, role assignment with `USER_ROLES_CHANGED` audit).
+
 ## Current Phase
 
-- Phase 9: Governance and maker-checker controls.
+- Phase 10: Monitoring metrics.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (96 files), pytest 85 passed |
+| Backend checks | Passing | ruff format+check, mypy strict (100 files), pytest 90 passed |
 | Frontend checks | Not started | Scaffold planned after backend core |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
@@ -59,7 +61,6 @@
 ## Known Limitations
 
 - Simulation, manual-review decisioning, governance, monitoring endpoints not yet implemented (Phases 7–10).
-- Maker-checker (approver ≠ maker) is not yet enforced — Phase 9.
 - PII masking of traces is deny-list-of-key-names based; `pii.view` permission does not yet unlock unmasked views (masking is applied at persistence).
 
 ## Blockers
@@ -68,5 +69,5 @@
 
 ## Next Work
 
-1. Phase 9: maker-checker enforcement (approver ≠ maker), audit log API.
-2. Phase 10: monitoring metrics.
+1. Phase 10: monitoring decision-summary metrics endpoint.
+2. Phase 11: SvelteKit frontend workbench.

@@ -2,8 +2,11 @@
 
 from fastapi import APIRouter
 
+from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.decisions.router import router as decisions_router
+from app.modules.governance.router import admin_router
+from app.modules.governance.router import router as governance_router
 from app.modules.manual_review.router import router as manual_review_router
 from app.modules.reason_codes.router import router as reason_codes_router
 from app.modules.rules.router import router as rules_router
@@ -23,3 +26,6 @@ api_router.include_router(manual_review_router)
 api_router.include_router(reason_codes_router)
 api_router.include_router(simulations_router)
 api_router.include_router(strategies_router)
+api_router.include_router(audit_router)
+api_router.include_router(governance_router)
+api_router.include_router(admin_router)
