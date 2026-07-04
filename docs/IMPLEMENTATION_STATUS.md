@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~53%
-- Current phase: Phase 6 complete — decision history
-- Latest local commit: (this commit) `feat(trace): add decision history search and audited trace access`
+- Completion: ~58%
+- Current phase: Phase 7 complete — side-effect-free simulation
+- Latest local commit: (this commit) `feat(simulation): add side-effect-free simulation`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -35,15 +35,17 @@
 
 6. **Decision history** — `GET /v1/decisions` with filters (application_id, decision, product_type, channel, date range) and pagination; trace retrieval now records a `DECISION_TRACE_VIEWED` audit event (docs/18 §7 sensitive-access auditing).
 
+7. **Simulation** — `POST /v1/simulations/single` runs any strategy version (draft or active) through the production engine without creating application/decision/trace/case rows; optional active-vs-draft comparison with field-level differences; simulation traces marked `SIMULATION`; results persisted in `simulations`/`simulation_results`; `SIMULATION_EXECUTED` audit event; list/detail endpoints under `simulation.view`.
+
 ## Current Phase
 
-- Phase 7: Side-effect-free simulation.
+- Phase 8: Manual review workflow.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (88 files), pytest 73 passed |
+| Backend checks | Passing | ruff format+check, mypy strict (92 files), pytest 78 passed |
 | Frontend checks | Not started | Scaffold planned after backend core |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
@@ -64,5 +66,5 @@
 
 ## Next Work
 
-1. Phase 7: side-effect-free simulation (single + active-vs-draft comparison).
-2. Phase 8: manual review workflow.
+1. Phase 8: manual review queue, case detail, analyst decision, override controls.
+2. Phase 9: governance and maker-checker.
