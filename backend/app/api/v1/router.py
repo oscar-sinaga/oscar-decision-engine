@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
 from app.modules.decisions.router import router as decisions_router
+from app.modules.manual_review.router import router as manual_review_router
 from app.modules.reason_codes.router import router as reason_codes_router
 from app.modules.rules.router import router as rules_router
 from app.modules.rules.rule_sets_router import router as rule_sets_router
@@ -18,6 +19,7 @@ api_router.include_router(rules_router)
 api_router.include_router(rule_sets_router)
 api_router.include_router(decision_tables_router)
 api_router.include_router(scorecards_router)
+api_router.include_router(manual_review_router)
 api_router.include_router(reason_codes_router)
 api_router.include_router(simulations_router)
 api_router.include_router(strategies_router)

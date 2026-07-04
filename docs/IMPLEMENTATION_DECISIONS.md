@@ -91,3 +91,14 @@
 - **Reasoning:** Simplest implementation satisfying the MVP DoD; a DB-privilege/trigger hardening pass is an operational concern for deployment, noted for Phase 2 backlog.
 - **Consequences:** Direct DB access could still mutate evidence; deployment must restrict DB credentials.
 - **Related documents/files:** `backend/app/modules/audit/service.py`, `backend/app/modules/decisions/service.py`, `docs/18_observability_and_audit_logging.md`.
+
+### ADR-008 — Manual review override semantics
+
+- **Date:** 2026-07-04
+- **Status:** Accepted
+- **Context:** docs/13 requires override reasons when the analyst decision differs from the system decision, and docs/14 grants `manual_review.override` to senior roles — but for a case created from a MANUAL_REVIEW system decision, *any* analyst resolution differs from the system decision, which would make ordinary case work impossible for underwriters if override permission were always required.
+- **Options considered:** (a) require `manual_review.override` for every differing decision, (b) treat resolving a MANUAL_REVIEW case as normal `manual_review.decide` work with a mandatory override reason, reserving `manual_review.override` for contradicting definitive system routing.
+- **Decision:** (b): `manual_review.decide` resolves cases; whenever the analyst decision differs from the system decision an override reason is mandatory and a `MANUAL_REVIEW_OVERRIDDEN` audit event records before/after; approving a case whose system decision is FRAUD_INVESTIGATION additionally requires `manual_review.override`. Rejects always require a reason code.
+- **Reasoning:** Preserves the documented separation of decide vs override permissions while keeping the underwriter queue workable; fraud contradiction is the genuinely high-risk override in MVP scope.
+- **Consequences:** Underwriters resolve ordinary borderline cases; only RISK_MANAGER/ADMIN can approve fraud-routed cases. Supervisor approval flows remain Phase 2.
+- **Related documents/files:** `backend/app/modules/manual_review/service.py`, `docs/13_manual_review_design.md`, `docs/14_audit_governance.md`.

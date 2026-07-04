@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~58%
-- Current phase: Phase 7 complete — side-effect-free simulation
-- Latest local commit: (this commit) `feat(simulation): add side-effect-free simulation`
+- Completion: ~63%
+- Current phase: Phase 8 complete — manual review workflow
+- Latest local commit: (this commit) `feat(review): add manual review workflow`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -37,15 +37,17 @@
 
 7. **Simulation** — `POST /v1/simulations/single` runs any strategy version (draft or active) through the production engine without creating application/decision/trace/case rows; optional active-vs-draft comparison with field-level differences; simulation traces marked `SIMULATION`; results persisted in `simulations`/`simulation_results`; `SIMULATION_EXECUTED` audit event; list/detail endpoints under `simulation.view`.
 
+8. **Manual review** — queue with status/priority/assignee/product/date filters; case detail with masked applicant/loan/vehicle summaries, system decision + reason codes + trace link; assignment; analyst decision kept separate from the system decision with mandatory override reason when they differ, reason-code requirement for rejects, and `manual_review.override` required to approve fraud-investigation cases (ADR-008); escalation and document-request transitions; audit events for every action.
+
 ## Current Phase
 
-- Phase 8: Manual review workflow.
+- Phase 9: Governance and maker-checker controls.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (92 files), pytest 78 passed |
+| Backend checks | Passing | ruff format+check, mypy strict (96 files), pytest 85 passed |
 | Frontend checks | Not started | Scaffold planned after backend core |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
@@ -66,5 +68,5 @@
 
 ## Next Work
 
-1. Phase 8: manual review queue, case detail, analyst decision, override controls.
-2. Phase 9: governance and maker-checker.
+1. Phase 9: maker-checker enforcement (approver ≠ maker), audit log API.
+2. Phase 10: monitoring metrics.
