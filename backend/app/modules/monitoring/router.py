@@ -86,14 +86,16 @@ async def decision_summary(
             )
         )
     ).all()
-    decision_counts = {str(decision): count for decision, count in decision_rows}
+    decision_counts: dict[str, int] = {
+        str(decision): int(count) for decision, count in decision_rows
+    }
     total = sum(decision_counts.values())
 
     def rate(decisions: set[DecisionType]) -> float:
         if total == 0:
             return 0.0
         matched: int = sum(decision_counts.get(d.value, 0) for d in decisions)
-        return round(matched / total, 4)
+        return float(round(matched / total, 4))
 
     reason_rows = (
         await session.scalars(
