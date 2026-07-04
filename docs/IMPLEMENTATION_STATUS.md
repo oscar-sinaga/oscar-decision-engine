@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~48%
-- Current phase: Phase 5 complete — ordered strategy management
-- Latest local commit: (this commit) `feat(strategy): add ordered strategy management`
+- Completion: ~53%
+- Current phase: Phase 6 complete — decision history
+- Latest local commit: (this commit) `feat(trace): add decision history search and audited trace access`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -33,15 +33,17 @@
 
 5. **Strategy management** — strategy CRUD, versioned ordered steps with validation against rule-set/decision-table/scorecard registries and the feature registry; submit/approve lifecycle; activation enforces **one active strategy per product+segment across all strategies** and verifies referenced configs have active versions; rollback (reason mandatory) reactivates a retired version; rule-set management endpoints; audit events for every transition; underwriter-cannot-activate authorization test per PRD §6.11.
 
+6. **Decision history** — `GET /v1/decisions` with filters (application_id, decision, product_type, channel, date range) and pagination; trace retrieval now records a `DECISION_TRACE_VIEWED` audit event (docs/18 §7 sensitive-access auditing).
+
 ## Current Phase
 
-- Phase 6: Decision history search API.
+- Phase 7: Side-effect-free simulation.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (87 files), pytest 70 passed |
+| Backend checks | Passing | ruff format+check, mypy strict (88 files), pytest 73 passed |
 | Frontend checks | Not started | Scaffold planned after backend core |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
@@ -62,5 +64,5 @@
 
 ## Next Work
 
-1. Phase 6: decision history search API.
-2. Phase 7: side-effect-free simulation.
+1. Phase 7: side-effect-free simulation (single + active-vs-draft comparison).
+2. Phase 8: manual review workflow.
