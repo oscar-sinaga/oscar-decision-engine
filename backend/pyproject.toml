@@ -1,0 +1,50 @@
+[project]
+name = "oscar-decision-engine-backend"
+version = "0.1.0"
+description = "OSCAR Decision Engine — configurable, auditable, versioned credit-risk decisioning backend"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+  "fastapi[standard]==0.139.0",
+  "pydantic>=2,<3",
+  "pydantic-settings>=2,<3",
+  "sqlalchemy>=2,<3",
+  "alembic>=1,<2",
+  "asyncpg>=0.29,<1",
+  "pyjwt>=2,<3",
+  "bcrypt>=4,<6",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.24,<2",
+  "httpx>=0.27,<1",
+  "ruff>=0.8,<1",
+  "mypy>=1.13,<2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "C4", "T20"]
+ignore = ["B008"]  # FastAPI dependency injection uses call-in-default
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic/"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.uv]
+package = false
