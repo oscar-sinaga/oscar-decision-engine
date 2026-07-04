@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~85%
-- Current phase: Phase 11 complete — SvelteKit workbench
-- Latest local commit: (this commit) `feat(ui): build SvelteKit risk policy workbench`
+- Completion: ~95%
+- Current phase: Phase 12 complete — end-to-end validation
+- Latest local commit: (this commit) `test(e2e): cover synthetic lease-back workflow`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -45,9 +45,11 @@
 
 11. **SvelteKit workbench** — SvelteKit (Svelte 5 runes) + TypeScript strict + Tailwind CSS 4, SPA mode (ADR-009), typed API client with the backend error envelope, auth store + route guard, and all docs/09 screens: login, dashboard KPIs, decision history + trace detail (timeline, rule evidence, masked snapshot), rules (list/create with guided condition builder/detail with lifecycle + dry-run tester), strategies (list/detail with step editor, activation, rollback), simulator (payload editor + active-vs-draft compare), manual review (queue/case detail with analyst decision form), audit log with before/after diffs, admin (users, roles, pending approvals). Backend gained CORS (workbench origins) and `/v1/meta`. Gates: prettier, eslint, svelte-check strict (0 errors), Vitest 12 tests, production build; Playwright e2e specs for critical flows (run in Phase 12 against the compose stack).
 
+12. **End-to-end validation** — frontend Docker image (adapter-node) added to Compose (`postgres` + `backend` + `frontend`); full stack boots with migrations + synthetic seed; API-level synthetic lease-back flow passes against the compose stack (decision → idempotent replay → trace → simulation → manual-review resolution); Playwright browser E2E (4 tests: login/dashboard, simulation, history→trace, auth redirect) passes against the stack; security sweep: only `.env.example` tracked, no secrets, synthetic PII confined to masking tests.
+
 ## Current Phase
 
-- Phase 12: Compose E2E, hardening, final validation.
+- Phase 13: Documentation sync and final report.
 
 ## Acceptance Criteria Status
 
@@ -59,7 +61,7 @@
 | OpenAPI generation | Passing | 6 paths generated |
 | Authorization tests | Passing | 401/403 tests: anonymous, underwriter execute, API-client trace access |
 | Audit/trace tests | Passing | audit event content, trace reconstruction, PII masking, idempotency |
-| End-to-end flows | Partial | Synthetic lease-back motor decision flow passes through API; full compose E2E in Phase 12 |
+| End-to-end flows | Passing | Compose API flow + 4 Playwright browser tests |
 | Documentation synchronization | Current | ADR-005..007 added |
 
 ## Known Limitations
@@ -73,5 +75,4 @@
 
 ## Next Work
 
-1. Phase 12: full docker compose stack validation + Playwright E2E + PII/security sweep.
-2. Phase 13: documentation sync + final report.
+1. Phase 13: documentation sync + final implementation report.

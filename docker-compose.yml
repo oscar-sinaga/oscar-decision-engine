@@ -21,6 +21,7 @@ services:
       OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:oscar_dev_password@postgres:5432/oscar
       OSCAR_ENVIRONMENT: compose
       OSCAR_JWT_SECRET: compose-dev-secret-not-for-production
+      OSCAR_CORS_ORIGINS: '["http://localhost:5173","http://localhost:4173","http://localhost:3000"]'
     ports:
       - "8000:8000"
     depends_on:
@@ -30,6 +31,13 @@ services:
       sh -c "uv run --no-sync alembic upgrade head &&
              uv run --no-sync python -m app.seed &&
              uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
 
 volumes:
   oscar_pgdata:
