@@ -2,6 +2,9 @@
 
 from fastapi import APIRouter
 
-api_router = APIRouter(prefix="/v1")
+from app.modules.auth.router import router as auth_router
+from app.modules.decisions.router import router as decisions_router
 
-# Feature routers are attached here as modules are implemented.
+api_router = APIRouter(prefix="/v1")
+api_router.include_router(auth_router)
+api_router.include_router(decisions_router)
