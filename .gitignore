@@ -1,0 +1,8 @@
+
+.claude/worktrees/
+
+.env
+
+.env.*
+
+!.env.example
