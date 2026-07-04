@@ -4,9 +4,9 @@
 
 ## Overall Status
 
-- Completion: ~30%
-- Current phase: Phase 3 complete — decision runtime vertical slice
-- Latest local commit: (this commit) `feat(decision): implement runtime decision vertical slice`
+- Completion: ~40%
+- Current phase: Phase 4 complete — versioned rule and decision table management
+- Latest local commit: (this commit) `feat(rules): add versioned rule management`
 - Last updated: 2026-07-04
 
 ## Completed Phases
@@ -22,15 +22,24 @@
    - **Manual review case creation** for MANUAL_REVIEW / FRAUD_INVESTIGATION outcomes.
    - **Synthetic seed** (`app/seed.py`, idempotent): 9 demo users, 15 reason codes, 8 rules, 3 rule sets, MOTOR_SCORECARD v1, FINAL_DECISION_MOTOR v1, active LEASEBACK_MOTOR v1 strategy (7 steps).
 
+4. **Rule/decision-table/scorecard/reason-code management** — full lifecycle APIs (create → edit draft → submit-approval → activate/reject → retire) with:
+   - DSL + feature-registry + reason-code validation on every write (unknown fields/operators rejected);
+   - immutability of non-draft versions (409 `IMMUTABLE_CONFIGURATION`);
+   - one open draft/pending version per entity; activation retires the previous active version;
+   - decision-table overlap warnings surfaced on create/update;
+   - dry-run rule test endpoint (`/test`) with per-condition evidence;
+   - audit events for every transition (created/updated/submitted/activated/rejected/retired);
+   - `rule.approve` permission gate for activation (analyst cannot activate; auditor read-only).
+
 ## Current Phase
 
-- Phase 4: Versioned rule and decision table management APIs.
+- Phase 5: Strategy management and activation.
 
 ## Acceptance Criteria Status
 
 | Area | Status | Evidence |
 |---|---|---|
-| Backend checks | Passing | ruff format+check, mypy strict (74 files), pytest 52 passed |
+| Backend checks | Passing | ruff format+check, mypy strict (82 files), pytest 62 passed |
 | Frontend checks | Not started | Scaffold planned after backend core |
 | Clean DB migrations | Passing | Test session drops/recreates `oscar_test` + `alembic upgrade head`; downgrade cycle verified |
 | OpenAPI generation | Passing | 6 paths generated |
@@ -41,8 +50,9 @@
 
 ## Known Limitations
 
-- Rule/strategy/reason-code management is seed-only (no CRUD APIs yet) — Phase 4/5.
+- Strategy management is seed-only (no CRUD APIs yet) — Phase 5.
 - Simulation, manual-review decisioning, governance, monitoring endpoints not yet implemented (Phases 7–10).
+- Maker-checker (approver ≠ maker) is not yet enforced — Phase 9.
 - PII masking of traces is deny-list-of-key-names based; `pii.view` permission does not yet unlock unmasked views (masking is applied at persistence).
 
 ## Blockers
@@ -51,5 +61,5 @@
 
 ## Next Work
 
-1. Phase 4: rule CRUD + versioning + validation against the feature registry, decision-table and scorecard management, reason-code CRUD.
-2. Phase 5: strategy CRUD, activation with single-active constraint, rollback.
+1. Phase 5: strategy CRUD, activation with single-active constraint, rollback.
+2. Phase 6: decision history search API.
