@@ -47,6 +47,44 @@
 		}
 	}
 
+	// Full maker-checker: attach a simulation of this version when submitting for
+	// approval so the approver has impact evidence (P2.4). Paste a SIM id from the
+	// simulator, or leave blank to auto-run a quick single simulation.
+	let submitSimId = $state('');
+
+	async function submitForApproval() {
+		if (!strategy || !selected) return;
+		actionError = null;
+		try {
+			let simulationId = submitSimId.trim();
+			if (!simulationId) {
+				const sim = await api<{ simulation_id: string }>('/v1/simulations/single', {
+					body: {
+						application_payload: {
+							application_id: 'APP-SUBMIT-SIM',
+							product_type: strategy.product_type,
+							segment: strategy.segment,
+							applicant: { age: 34, monthly_income: 8500000, existing_monthly_obligation: 2500000 },
+							loan: { requested_amount: 15000000, requested_tenor_months: 24 },
+							vehicle: { type: 'MOTOR', year: 2020, appraisal_value: 18000000 },
+							fraud: { identity_match: true, document_match: true, blacklist_hit: false },
+							model_outputs: { credit_score: 684, model_version: 'MOTOR_SCORE_V1' }
+						},
+						strategy_version_id: selected.id
+					}
+				});
+				simulationId = sim.simulation_id;
+			}
+			await api(`/v1/strategies/${strategy.id}/versions/${selected.id}/submit-approval`, {
+				body: { simulation_id: simulationId }
+			});
+			submitSimId = '';
+			await load();
+		} catch (err) {
+			actionError = err instanceof ApiError ? err : new Error('Could not submit for approval');
+		}
+	}
+
 	function openEditor() {
 		if (!selected) return;
 		editorSteps = JSON.stringify(
@@ -132,8 +170,13 @@
 						>
 						<button
 							class="rounded bg-amber-500 px-2 py-1 text-xs font-semibold text-white"
-							onclick={() => lifecycle('submit-approval')}>Submit for approval</button
+							onclick={submitForApproval}>Submit for approval</button
 						>
+						<input
+							class="w-full rounded border-slate-300 text-xs"
+							placeholder="optional SIM id to attach (else auto-run)"
+							bind:value={submitSimId}
+						/>
 					{/if}
 					{#if canActivate && selected.status === 'PENDING_APPROVAL'}
 						<button

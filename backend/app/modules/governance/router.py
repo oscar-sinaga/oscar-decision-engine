@@ -39,6 +39,7 @@ class ApprovalRequestItem(BaseModel):
     status: ApprovalStatus
     change_summary: str
     request_reason: str
+    simulation_ref: str | None
     decision_reason: str | None
     requested_by: str | None
     decided_by: str | None
@@ -72,6 +73,7 @@ async def list_approval_requests(
             status=r.status,
             change_summary=r.change_summary,
             request_reason=r.request_reason,
+            simulation_ref=r.simulation_ref,
             decision_reason=r.decision_reason,
             requested_by=await username(r.requested_by),
             decided_by=await username(r.decided_by),

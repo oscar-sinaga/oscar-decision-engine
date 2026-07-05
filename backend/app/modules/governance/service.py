@@ -30,6 +30,7 @@ def open_approval_request(
     requested_by: User,
     change_summary: str = "",
     request_reason: str = "",
+    simulation_ref: str | None = None,
 ) -> ApprovalRequest:
     request = ApprovalRequest(
         request_id=display_id("APR"),
@@ -39,9 +40,24 @@ def open_approval_request(
         status=ApprovalStatus.PENDING,
         change_summary=change_summary,
         request_reason=request_reason,
+        simulation_ref=simulation_ref,
         requested_by=requested_by.id,
     )
     session.add(request)
+    return request
+
+
+async def pending_approval_request(
+    session: AsyncSession, *, entity_type: str, entity_id: str, entity_version: str
+) -> ApprovalRequest | None:
+    request: ApprovalRequest | None = await session.scalar(
+        select(ApprovalRequest).where(
+            ApprovalRequest.entity_type == entity_type,
+            ApprovalRequest.entity_id == entity_id,
+            ApprovalRequest.entity_version == entity_version,
+            ApprovalRequest.status == ApprovalStatus.PENDING,
+        )
+    )
     return request
 
 

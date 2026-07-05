@@ -51,6 +51,35 @@ def _strategy_body(**overrides: Any) -> dict[str, Any]:
     return body
 
 
+async def submit_with_simulation(
+    client: AsyncClient,
+    analyst: dict[str, str],
+    strategy_id: str,
+    version_id: str,
+) -> None:
+    """Run a single simulation of the version, then submit for approval with it attached.
+
+    Full maker-checker requires simulation evidence before activation (P2.4).
+    """
+    from tests.integration.test_decision_runtime import lease_back_motor_payload
+
+    sim = await client.post(
+        "/v1/simulations/single",
+        json={
+            "application_payload": lease_back_motor_payload(),
+            "strategy_version_id": version_id,
+        },
+        headers=analyst,
+    )
+    assert sim.status_code == 201, sim.text
+    submitted = await client.post(
+        f"/v1/strategies/{strategy_id}/versions/{version_id}/submit-approval",
+        json={"simulation_id": sim.json()["simulation_id"]},
+        headers=analyst,
+    )
+    assert submitted.status_code == 200, submitted.text
+
+
 async def _create_active_strategy(
     client: AsyncClient,
     analyst: dict[str, str],
@@ -68,10 +97,7 @@ async def _create_active_strategy(
             headers=analyst,
         )
     ).json()
-    await client.post(
-        f"/v1/strategies/{strategy['id']}/versions/{version['id']}/submit-approval",
-        headers=analyst,
-    )
+    await submit_with_simulation(client, analyst, strategy["id"], version["id"])
     activated = await client.post(
         f"/v1/strategies/{strategy['id']}/versions/{version['id']}/activate",
         json={"reason": "initial activation"},
@@ -191,9 +217,7 @@ async def test_new_version_and_rollback(db_client: AsyncClient) -> None:
             headers=analyst,
         )
     ).json()
-    await db_client.post(
-        f"/v1/strategies/{strategy_id}/versions/{v2['id']}/submit-approval", headers=analyst
-    )
+    await submit_with_simulation(db_client, analyst, strategy_id, v2["id"])
     await db_client.post(
         f"/v1/strategies/{strategy_id}/versions/{v2['id']}/activate",
         json={"reason": "v2 live"},

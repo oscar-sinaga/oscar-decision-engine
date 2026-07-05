@@ -34,6 +34,11 @@ class LifecycleRequest(BaseModel):
     reason: str = ""
 
 
+class SubmitApprovalRequest(BaseModel):
+    # Simulation evidence of this exact strategy version (full maker-checker).
+    simulation_id: str | None = None
+
+
 def _version_response(version: StrategyVersion) -> StrategyVersionResponse:
     return StrategyVersionResponse(
         id=str(version.id),
@@ -152,12 +157,14 @@ async def submit_strategy_version(
     strategy_id: uuid.UUID,
     version_id: uuid.UUID,
     session: Session,
+    body: SubmitApprovalRequest | None = None,
     user: User = require_permission(Permissions.STRATEGY_CREATE),
 ) -> StrategyVersionResponse:
     strategy = await service.get_strategy(session, strategy_id)
     version = service.get_version(strategy, version_id)
+    simulation_id = body.simulation_id if body else None
     return _version_response(
-        await service.submit_strategy_version(session, strategy, version, user)
+        await service.submit_strategy_version(session, strategy, version, user, simulation_id)
     )
 
 

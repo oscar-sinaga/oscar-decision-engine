@@ -24,6 +24,8 @@ class ApprovalRequest(Base):
     )
     change_summary: Mapped[str] = mapped_column(Text, default="")
     request_reason: Mapped[str] = mapped_column(Text, default="")
+    # Simulation evidence attached to the change (docs/14 §6 maker-checker).
+    simulation_ref: Mapped[str | None] = mapped_column(String(50), nullable=True)
     decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     requested_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True

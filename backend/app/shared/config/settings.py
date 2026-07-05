@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     sla_hours_medium: int = 24
     sla_hours_low: int = 72
 
+    # Full maker-checker: require an attached simulation of the exact strategy
+    # version before it can be activated (docs/14 §6, Phase 2).
+    require_strategy_simulation_before_activation: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

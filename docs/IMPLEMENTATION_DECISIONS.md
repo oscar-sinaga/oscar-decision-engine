@@ -124,3 +124,13 @@
 - **Reasoning:** Keeps credit-policy vocabulary configurable and auditable (create/update emit audit events) without letting business users define arbitrary executable computation — consistent with the "no hardcoded policy, but engine mechanics in code" principle.
 - **Consequences:** Adding a genuinely new *payload* feature is now a no-code catalog entry; adding a new *derived* feature still requires an engine change plus a catalog entry. Deactivating a feature blocks new/edited rules from using it but preserves historical rule versions.
 - **Related documents/files:** `backend/app/modules/features/`, `backend/app/modules/rules/service.py`, `backend/app/modules/strategies/service.py`, `backend/app/api/v1/meta.py`, `docs/06_data_model.md`.
+
+### ADR-011 — Full maker-checker requires attached simulation evidence for strategy activation
+
+- **Date:** 2026-07-05
+- **Status:** Accepted
+- **Context:** docs/14 §6 lists "simulation result attached" among the pre-activation approval requirements. MVP maker-checker (ADR, Phase 9) enforced approver≠maker but not simulation evidence.
+- **Decision:** A strategy version's submit-for-approval accepts a `simulation_id`; the service verifies that simulation targeted the exact version and stores its display id as `approval_requests.simulation_ref`. Activation checks (after permission, maker-checker, and reference-activatable checks) that the pending approval request carries a `simulation_ref`, else returns 409. Enforcement is on strategies only (you simulate strategies, not individual rules/tables) and is toggleable via `OSCAR_REQUIRE_STRATEGY_SIMULATION_BEFORE_ACTIVATION` (default true).
+- **Reasoning:** Gives approvers concrete impact evidence before a policy goes live, matching the documented governance flow, without over-constraining rule/table/scorecard versioning. Ordering activation checks so reference-activatability is validated first keeps existing "inactive reference" behavior and error codes stable.
+- **Consequences:** Activating a strategy now requires a prior simulation of that version; the workbench submit flow auto-runs one when the analyst does not paste an existing SIM id.
+- **Related documents/files:** `backend/app/modules/strategies/service.py`, `backend/app/modules/governance/service.py`, `backend/app/modules/governance/models.py`, `docs/14_audit_governance.md`.

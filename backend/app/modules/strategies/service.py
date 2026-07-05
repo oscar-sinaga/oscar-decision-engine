@@ -19,6 +19,7 @@ from app.modules.features.service import active_feature_paths
 from app.modules.governance.service import (
     ensure_maker_checker,
     open_approval_request,
+    pending_approval_request,
     resolve_approval_request,
 )
 from app.modules.rules.models import RuleSet
@@ -28,12 +29,14 @@ from app.modules.scorecards.models import (
     Scorecard,
     ScorecardVersion,
 )
+from app.modules.simulations.models import Simulation
 from app.modules.strategies.models import Strategy, StrategyStep, StrategyVersion
 from app.modules.strategies.schemas import (
     StepRequest,
     StrategyCreateRequest,
     StrategyVersionCreateRequest,
 )
+from app.shared.config import get_settings
 from app.shared.domain.enums import ApprovalStatus, ConfigStatus, StepType
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from app.shared.domain.version_lifecycle import (
@@ -295,10 +298,32 @@ async def update_strategy_version(
     return version
 
 
+async def _validate_simulation_ref(
+    session: AsyncSession, version: StrategyVersion, simulation_id: str
+) -> str:
+    """A submitted simulation must have exercised this exact strategy version."""
+    simulation = await session.scalar(
+        select(Simulation).where(Simulation.simulation_id == simulation_id)
+    )
+    if simulation is None or simulation.strategy_version_id != version.id:
+        raise ValidationFailedError(
+            "Attached simulation does not match this strategy version",
+            details=[{"field": "simulation_id", "issue": f"invalid: {simulation_id}"}],
+        )
+    return simulation.simulation_id
+
+
 async def submit_strategy_version(
-    session: AsyncSession, strategy: Strategy, version: StrategyVersion, actor: User
+    session: AsyncSession,
+    strategy: Strategy,
+    version: StrategyVersion,
+    actor: User,
+    simulation_id: str | None = None,
 ) -> StrategyVersion:
     before = version.status
+    simulation_ref = (
+        await _validate_simulation_ref(session, version, simulation_id) if simulation_id else None
+    )
     submit_for_approval(version)
     open_approval_request(
         session,
@@ -307,6 +332,7 @@ async def submit_strategy_version(
         entity_version=str(version.version),
         requested_by=actor,
         change_summary=version.version_note,
+        simulation_ref=simulation_ref,
     )
     record_audit_event(
         session,
@@ -317,7 +343,7 @@ async def submit_strategy_version(
         action="SUBMIT_FOR_APPROVAL",
         actor=actor,
         before_value={"status": before},
-        after_value={"status": version.status},
+        after_value={"status": version.status, "simulation_ref": simulation_ref},
     )
     await session.commit()
     return version
@@ -391,6 +417,18 @@ async def activate_strategy_version(
         )
     ensure_maker_checker(version.created_by, actor)
     await _verify_references_activatable(session, version)
+    if get_settings().require_strategy_simulation_before_activation:
+        request = await pending_approval_request(
+            session,
+            entity_type="STRATEGY_VERSION",
+            entity_id=strategy.strategy_code,
+            entity_version=str(version.version),
+        )
+        if request is None or not request.simulation_ref:
+            raise ConflictError(
+                "A simulation of this strategy version must be attached before activation "
+                "(submit for approval with simulation_id)"
+            )
     before = version.status
     retired = await _retire_competing_active_versions(session, strategy, version)
     version.status = ConfigStatus.ACTIVE
