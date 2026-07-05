@@ -7,6 +7,7 @@ transaction. If any mandatory persistence (including the audit event) fails,
 the whole decision fails — no silent unaudited decisions (docs/18 §12).
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -26,6 +27,7 @@ from app.modules.decisions.schemas import (
     TraceStrategyRef,
 )
 from app.modules.manual_review.models import ManualReviewCase
+from app.modules.manual_review.service import sla_due_at
 from app.modules.reason_codes.models import ReasonCode
 from app.modules.strategies.plan_builder import build_plan, resolve_active_strategy_version
 from app.shared.domain.enums import (
@@ -125,17 +127,19 @@ async def execute_decision(
 
     case: ManualReviewCase | None = None
     if result.final_decision in REVIEW_DECISIONS:
+        priority = (
+            CasePriority.HIGH
+            if result.final_decision is DecisionType.FRAUD_INVESTIGATION
+            else CasePriority.MEDIUM
+        )
         case = ManualReviewCase(
             case_id=display_id("CASE"),
             application_pk=application.id,
             decision_pk=decision.id,
             system_decision=result.final_decision,
             status=CaseStatus.NEW,
-            priority=(
-                CasePriority.HIGH
-                if result.final_decision is DecisionType.FRAUD_INVESTIGATION
-                else CasePriority.MEDIUM
-            ),
+            priority=priority,
+            sla_due_at=sla_due_at(priority, datetime.now(UTC)),
         )
         session.add(case)
         application.status = ApplicationStatus.PENDING_REVIEW

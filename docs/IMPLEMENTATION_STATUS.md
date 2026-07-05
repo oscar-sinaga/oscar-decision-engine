@@ -5,8 +5,8 @@
 ## Overall Status
 
 - Completion: **100% of MVP scope** + Phase 2 in progress
-- Current phase: **Phase 2** (post-MVP enhancements) — P2.1, P2.2 complete
-- Latest local commit: (this commit) `feat(simulation): add batch policy impact analysis`
+- Current phase: **Phase 2** (post-MVP enhancements) — P2.1–P2.3 complete
+- Latest local commit: (this commit) `feat(review): advanced manual review (SLA, comments, documents)`
 - Last updated: 2026-07-05
 
 ## Phase 2 Progress (post-MVP, docs/05)
@@ -15,7 +15,7 @@
 |---|---|
 | P2.1 Feature Catalog / Data Dictionary | **Complete** — DB-backed catalog (`features` table, migration `cc396755f845`), CRUD API (`/v1/features`), rule + strategy validation and `/v1/meta` now driven by the active catalog, seeded from the engine registry, workbench screen. 98 backend tests. |
 | P2.2 Batch Simulation / Policy Impact Analysis | **Complete** — `POST /v1/simulations/batch` runs a candidate strategy version over a population (JSON payloads), aggregates approval/reject/manual-review rates, reason-code and risk-grade distribution, active-vs-candidate decision-shift matrix, and per-segment impact; zero production side effects (row-count assertions); workbench policy-impact screen. 101 backend tests. |
-| P2.3 Advanced Manual Review (SLA, assignment, escalation, comments) | Pending |
+| P2.3 Advanced Manual Review (SLA, assignment, escalation, comments) | **Complete** — priority-derived SLA target + breach flag on cases; append-only comment thread; document checklist (request → received/waived); escalation target; migration `553675a0147d`; workbench queue SLA column + case-detail comment/document/escalation panels. 106 backend tests. |
 | P2.4 Full maker-checker (mandatory simulation attachment) | Pending |
 | P2.5 Model Registry + Advanced Dashboard trends | Pending |
 | Deferred (needs human/business decision) | External data-source integration (bureau/eKYC/model service — real creds), deployment management (dev/staging/prod promotion) |

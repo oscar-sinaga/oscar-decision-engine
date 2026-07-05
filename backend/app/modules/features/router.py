@@ -135,7 +135,7 @@ async def update_feature(
     feature = await session.get(Feature, feature_id)
     if feature is None:
         raise NotFoundError(f"Feature '{feature_id}' not found")
-    changes = {k: v for k, v in body.model_dump(exclude_unset=True).items()}
+    changes = dict(body.model_dump(exclude_unset=True).items())
     if not changes:
         return _response(feature)
     before = {key: getattr(feature, key) for key in changes}

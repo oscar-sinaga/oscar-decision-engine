@@ -1,6 +1,7 @@
 """Manual review service: assignment, analyst decision, override control (docs/13)."""
 
-from datetime import UTC, datetime
+import uuid
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -10,10 +11,21 @@ from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
 from app.modules.decisions.models import Application, Decision
-from app.modules.manual_review.models import ManualReviewCase
+from app.modules.manual_review.models import (
+    ManualReviewCase,
+    ManualReviewComment,
+    ManualReviewDocument,
+)
 from app.modules.manual_review.schemas import ANALYST_DECISIONS, AnalystDecisionRequest
 from app.modules.reason_codes.models import ReasonCode
-from app.shared.domain.enums import ApplicationStatus, CaseStatus, DecisionType
+from app.shared.config import get_settings
+from app.shared.domain.enums import (
+    ApplicationStatus,
+    CasePriority,
+    CaseStatus,
+    DecisionType,
+    DocumentStatus,
+)
 from app.shared.domain.errors import (
     AuthorizationError,
     ConflictError,
@@ -31,6 +43,17 @@ OPEN_STATUSES = {
     CaseStatus.PENDING_DOCUMENTS,
     CaseStatus.ESCALATED,
 }
+
+
+def sla_due_at(priority: CasePriority, created_at: datetime) -> datetime:
+    """SLA target for a case, derived from priority (configurable, Phase 2)."""
+    settings = get_settings()
+    hours = {
+        CasePriority.HIGH: settings.sla_hours_high,
+        CasePriority.MEDIUM: settings.sla_hours_medium,
+        CasePriority.LOW: settings.sla_hours_low,
+    }[priority]
+    return created_at + timedelta(hours=hours)
 
 
 async def get_case(session: AsyncSession, case_id: str) -> ManualReviewCase:
@@ -197,11 +220,16 @@ async def decide_case(
 
 
 async def escalate_case(
-    session: AsyncSession, case: ManualReviewCase, reason: str, actor: User
+    session: AsyncSession,
+    case: ManualReviewCase,
+    reason: str,
+    actor: User,
+    escalated_to: str | None = None,
 ) -> ManualReviewCase:
     _ensure_open(case)
-    before = {"status": case.status}
+    before = {"status": case.status, "escalated_to": case.escalated_to}
     case.status = CaseStatus.ESCALATED
+    case.escalated_to = escalated_to
     record_audit_event(
         session,
         event_type="MANUAL_REVIEW_ESCALATED",
@@ -211,19 +239,33 @@ async def escalate_case(
         actor=actor,
         reason=reason,
         before_value=before,
-        after_value={"status": case.status},
+        after_value={"status": case.status, "escalated_to": escalated_to},
     )
     await session.commit()
     return case
 
 
 async def request_documents(
-    session: AsyncSession, case: ManualReviewCase, message: str, actor: User
+    session: AsyncSession,
+    case: ManualReviewCase,
+    message: str,
+    actor: User,
+    document_names: list[str] | None = None,
 ) -> ManualReviewCase:
     _ensure_open(case)
     before = {"status": case.status}
     case.status = CaseStatus.PENDING_DOCUMENTS
     case.notes = f"{case.notes}\n[DOCUMENT REQUEST] {message}".strip()
+    # Each named document becomes a checklist item the underwriter can resolve.
+    for name in document_names or [message]:
+        session.add(
+            ManualReviewDocument(
+                case_pk=case.id,
+                name=name[:200],
+                status=DocumentStatus.REQUESTED,
+                requested_by=actor.id,
+            )
+        )
     record_audit_event(
         session,
         event_type="MANUAL_REVIEW_DOCUMENTS_REQUESTED",
@@ -233,10 +275,80 @@ async def request_documents(
         actor=actor,
         reason=message,
         before_value=before,
-        after_value={"status": case.status},
+        after_value={"status": case.status, "documents": document_names or [message]},
     )
     await session.commit()
     return case
+
+
+async def resolve_document(
+    session: AsyncSession,
+    case: ManualReviewCase,
+    document_id: uuid.UUID,
+    status: DocumentStatus,
+    actor: User,
+) -> ManualReviewDocument:
+    document = await session.get(ManualReviewDocument, document_id)
+    if document is None or document.case_pk != case.id:
+        raise NotFoundError(f"Document '{document_id}' not found for case '{case.case_id}'")
+    before = {"status": document.status}
+    document.status = status
+    document.resolved_at = datetime.now(UTC)
+    record_audit_event(
+        session,
+        event_type="MANUAL_REVIEW_DOCUMENT_RESOLVED",
+        entity_type="MANUAL_REVIEW_CASE",
+        entity_id=case.case_id,
+        action="RESOLVE_DOCUMENT",
+        actor=actor,
+        before_value=before,
+        after_value={"document": document.name, "status": status},
+    )
+    await session.commit()
+    return document
+
+
+async def add_comment(
+    session: AsyncSession, case: ManualReviewCase, body: str, actor: User
+) -> ManualReviewComment:
+    comment = ManualReviewComment(
+        case_pk=case.id,
+        author_user_id=actor.id,
+        author_label=actor.username,
+        body=body,
+    )
+    session.add(comment)
+    record_audit_event(
+        session,
+        event_type="MANUAL_REVIEW_COMMENT_ADDED",
+        entity_type="MANUAL_REVIEW_CASE",
+        entity_id=case.case_id,
+        action="ADD_COMMENT",
+        actor=actor,
+        metadata={"length": len(body)},
+    )
+    await session.commit()
+    return comment
+
+
+async def list_comments(session: AsyncSession, case: ManualReviewCase) -> list[ManualReviewComment]:
+    rows = await session.scalars(
+        select(ManualReviewComment)
+        .where(ManualReviewComment.case_pk == case.id)
+        .order_by(ManualReviewComment.created_at)
+    )
+    return list(rows.all())
+
+
+async def list_documents(
+    session: AsyncSession, case: ManualReviewCase
+) -> list[ManualReviewDocument]:
+    rows = await session.scalars(
+        select(ManualReviewDocument)
+        .where(ManualReviewDocument.case_pk == case.id)
+        .order_by(ManualReviewDocument.requested_at)
+    )
+    return list(rows.all())
 
 
 async def load_case_context(

@@ -1,6 +1,7 @@
 """Manual review API routes (docs/07 §7)."""
 
-from datetime import datetime
+import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
@@ -19,8 +20,12 @@ from app.modules.manual_review.schemas import (
     CaseDetailResponse,
     CaseListItem,
     CaseListResponse,
+    CommentItem,
+    CommentRequest,
+    DocumentItem,
     EscalateRequest,
     RequestDocumentsRequest,
+    ResolveDocumentRequest,
 )
 from app.shared.database import get_session
 from app.shared.domain.enums import CasePriority, CaseStatus, ProductType
@@ -30,6 +35,9 @@ from app.shared.utils.masking import redact
 router = APIRouter(prefix="/manual-review", tags=["manual-review"])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+
+# Statuses in which an SLA breach is meaningful (case still open).
+_OPEN_FOR_SLA = service.OPEN_STATUSES
 
 
 async def _username(session: AsyncSession, user_id: Any) -> str | None:
@@ -42,6 +50,12 @@ async def _username(session: AsyncSession, user_id: Any) -> str | None:
 def _summary(snapshot: dict[str, Any], section: str) -> dict[str, Any]:
     data = snapshot.get(section, {})
     return redact(data) if isinstance(data, dict) else {}
+
+
+def _sla_breached(case: ManualReviewCase) -> bool:
+    if case.sla_due_at is None or case.status not in _OPEN_FOR_SLA:
+        return False
+    return datetime.now(UTC) > case.sla_due_at
 
 
 async def _list_item(
@@ -57,6 +71,8 @@ async def _list_item(
         status=case.status,
         priority=case.priority,
         assigned_to=await _username(session, case.assigned_to),
+        sla_due_at=case.sla_due_at,
+        sla_breached=_sla_breached(case),
         created_at=case.created_at,
     )
 
@@ -120,6 +136,8 @@ async def get_case_detail(
     )
     base = await _list_item(session, case, decision, application)
     snapshot = application.payload_snapshot or {}
+    comments = await service.list_comments(session, case)
+    documents = await service.list_documents(session, case)
     return CaseDetailResponse(
         **base.model_dump(),
         decision_id=decision.decision_id,
@@ -136,7 +154,27 @@ async def get_case_detail(
         approved_tenor_months=case.approved_tenor_months,
         override_reason_code=case.override_reason_code,
         override_reason=case.override_reason,
+        escalated_to=case.escalated_to,
         notes=case.notes,
+        comments=[
+            CommentItem(
+                id=str(c.id),
+                author_label=c.author_label,
+                body=c.body,
+                created_at=c.created_at,
+            )
+            for c in comments
+        ],
+        documents=[
+            DocumentItem(
+                id=str(d.id),
+                name=d.name,
+                status=d.status,
+                requested_at=d.requested_at,
+                resolved_at=d.resolved_at,
+            )
+            for d in documents
+        ],
         closed_at=case.closed_at,
     )
 
@@ -179,7 +217,7 @@ async def escalate_case(
     user: User = require_permission(Permissions.MANUAL_REVIEW_DECIDE),
 ) -> CaseDetailResponse:
     case = await service.get_case(session, case_id)
-    await service.escalate_case(session, case, body.reason, user)
+    await service.escalate_case(session, case, body.reason, user, body.escalated_to)
     return await get_case_detail(case_id, session, user)
 
 
@@ -191,5 +229,30 @@ async def request_documents(
     user: User = require_permission(Permissions.MANUAL_REVIEW_DECIDE),
 ) -> CaseDetailResponse:
     case = await service.get_case(session, case_id)
-    await service.request_documents(session, case, body.message, user)
+    await service.request_documents(session, case, body.message, user, body.document_names)
+    return await get_case_detail(case_id, session, user)
+
+
+@router.post("/cases/{case_id}/comments", response_model=CaseDetailResponse)
+async def add_comment(
+    case_id: str,
+    body: CommentRequest,
+    session: Session,
+    user: User = require_permission(Permissions.MANUAL_REVIEW_VIEW),
+) -> CaseDetailResponse:
+    case = await service.get_case(session, case_id)
+    await service.add_comment(session, case, body.body, user)
+    return await get_case_detail(case_id, session, user)
+
+
+@router.post("/cases/{case_id}/documents/{document_id}/resolve", response_model=CaseDetailResponse)
+async def resolve_document(
+    case_id: str,
+    document_id: uuid.UUID,
+    body: ResolveDocumentRequest,
+    session: Session,
+    user: User = require_permission(Permissions.MANUAL_REVIEW_DECIDE),
+) -> CaseDetailResponse:
+    case = await service.get_case(session, case_id)
+    await service.resolve_document(session, case, document_id, body.status, user)
     return await get_case_detail(case_id, session, user)

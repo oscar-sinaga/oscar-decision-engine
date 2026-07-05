@@ -23,7 +23,10 @@
 		notes: ''
 	});
 	let escalateReason = $state('');
+	let escalateTo = $state('');
 	let documentMessage = $state('');
+	let documentNames = $state('');
+	let commentBody = $state('');
 
 	async function load() {
 		error = null;
@@ -79,6 +82,16 @@
 		<h1 class="text-xl font-bold text-slate-800">{detail.case_id}</h1>
 		<Badge value={detail.status} />
 		<span class="text-xs text-slate-500">priority {detail.priority}</span>
+		{#if detail.sla_breached}
+			<span class="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
+				SLA breached
+			</span>
+		{:else if detail.sla_due_at}
+			<span class="text-xs text-slate-400">SLA due {formatDateTime(detail.sla_due_at)}</span>
+		{/if}
+		{#if detail.escalated_to}
+			<span class="text-xs text-purple-700">escalated → {detail.escalated_to}</span>
+		{/if}
 	</div>
 
 	<div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -245,9 +258,18 @@
 									bind:value={escalateReason}
 								/>
 							</label>
+							<input
+								class="mt-1 w-full rounded border-slate-300 text-sm"
+								placeholder="escalate to (team/role)"
+								bind:value={escalateTo}
+							/>
 							<button
 								class="mt-1 rounded bg-purple-700 px-3 py-1.5 text-xs font-semibold text-white"
-								onclick={() => act('escalate', { reason: escalateReason })}>Escalate</button
+								onclick={() =>
+									act('escalate', {
+										reason: escalateReason,
+										escalated_to: escalateTo || null
+									})}>Escalate</button
 							>
 						</div>
 						<div>
@@ -258,10 +280,23 @@
 									bind:value={documentMessage}
 								/>
 							</label>
+							<input
+								class="mt-1 w-full rounded border-slate-300 text-sm"
+								placeholder="checklist items, comma-separated"
+								bind:value={documentNames}
+							/>
 							<button
 								class="mt-1 rounded bg-slate-600 px-3 py-1.5 text-xs font-semibold text-white"
-								onclick={() => act('request-documents', { message: documentMessage })}
-								>Request documents</button
+								onclick={() =>
+									act('request-documents', {
+										message: documentMessage,
+										document_names: documentNames
+											? documentNames
+													.split(',')
+													.map((s) => s.trim())
+													.filter(Boolean)
+											: null
+									})}>Request documents</button
 							>
 						</div>
 						{#if !detail.assigned_to}
@@ -273,6 +308,61 @@
 					</div>
 				</Card>
 			{/if}
+
+			{#if detail.documents.length > 0}
+				<Card title="Document checklist">
+					<ul class="space-y-2 text-sm" data-testid="document-checklist">
+						{#each detail.documents as doc (doc.id)}
+							<li class="flex items-center justify-between">
+								<span>{doc.name} <Badge value={doc.status} /></span>
+								{#if canDecide && doc.status === 'REQUESTED'}
+									<span class="flex gap-1">
+										<button
+											class="text-xs text-emerald-700 underline"
+											onclick={() => act(`documents/${doc.id}/resolve`, { status: 'RECEIVED' })}
+											>received</button
+										>
+										<button
+											class="text-xs text-slate-500 underline"
+											onclick={() => act(`documents/${doc.id}/resolve`, { status: 'WAIVED' })}
+											>waive</button
+										>
+									</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</Card>
+			{/if}
+
+			<Card title="Comments">
+				<ul class="mb-3 space-y-2 text-sm" data-testid="comment-thread">
+					{#each detail.comments as comment (comment.id)}
+						<li class="rounded border border-slate-100 bg-slate-50 px-2 py-1.5">
+							<div class="flex justify-between text-[11px] text-slate-400">
+								<span>{comment.author_label}</span>
+								<span>{formatDateTime(comment.created_at)}</span>
+							</div>
+							<p class="text-slate-700">{comment.body}</p>
+						</li>
+					{:else}
+						<li class="text-xs text-slate-400">No comments yet.</li>
+					{/each}
+				</ul>
+				<textarea
+					class="h-16 w-full rounded border-slate-300 text-sm"
+					placeholder="Add a comment…"
+					bind:value={commentBody}></textarea>
+				<button
+					class="mt-1 rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+					disabled={!commentBody.trim()}
+					onclick={() => {
+						act('comments', { body: commentBody });
+						commentBody = '';
+					}}>Add comment</button
+				>
+			</Card>
+
 			{#if actionError}
 				<ErrorNote error={actionError} />
 			{/if}

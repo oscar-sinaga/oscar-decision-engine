@@ -9,7 +9,11 @@ from app.modules.auth.models import Permission, Role, User
 from app.modules.decisions.models import Application, Decision, DecisionTrace
 from app.modules.features.models import Feature
 from app.modules.governance.models import ApprovalRequest
-from app.modules.manual_review.models import ManualReviewCase
+from app.modules.manual_review.models import (
+    ManualReviewCase,
+    ManualReviewComment,
+    ManualReviewDocument,
+)
 from app.modules.reason_codes.models import ReasonCode
 from app.modules.rules.models import Rule, RuleSet, RuleSetMember, RuleVersion
 from app.modules.scorecards.models import (
@@ -31,6 +35,8 @@ __all__ = [
     "DecisionTrace",
     "Feature",
     "ManualReviewCase",
+    "ManualReviewComment",
+    "ManualReviewDocument",
     "Permission",
     "ReasonCode",
     "Role",

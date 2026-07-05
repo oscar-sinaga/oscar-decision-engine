@@ -263,7 +263,24 @@ export interface ManualReviewCase {
 	status: string;
 	priority: string;
 	assigned_to: string | null;
+	sla_due_at: string | null;
+	sla_breached: boolean;
 	created_at: string;
+}
+
+export interface CaseComment {
+	id: string;
+	author_label: string;
+	body: string;
+	created_at: string;
+}
+
+export interface CaseDocument {
+	id: string;
+	name: string;
+	status: string;
+	requested_at: string;
+	resolved_at: string | null;
 }
 
 export interface CaseDetail extends ManualReviewCase {
@@ -281,7 +298,10 @@ export interface CaseDetail extends ManualReviewCase {
 	approved_tenor_months: number | null;
 	override_reason_code: string | null;
 	override_reason: string | null;
+	escalated_to: string | null;
 	notes: string;
+	comments: CaseComment[];
+	documents: CaseDocument[];
 	closed_at: string | null;
 }
 

@@ -9,7 +9,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.database.base import Base
-from app.shared.domain.enums import CasePriority, CaseStatus, DecisionType
+from app.shared.domain.enums import (
+    CasePriority,
+    CaseStatus,
+    DecisionType,
+    DocumentStatus,
+)
 
 
 class ManualReviewCase(Base):
@@ -41,6 +46,9 @@ class ManualReviewCase(Base):
     override_reason_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     override_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # SLA target derived from priority at creation (docs/13 §9 advanced review).
+    sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    escalated_to: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
@@ -48,3 +56,50 @@ class ManualReviewCase(Base):
 
     application = relationship("Application")
     decision_record = relationship("Decision")
+    comments: Mapped[list["ManualReviewComment"]] = relationship(
+        back_populates="case", order_by="ManualReviewComment.created_at"
+    )
+    documents: Mapped[list["ManualReviewDocument"]] = relationship(
+        back_populates="case", order_by="ManualReviewDocument.requested_at"
+    )
+
+
+class ManualReviewComment(Base):
+    """Append-only case comment thread (docs/13 §9)."""
+
+    __tablename__ = "manual_review_comments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    case_pk: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("manual_review_cases.id"), index=True
+    )
+    author_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+    author_label: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    case: Mapped[ManualReviewCase] = relationship(back_populates="comments")
+
+
+class ManualReviewDocument(Base):
+    """Requested-document checklist item (docs/13 §9)."""
+
+    __tablename__ = "manual_review_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    case_pk: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("manual_review_cases.id"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    status: Mapped[DocumentStatus] = mapped_column(String(20), default=DocumentStatus.REQUESTED)
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    case: Mapped[ManualReviewCase] = relationship(back_populates="documents")

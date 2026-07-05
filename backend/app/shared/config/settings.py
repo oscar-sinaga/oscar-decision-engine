@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # Decision runtime
     decision_default_product_segment: str = "DEFAULT"
 
+    # Manual-review SLA target hours per case priority (Phase 2).
+    sla_hours_high: int = 4
+    sla_hours_medium: int = 24
+    sla_hours_low: int = 72
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -164,3 +164,9 @@ class FeatureSource(StrEnum):
     PAYLOAD = "PAYLOAD"  # supplied on the application payload
     DERIVED = "DERIVED"  # computed by a CALCULATION step
     SCORE = "SCORE"  # produced by a SCORECARD step
+
+
+class DocumentStatus(StrEnum):
+    REQUESTED = "REQUESTED"
+    RECEIVED = "RECEIVED"
+    WAIVED = "WAIVED"

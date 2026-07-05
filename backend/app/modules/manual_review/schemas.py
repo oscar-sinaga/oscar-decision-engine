@@ -5,7 +5,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.shared.domain.enums import CasePriority, CaseStatus, DecisionType
+from app.shared.domain.enums import (
+    CasePriority,
+    CaseStatus,
+    DecisionType,
+    DocumentStatus,
+)
 
 # Analyst resolutions allowed on a case (docs/13 §5).
 ANALYST_DECISIONS = {
@@ -26,7 +31,24 @@ class CaseListItem(BaseModel):
     status: CaseStatus
     priority: CasePriority
     assigned_to: str | None
+    sla_due_at: datetime | None
+    sla_breached: bool
     created_at: datetime
+
+
+class CommentItem(BaseModel):
+    id: str
+    author_label: str
+    body: str
+    created_at: datetime
+
+
+class DocumentItem(BaseModel):
+    id: str
+    name: str
+    status: DocumentStatus
+    requested_at: datetime
+    resolved_at: datetime | None
 
 
 class CaseListResponse(BaseModel):
@@ -51,7 +73,10 @@ class CaseDetailResponse(CaseListItem):
     approved_tenor_months: int | None
     override_reason_code: str | None
     override_reason: str | None
+    escalated_to: str | None
     notes: str
+    comments: list[CommentItem]
+    documents: list[DocumentItem]
     closed_at: datetime | None
 
 
@@ -77,9 +102,23 @@ class EscalateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     reason: str = Field(min_length=1)
+    escalated_to: str | None = Field(default=None, max_length=100)
 
 
 class RequestDocumentsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     message: str = Field(min_length=1)
+    document_names: list[str] | None = None
+
+
+class CommentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class ResolveDocumentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: DocumentStatus

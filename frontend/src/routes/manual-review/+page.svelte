@@ -74,6 +74,7 @@
 					<th class="px-3 py-2">System decision</th>
 					<th class="px-3 py-2">Reasons</th>
 					<th class="px-3 py-2">Priority</th>
+					<th class="px-3 py-2">SLA</th>
 					<th class="px-3 py-2">Assigned to</th>
 					<th class="px-3 py-2">Status</th>
 					<th class="px-3 py-2">Created</th>
@@ -95,12 +96,19 @@
 						<td class="px-3 py-2"><Badge value={item.system_decision} kind="decision" /></td>
 						<td class="px-3 py-2 font-mono text-[11px]">{item.system_reason_codes.join(', ')}</td>
 						<td class="px-3 py-2 text-xs">{item.priority}</td>
+						<td class="px-3 py-2 text-xs">
+							{#if item.sla_breached}
+								<span class="font-semibold text-red-700">breached</span>
+							{:else if item.sla_due_at}
+								<span class="text-slate-500">{formatDateTime(item.sla_due_at)}</span>
+							{:else}—{/if}
+						</td>
 						<td class="px-3 py-2 text-xs">{item.assigned_to ?? '—'}</td>
 						<td class="px-3 py-2"><Badge value={item.status} /></td>
 						<td class="px-3 py-2 text-xs whitespace-nowrap">{formatDateTime(item.created_at)}</td>
 					</tr>
 				{:else}
-					<tr><td class="px-3 py-6 text-center text-slate-400" colspan="9">Queue is empty</td></tr>
+					<tr><td class="px-3 py-6 text-center text-slate-400" colspan="10">Queue is empty</td></tr>
 				{/each}
 			</tbody>
 		</table>
