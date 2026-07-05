@@ -14,6 +14,7 @@ from app.modules.manual_review.models import (
     ManualReviewComment,
     ManualReviewDocument,
 )
+from app.modules.model_registry.models import RegisteredModel
 from app.modules.reason_codes.models import ReasonCode
 from app.modules.rules.models import Rule, RuleSet, RuleSetMember, RuleVersion
 from app.modules.scorecards.models import (
@@ -39,6 +40,7 @@ __all__ = [
     "ManualReviewDocument",
     "Permission",
     "ReasonCode",
+    "RegisteredModel",
     "Role",
     "Rule",
     "RuleSet",

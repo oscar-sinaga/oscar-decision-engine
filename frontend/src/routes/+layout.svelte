@@ -14,6 +14,7 @@
 		{ href: '/features', label: 'Feature Catalog' },
 		{ href: '/strategies', label: 'Strategies' },
 		{ href: '/simulations', label: 'Simulations' },
+		{ href: '/models', label: 'Model Registry' },
 		{ href: '/manual-review', label: 'Manual Review' },
 		{ href: '/audit', label: 'Audit Log' },
 		{ href: '/admin', label: 'Admin' }

@@ -34,6 +34,7 @@ from app.models import (
 from app.modules.auth.permissions import ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
 from app.modules.auth.security import hash_password
 from app.modules.features.service import catalog_seed_rows
+from app.modules.model_registry.models import RegisteredModel
 from app.shared.database.session import get_sessionmaker
 from app.shared.domain.enums import (
     ActorType,
@@ -564,6 +565,28 @@ async def seed_strategy(session: AsyncSession) -> None:
         )
 
 
+async def seed_models(session: AsyncSession) -> None:
+    existing = await session.scalar(
+        select(RegisteredModel).where(
+            RegisteredModel.code == "MOTOR_SCORE", RegisteredModel.version_label == "V1"
+        )
+    )
+    if existing is None:
+        session.add(
+            RegisteredModel(
+                code="MOTOR_SCORE",
+                version_label="V1",
+                name="Motor Leaseback Credit Score",
+                provider="INTERNAL",
+                description="Synthetic scoring model referenced by MOTOR_SCORECARD.",
+                metadata_json={
+                    "payload_version_token": "MOTOR_SCORE_V1",
+                    "score_range": [300, 850],
+                },
+            )
+        )
+
+
 async def seed_all(session: AsyncSession) -> None:
     await seed_rbac(session)
     await seed_features(session)
@@ -571,6 +594,7 @@ async def seed_all(session: AsyncSession) -> None:
     await seed_rules(session)
     await seed_scorecard_and_table(session)
     await seed_strategy(session)
+    await seed_models(session)
     await session.commit()
     logger.info("seed.completed")
 

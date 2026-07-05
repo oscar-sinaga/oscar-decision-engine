@@ -24,6 +24,8 @@ class Permissions:
     MANUAL_REVIEW_OVERRIDE = "manual_review.override"
     AUDIT_VIEW = "audit.view"
     MONITORING_VIEW = "monitoring.view"
+    MODEL_VIEW = "model.view"
+    MODEL_MANAGE = "model.manage"
     ADMIN_MANAGE = "admin.manage"
     PII_VIEW = "pii.view"
     DATA_EXPORT = "data.export"
@@ -48,6 +50,8 @@ ALL_PERMISSIONS: dict[str, str] = {
     Permissions.MANUAL_REVIEW_OVERRIDE: "Override definitive system decisions",
     Permissions.AUDIT_VIEW: "View business audit events",
     Permissions.MONITORING_VIEW: "View monitoring metrics",
+    Permissions.MODEL_VIEW: "View the model registry",
+    Permissions.MODEL_MANAGE: "Register and manage model versions",
     Permissions.ADMIN_MANAGE: "Manage users, roles, and permissions",
     Permissions.PII_VIEW: "View unmasked PII where available",
     Permissions.DATA_EXPORT: "Export data",
@@ -67,6 +71,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[str]] = {
         Permissions.SIMULATION_RUN,
         Permissions.SIMULATION_VIEW,
         Permissions.MONITORING_VIEW,
+        Permissions.MODEL_VIEW,
     ],
     "RISK_MANAGER": [
         Permissions.DECISION_VIEW,
@@ -86,6 +91,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[str]] = {
         Permissions.MANUAL_REVIEW_OVERRIDE,
         Permissions.AUDIT_VIEW,
         Permissions.MONITORING_VIEW,
+        Permissions.MODEL_VIEW,
+        Permissions.MODEL_MANAGE,
     ],
     "UNDERWRITER": [
         Permissions.DECISION_VIEW,
@@ -108,6 +115,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[str]] = {
         Permissions.SIMULATION_RUN,
         Permissions.SIMULATION_VIEW,
         Permissions.MONITORING_VIEW,
+        Permissions.MODEL_VIEW,
+        Permissions.MODEL_MANAGE,
     ],
     "ENGINEER": [
         Permissions.DECISION_VIEW,

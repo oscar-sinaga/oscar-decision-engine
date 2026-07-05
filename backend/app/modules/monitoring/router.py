@@ -148,3 +148,51 @@ async def decision_summary(
         api_latency_p95_ms=float(latency_p95) if latency_p95 is not None else None,
         manual_review_queue_size=queue_size,
     )
+
+
+class TrendBucket(BaseModel):
+    date: str
+    total: int
+    decision_counts: dict[str, int]
+
+
+class DecisionTrendResponse(BaseModel):
+    interval: str
+    buckets: list[TrendBucket]
+
+
+@router.get("/decision-trend", response_model=DecisionTrendResponse)
+async def decision_trend(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    product_type: Annotated[ProductType | None, Query()] = None,
+    channel: Annotated[str | None, Query()] = None,
+    date_from: Annotated[datetime | None, Query()] = None,
+    date_to: Annotated[datetime | None, Query()] = None,
+    user: User = require_permission(Permissions.MONITORING_VIEW),
+) -> DecisionTrendResponse:
+    """Daily decision volume and outcome mix for dashboard trend charts."""
+    day = func.date_trunc("day", Decision.created_at)
+    query = _filtered(
+        select(day.label("bucket"), Decision.decision, func.count())
+        .select_from(Decision)
+        .group_by("bucket", Decision.decision)
+        .order_by("bucket"),
+        product_type,
+        channel,
+        date_from,
+        date_to,
+    )
+    rows = (await session.execute(query)).all()
+
+    buckets: dict[str, dict[str, int]] = {}
+    for bucket, decision, count in rows:
+        key = bucket.date().isoformat()
+        buckets.setdefault(key, {})[str(decision)] = int(count)
+
+    return DecisionTrendResponse(
+        interval="day",
+        buckets=[
+            TrendBucket(date=key, total=sum(counts.values()), decision_counts=counts)
+            for key, counts in sorted(buckets.items())
+        ],
+    )

@@ -377,6 +377,29 @@ export interface Feature {
 	created_at: string | null;
 }
 
+export interface RegisteredModel {
+	id: string;
+	code: string;
+	version_label: string;
+	name: string;
+	provider: string;
+	description: string;
+	active: boolean;
+	metadata: Record<string, unknown>;
+	created_at: string | null;
+}
+
+export interface DecisionTrendBucket {
+	date: string;
+	total: number;
+	decision_counts: Record<string, number>;
+}
+
+export interface DecisionTrend {
+	interval: string;
+	buckets: DecisionTrendBucket[];
+}
+
 export interface Meta {
 	features: { path: string; description: string; derived: boolean }[];
 	operators: string[];

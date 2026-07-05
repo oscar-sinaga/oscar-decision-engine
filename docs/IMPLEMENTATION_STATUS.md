@@ -5,8 +5,8 @@
 ## Overall Status
 
 - Completion: **100% of MVP scope** + Phase 2 in progress
-- Current phase: **Phase 2** (post-MVP enhancements) — P2.1–P2.4 complete
-- Latest local commit: (this commit) `feat(governance): require simulation before strategy activation`
+- Current phase: **Phase 2** (post-MVP enhancements) — P2.1–P2.5 complete
+- Latest local commit: (this commit) `feat(monitoring): add model registry and decision trend`
 - Last updated: 2026-07-05
 
 ## Phase 2 Progress (post-MVP, docs/05)
@@ -17,8 +17,10 @@
 | P2.2 Batch Simulation / Policy Impact Analysis | **Complete** — `POST /v1/simulations/batch` runs a candidate strategy version over a population (JSON payloads), aggregates approval/reject/manual-review rates, reason-code and risk-grade distribution, active-vs-candidate decision-shift matrix, and per-segment impact; zero production side effects (row-count assertions); workbench policy-impact screen. 101 backend tests. |
 | P2.3 Advanced Manual Review (SLA, assignment, escalation, comments) | **Complete** — priority-derived SLA target + breach flag on cases; append-only comment thread; document checklist (request → received/waived); escalation target; migration `553675a0147d`; workbench queue SLA column + case-detail comment/document/escalation panels. 106 backend tests. |
 | P2.4 Full maker-checker (mandatory simulation attachment) | **Complete** — strategy submit-approval accepts a `simulation_id` that must have exercised that exact version; activation is blocked (409) unless the pending approval request carries simulation evidence (configurable via `OSCAR_REQUIRE_STRATEGY_SIMULATION_BEFORE_ACTIVATION`); `simulation_ref` surfaced on `/v1/approvals`; migration `d915f8cefdbb`; workbench submit flow auto-runs/attaches a simulation. 109 backend tests. |
-| P2.5 Model Registry + Advanced Dashboard trends | Pending |
+| P2.5 Model Registry + Advanced Dashboard trends | **Complete** — `registered_models` table + `/v1/models` CRUD under new `model.view`/`model.manage` permissions (DATA_SCIENTIST/RISK_MANAGER/ADMIN), audited; `GET /v1/monitoring/decision-trend` daily buckets; migration `1864d7efc83f`; workbench Model Registry screen + dashboard trend chart. 114 backend tests. |
 | Deferred (needs human/business decision) | External data-source integration (bureau/eKYC/model service — real creds), deployment management (dev/staging/prod promotion) |
+
+**Phase 2 (P2.1–P2.5) complete.** Remaining Phase 2 catalogue items (external data-source integration, deployment management) are deferred pending business/credential decisions; all other Phase 2 capabilities are implemented.
 
 ## Completed Phases
 

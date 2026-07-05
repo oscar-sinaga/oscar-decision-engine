@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { api } from '$lib/api/client';
-	import type { DecisionSummary, Meta } from '$lib/api/types';
+	import type { DecisionSummary, DecisionTrend, Meta } from '$lib/api/types';
 	import Card from '$lib/components/Card.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
 	import { formatPercent } from '$lib/format';
 
 	let summary = $state<DecisionSummary | null>(null);
+	let trend = $state<DecisionTrend | null>(null);
 	let meta = $state<Meta | null>(null);
 	let error = $state<unknown>(null);
 	let productType = $state('');
@@ -14,13 +15,15 @@
 	async function load() {
 		error = null;
 		try {
-			summary = await api<DecisionSummary>('/v1/monitoring/decision-summary', {
-				query: { product_type: productType || undefined, channel: channel || undefined }
-			});
+			const query = { product_type: productType || undefined, channel: channel || undefined };
+			summary = await api<DecisionSummary>('/v1/monitoring/decision-summary', { query });
+			trend = await api<DecisionTrend>('/v1/monitoring/decision-trend', { query });
 		} catch (err) {
 			error = err;
 		}
 	}
+
+	const maxBucket = $derived(Math.max(1, ...(trend?.buckets ?? []).map((b) => b.total)));
 
 	$effect(() => {
 		load();
@@ -115,6 +118,29 @@
 			{/if}
 		</Card>
 	</div>
+
+	{#if trend}
+		<div class="mt-4">
+			<Card title="Decision volume trend (daily)">
+				{#if trend.buckets.length === 0}
+					<p class="text-sm text-slate-500">No decisions in this window.</p>
+				{:else}
+					<div class="flex items-end gap-2" style="height: 10rem;" data-testid="trend-chart">
+						{#each trend.buckets as bucket (bucket.date)}
+							<div class="flex flex-1 flex-col items-center justify-end">
+								<div
+									class="w-full rounded-t bg-slate-700"
+									style="height: {(bucket.total / maxBucket) * 100}%"
+									title="{bucket.date}: {bucket.total}"
+								></div>
+								<span class="mt-1 text-[10px] text-slate-400">{bucket.date.slice(5)}</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</Card>
+		</div>
+	{/if}
 {:else}
 	<p class="text-sm text-slate-500">Loading…</p>
 {/if}
