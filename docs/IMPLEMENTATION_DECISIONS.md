@@ -113,3 +113,14 @@
 - **Reasoning:** Removes duplicated auth plumbing for an internal tool, keeps the OpenAPI-backed FastAPI service the single security boundary, and simplifies Docker deployment.
 - **Consequences:** No SSR data loading; a `/v1/meta` endpoint supplies registry/enum metadata for dropdowns and the condition builder.
 - **Related documents/files:** `frontend/src/routes/+layout.ts`, `frontend/src/lib/api/client.ts`, `backend/app/main.py` (CORS), `backend/app/api/v1/meta.py`.
+
+### ADR-010 — Feature catalog is the governed vocabulary; engine keeps computation
+
+- **Date:** 2026-07-05
+- **Status:** Accepted
+- **Context:** MVP validated rule/strategy feature references against a static in-code registry (`app/engine/features.py`). Phase 2 (docs/05) calls for a Feature Catalog / Data Dictionary so risk users can govern the variable vocabulary without code changes.
+- **Options considered:** (a) keep the static registry, (b) move everything (including derived-feature computation) into config, (c) DB-backed catalog for the *vocabulary* while derived-feature *computation* stays in code.
+- **Decision:** (c). A `features` table governs which feature paths are valid plus their data type/source/description; rule and strategy (required-field) validation and `/v1/meta` query the active catalog. Derived-feature arithmetic (`compute_derived_feature`) remains engine mechanics in code, and CALCULATION steps still validate against `DERIVED_FEATURES` (the engine can only compute what it implements). The catalog is seeded to mirror the engine registry so existing seeded policy keeps validating.
+- **Reasoning:** Keeps credit-policy vocabulary configurable and auditable (create/update emit audit events) without letting business users define arbitrary executable computation — consistent with the "no hardcoded policy, but engine mechanics in code" principle.
+- **Consequences:** Adding a genuinely new *payload* feature is now a no-code catalog entry; adding a new *derived* feature still requires an engine change plus a catalog entry. Deactivating a feature blocks new/edited rules from using it but preserves historical rule versions.
+- **Related documents/files:** `backend/app/modules/features/`, `backend/app/modules/rules/service.py`, `backend/app/modules/strategies/service.py`, `backend/app/api/v1/meta.py`, `docs/06_data_model.md`.

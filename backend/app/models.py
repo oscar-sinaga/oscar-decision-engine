@@ -7,6 +7,7 @@ Every module that defines ORM models must be imported here so
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import Permission, Role, User
 from app.modules.decisions.models import Application, Decision, DecisionTrace
+from app.modules.features.models import Feature
 from app.modules.governance.models import ApprovalRequest
 from app.modules.manual_review.models import ManualReviewCase
 from app.modules.reason_codes.models import ReasonCode
@@ -28,6 +29,7 @@ __all__ = [
     "DecisionTable",
     "DecisionTableVersion",
     "DecisionTrace",
+    "Feature",
     "ManualReviewCase",
     "Permission",
     "ReasonCode",

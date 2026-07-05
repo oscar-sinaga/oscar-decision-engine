@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import (
     DecisionTable,
     DecisionTableVersion,
+    Feature,
     Permission,
     ReasonCode,
     Role,
@@ -32,6 +33,7 @@ from app.models import (
 )
 from app.modules.auth.permissions import ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
 from app.modules.auth.security import hash_password
+from app.modules.features.service import catalog_seed_rows
 from app.shared.database.session import get_sessionmaker
 from app.shared.domain.enums import (
     ActorType,
@@ -442,6 +444,14 @@ async def seed_reason_codes(session: AsyncSession) -> None:
         session.add(ReasonCode(**spec))
 
 
+async def seed_features(session: AsyncSession) -> None:
+    existing = set((await session.scalars(select(Feature.path))).all())
+    for row in catalog_seed_rows():
+        if row["path"] in existing:
+            continue
+        session.add(Feature(**row))
+
+
 async def seed_rules(session: AsyncSession) -> None:
     existing = {r.rule_code for r in (await session.scalars(select(Rule))).all()}
     for spec in SEED_RULES:
@@ -556,6 +566,7 @@ async def seed_strategy(session: AsyncSession) -> None:
 
 async def seed_all(session: AsyncSession) -> None:
     await seed_rbac(session)
+    await seed_features(session)
     await seed_reason_codes(session)
     await seed_rules(session)
     await seed_scorecard_and_table(session)

@@ -12,9 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.engine.features import DERIVED_FEATURES, KNOWN_FEATURES
+from app.engine.features import DERIVED_FEATURES
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
+from app.modules.features.service import active_feature_paths
 from app.modules.governance.service import (
     ensure_maker_checker,
     open_approval_request,
@@ -66,11 +67,12 @@ def get_version(strategy: Strategy, version_id: uuid.UUID) -> StrategyVersion:
 async def validate_steps(session: AsyncSession, steps: list[StepRequest]) -> None:
     """Reject steps referencing unknown configs, features, or calculations."""
     details: list[dict[str, str]] = []
+    known_features = await active_feature_paths(session)
     for step in steps:
         prefix = f"steps[order={step.order}]"
         if step.type == StepType.VALIDATION:
             for field in step.config.get("required_fields", []):
-                if field not in KNOWN_FEATURES:
+                if field not in known_features:
                     details.append(
                         {"field": f"{prefix}.required_fields", "issue": f"unknown feature: {field}"}
                     )

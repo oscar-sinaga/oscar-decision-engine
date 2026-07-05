@@ -149,3 +149,18 @@ class ApprovalStatus(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     CANCELLED = "CANCELLED"
+
+
+class FeatureDataType(StrEnum):
+    NUMBER = "NUMBER"
+    STRING = "STRING"
+    BOOLEAN = "BOOLEAN"
+    DATE = "DATE"
+
+
+class FeatureSource(StrEnum):
+    """Where a catalog feature's value originates."""
+
+    PAYLOAD = "PAYLOAD"  # supplied on the application payload
+    DERIVED = "DERIVED"  # computed by a CALCULATION step
+    SCORE = "SCORE"  # produced by a SCORECARD step

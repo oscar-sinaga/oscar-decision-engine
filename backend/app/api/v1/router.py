@@ -6,6 +6,7 @@ from app.api.v1.meta import router as meta_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.decisions.router import router as decisions_router
+from app.modules.features.router import router as features_router
 from app.modules.governance.router import admin_router
 from app.modules.governance.router import router as governance_router
 from app.modules.manual_review.router import router as manual_review_router
@@ -22,6 +23,7 @@ api_router.include_router(auth_router)
 api_router.include_router(decisions_router)
 api_router.include_router(rules_router)
 api_router.include_router(rule_sets_router)
+api_router.include_router(features_router)
 api_router.include_router(decision_tables_router)
 api_router.include_router(scorecards_router)
 api_router.include_router(manual_review_router)

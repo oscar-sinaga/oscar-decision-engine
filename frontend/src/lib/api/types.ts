@@ -318,6 +318,19 @@ export interface DecisionSummary {
 	manual_review_queue_size: number;
 }
 
+export interface Feature {
+	id: string;
+	path: string;
+	label: string;
+	description: string;
+	data_type: string;
+	source: string;
+	category: string;
+	allowed_values: unknown[] | null;
+	active: boolean;
+	created_at: string | null;
+}
+
 export interface Meta {
 	features: { path: string; description: string; derived: boolean }[];
 	operators: string[];

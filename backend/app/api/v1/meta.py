@@ -4,16 +4,20 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engine.dsl import Operator
-from app.engine.features import DERIVED_FEATURES, KNOWN_FEATURES
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
+from app.modules.features.models import Feature
+from app.shared.database import get_session
 from app.shared.domain.enums import (
     CasePriority,
     CaseStatus,
     ConfigStatus,
     DecisionType,
+    FeatureSource,
     ProductType,
     ReasonCodeCategory,
     ReasonSeverity,
@@ -47,11 +51,21 @@ class MetaResponse(BaseModel):
 
 
 @router.get("", response_model=MetaResponse)
-async def get_meta(user: Annotated[User, Depends(get_current_user)]) -> MetaResponse:
+async def get_meta(
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> MetaResponse:
+    features = (
+        await session.scalars(
+            select(Feature).where(Feature.active.is_(True)).order_by(Feature.path)
+        )
+    ).all()
     return MetaResponse(
         features=[
-            FeatureItem(path=path, description=desc, derived=path in DERIVED_FEATURES)
-            for path, desc in sorted(KNOWN_FEATURES.items())
+            FeatureItem(
+                path=f.path, description=f.description, derived=f.source == FeatureSource.DERIVED
+            )
+            for f in features
         ],
         operators=[op.value for op in Operator],
         decisions=[d.value for d in DecisionType],

@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.engine.dsl import RuleDefinition, collect_condition_fields, parse_rule_definition
-from app.engine.features import KNOWN_FEATURES
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
+from app.modules.features.service import active_feature_paths
 from app.modules.governance.service import (
     ensure_maker_checker,
     open_approval_request,
@@ -45,14 +45,13 @@ async def validate_rule_definition(
             details=[{"field": "condition/action", "issue": str(exc)}],
         ) from exc
 
+    known = await active_feature_paths(session)
     unknown = sorted(
-        field
-        for field in collect_condition_fields(definition.condition)
-        if field not in KNOWN_FEATURES
+        field for field in collect_condition_fields(definition.condition) if field not in known
     )
     if unknown:
         raise ValidationFailedError(
-            "Rule references unknown features",
+            "Rule references unknown or inactive features",
             details=[{"field": field, "issue": "unknown feature"} for field in unknown],
         )
 
