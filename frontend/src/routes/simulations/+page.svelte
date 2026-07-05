@@ -84,7 +84,10 @@
 	}
 </script>
 
-<h1 class="mb-1 text-xl font-bold text-slate-800">Single Application Simulator</h1>
+<div class="mb-1 flex items-center gap-3">
+	<h1 class="text-xl font-bold text-slate-800">Single Application Simulator</h1>
+	<a class="text-xs text-blue-700 underline" href="/simulations/batch">policy impact (batch) →</a>
+</div>
 <p class="mb-4 text-sm text-slate-500">
 	Runs the decision engine without creating any production decision (mode SIMULATION).
 </p>

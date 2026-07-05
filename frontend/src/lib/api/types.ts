@@ -227,6 +227,32 @@ export interface SimulationResponse {
 	differences: { field: string; active: unknown; draft: unknown }[];
 }
 
+export interface StrategyAggregate {
+	strategy_version: string;
+	decision_counts: Record<string, number>;
+	approval_rate: number;
+	reject_rate: number;
+	manual_review_rate: number;
+	error_rate: number;
+	reason_code_distribution: Record<string, number>;
+	risk_grade_distribution: Record<string, number>;
+}
+
+export interface BatchSimulationResponse {
+	simulation_id: string;
+	mode: string;
+	total_records: number;
+	target: StrategyAggregate;
+	active: StrategyAggregate | null;
+	decision_shifts: { from_decision: string; to_decision: string; count: number }[];
+	segment_impact: {
+		segment: string;
+		total: number;
+		target_decision_counts: Record<string, number>;
+		active_decision_counts: Record<string, number> | null;
+	}[];
+}
+
 export interface ManualReviewCase {
 	case_id: string;
 	application_id: string;

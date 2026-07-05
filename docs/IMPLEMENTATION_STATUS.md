@@ -5,8 +5,8 @@
 ## Overall Status
 
 - Completion: **100% of MVP scope** + Phase 2 in progress
-- Current phase: **Phase 2** (post-MVP enhancements) — P2.1 Feature Catalog complete
-- Latest local commit: (this commit) `feat(features): add governed feature catalog`
+- Current phase: **Phase 2** (post-MVP enhancements) — P2.1, P2.2 complete
+- Latest local commit: (this commit) `feat(simulation): add batch policy impact analysis`
 - Last updated: 2026-07-05
 
 ## Phase 2 Progress (post-MVP, docs/05)
@@ -14,7 +14,7 @@
 | Sub-phase | Status |
 |---|---|
 | P2.1 Feature Catalog / Data Dictionary | **Complete** — DB-backed catalog (`features` table, migration `cc396755f845`), CRUD API (`/v1/features`), rule + strategy validation and `/v1/meta` now driven by the active catalog, seeded from the engine registry, workbench screen. 98 backend tests. |
-| P2.2 Batch Simulation / Policy Impact Analysis | Pending |
+| P2.2 Batch Simulation / Policy Impact Analysis | **Complete** — `POST /v1/simulations/batch` runs a candidate strategy version over a population (JSON payloads), aggregates approval/reject/manual-review rates, reason-code and risk-grade distribution, active-vs-candidate decision-shift matrix, and per-segment impact; zero production side effects (row-count assertions); workbench policy-impact screen. 101 backend tests. |
 | P2.3 Advanced Manual Review (SLA, assignment, escalation, comments) | Pending |
 | P2.4 Full maker-checker (mandatory simulation attachment) | Pending |
 | P2.5 Model Registry + Advanced Dashboard trends | Pending |

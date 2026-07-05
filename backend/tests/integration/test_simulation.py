@@ -85,6 +85,7 @@ async def test_simulation_compares_draft_against_active(db_client: AsyncClient) 
     )
     assert draft.status_code == 201, draft.text
     draft_id = draft.json()["id"]
+    draft_version = draft.json()["version"]
 
     try:
         response = await db_client.post(
@@ -99,7 +100,7 @@ async def test_simulation_compares_draft_against_active(db_client: AsyncClient) 
         )
         assert response.status_code == 201, response.text
         body = response.json()
-        assert body["draft_result"]["strategy_version"] == "LEASEBACK_MOTOR_V2"
+        assert body["draft_result"]["strategy_version"] == f"LEASEBACK_MOTOR_V{draft_version}"
         assert body["draft_result"]["decision"] == "MANUAL_REVIEW"
         assert body["active_result"]["strategy_version"] == "LEASEBACK_MOTOR_V1"
         assert body["active_result"]["decision"] == "APPROVE_WITH_CONDITION"

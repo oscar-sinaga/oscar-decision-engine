@@ -46,6 +46,50 @@ class SingleSimulationResponse(BaseModel):
     differences: list[SimulationDifference] = []
 
 
+class BatchSimulationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    simulation_name: str = Field(default="", max_length=200)
+    # Candidate (target) strategy version to evaluate the population against.
+    strategy_version_id: str
+    application_payloads: list[DecisionRequest] = Field(min_length=1, max_length=5000)
+    compare_with_active: bool = True
+
+
+class StrategyAggregate(BaseModel):
+    strategy_version: str
+    decision_counts: dict[str, int]
+    approval_rate: float
+    reject_rate: float
+    manual_review_rate: float
+    error_rate: float
+    reason_code_distribution: dict[str, int]
+    risk_grade_distribution: dict[str, int]
+
+
+class DecisionShift(BaseModel):
+    from_decision: str
+    to_decision: str
+    count: int
+
+
+class SegmentImpact(BaseModel):
+    segment: str
+    total: int
+    target_decision_counts: dict[str, int]
+    active_decision_counts: dict[str, int] | None
+
+
+class BatchSimulationResponse(BaseModel):
+    simulation_id: str
+    mode: str = "SIMULATION"
+    total_records: int
+    target: StrategyAggregate
+    active: StrategyAggregate | None = None
+    decision_shifts: list[DecisionShift] = []
+    segment_impact: list[SegmentImpact] = []
+
+
 class SimulationListItem(BaseModel):
     simulation_id: str
     name: str

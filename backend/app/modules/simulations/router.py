@@ -12,12 +12,14 @@ from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
 from app.modules.simulations.models import Simulation
 from app.modules.simulations.schemas import (
+    BatchSimulationRequest,
+    BatchSimulationResponse,
     SimulationDetailResponse,
     SimulationListItem,
     SingleSimulationRequest,
     SingleSimulationResponse,
 )
-from app.modules.simulations.service import run_single_simulation
+from app.modules.simulations.service import run_batch_simulation, run_single_simulation
 from app.shared.database import get_session
 from app.shared.domain.errors import NotFoundError
 
@@ -33,6 +35,15 @@ async def simulate_single(
     user: User = require_permission(Permissions.SIMULATION_RUN),
 ) -> SingleSimulationResponse:
     return await run_single_simulation(session, body, user)
+
+
+@router.post("/batch", response_model=BatchSimulationResponse, status_code=201)
+async def simulate_batch(
+    body: BatchSimulationRequest,
+    session: Session,
+    user: User = require_permission(Permissions.SIMULATION_RUN),
+) -> BatchSimulationResponse:
+    return await run_batch_simulation(session, body, user)
 
 
 @router.get("", response_model=list[SimulationListItem])
