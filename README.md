@@ -2,6 +2,25 @@
 
 This pack is the implementation handoff for **OSCAR Decision Engine**, an internal enterprise credit-risk decision engine for multifinance use cases such as motor/car financing, dealer/channel applications, and motor/car lease-back.
 
+> **Implementation status:** the MVP described by this pack is implemented in
+> `backend/` (FastAPI 0.139.0) and `frontend/` (SvelteKit workbench).
+> See `docs/IMPLEMENTATION_STATUS.md` and `docs/FINAL_IMPLEMENTATION_REPORT.md`.
+
+## Running the Implemented System
+
+```bash
+# Full stack (PostgreSQL + API + workbench) — migrations and synthetic seed run automatically
+docker compose up -d --build
+# API:       http://localhost:8000  (OpenAPI at /docs)
+# Workbench: http://localhost:3000  (demo users below)
+```
+
+Demo users (synthetic, password `OscarDemo123!`, override via `OSCAR_SEED_PASSWORD`):
+`admin`, `riskanalyst`, `riskmanager`, `underwriter`, `compliance`, `datascientist`,
+`engineer`, `auditor`, `los-client` (API client for `POST /v1/decisions`).
+
+For local development and quality gates see `backend/README.md` and `frontend/README.md`.
+
 IDX iDecision is used as a local benchmark and visual reference. It is not the complete product scope to copy.
 
 ## Final Stack

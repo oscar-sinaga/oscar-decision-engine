@@ -1,42 +1,36 @@
-# sv
+# OSCAR Decision Engine — Workbench
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit (Svelte 5) + TypeScript strict + Tailwind CSS single-page workbench
+for the OSCAR credit-risk decision engine. All authorization is enforced by
+the FastAPI backend; the UI's permission checks are UX only.
 
-## Creating a project
+## Screens
 
-If you're seeing this, you've probably already done this step. Congrats!
+Dashboard KPIs · Decision history + trace detail · Rule management with a
+guided condition builder and dry-run tester · Strategy builder with
+activation/rollback · Single application simulator (active-vs-draft compare) ·
+Manual review queue + case decisioning · Business audit log · Admin (users,
+roles, pending approvals).
 
-```sh
-# create a new project
-npx sv create my-app
+## Development
+
+```bash
+# backend must be running (see ../backend/README.md); CORS allows :5173/:4173/:3000
+npm install
+npm run dev            # http://localhost:5173
 ```
 
-To recreate this project with the same configuration:
+Set `VITE_API_BASE_URL` to point at a non-default backend (default
+`http://localhost:8000`).
 
-```sh
-# recreate this project
-npx sv@0.16.1 create --template minimal --types ts --add prettier eslint vitest="usages:unit" playwright tailwindcss="plugins:forms" sveltekit-adapter="adapter:node" --no-download-check --install npm frontend
+## Quality gates
+
+```bash
+npm run lint           # prettier + eslint
+npm run check          # svelte-check (strict TypeScript)
+npm run test:unit -- --run
+npm run build          # production build (adapter-node)
+npx playwright test    # e2e — requires the backend stack (docker compose up)
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Demo credentials are listed in the repository root README.

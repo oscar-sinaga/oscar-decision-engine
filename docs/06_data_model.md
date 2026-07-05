@@ -284,3 +284,17 @@ FINAL_DECISION
 - Correlation ID links technical logs, trace, and audit events.
 - Add indexes for `correlation_id`, `request_id`, event/entity fields, and decision/application lookup.
 - Retention is configurable and must not be implemented by deleting immutable decision/audit evidence without an approved policy.
+
+## 7. As-Built Addendum (Implementation v0.1, 2026-07-04)
+
+Schema is defined by SQLAlchemy models (`backend/app/models.py`) and Alembic migration `45ac3e82696b`. Deltas from the conceptual tables above:
+
+- Internal FKs use `application_pk` / `decision_pk` / `simulation_pk` (UUID) to distinguish them from external business identifiers (`application_id`, `decision_id` strings).
+- `decisions.reason_codes_json` (jsonb) stores the ordered reason codes with the decision; `decision_reason_codes` join table was not needed for MVP.
+- `decisions.idempotency_key` has a partial unique index (`WHERE idempotency_key IS NOT NULL`).
+- `rule_versions.version_note`, `strategy_versions.version_note`, and `*_versions.created_by/approved_by` support governance display.
+- `rule_set_members` implements the `rule_sets` grouping with `execution_order`.
+- `manual_review_cases` adds `analyst_decided_by/at`, `override_reason_code`, `approved_limit`, `approved_tenor_months`.
+- `audit_logs.actor_label` denormalizes the username for stable audit display; `metadata_json` holds sanitized context.
+- Config statuses are `DRAFT / PENDING_APPROVAL / ACTIVE / REJECTED / RETIRED` (REJECTED added for maker-checker rejections).
+- All jsonb columns use PostgreSQL `JSONB`; enums are stored as constrained varchar for migration simplicity.
