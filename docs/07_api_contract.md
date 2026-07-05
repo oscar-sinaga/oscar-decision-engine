@@ -354,3 +354,18 @@ The implemented API follows this contract with the following additions and preci
 - Simulation responses use `draft_result` for the *target* version (active version if `strategy_version_id` omitted); `active_result` is null unless `compare_with_active=true` and the target differs from the active version.
 - Editing non-draft versions returns **409** `IMMUTABLE_CONFIGURATION`; self-approval returns **403** (maker-checker).
 - `GET /v1/decisions/{id}/trace` records a `DECISION_TRACE_VIEWED` audit event.
+
+## 12. Phase 2 Addendum (2026-07-05)
+
+Post-MVP endpoints added in Phase 2:
+
+| Area | Endpoints |
+|---|---|
+| Feature catalog | `GET/POST /v1/features`, `PATCH /v1/features/{id}` — governed data dictionary that drives rule/strategy validation and `/v1/meta` (`rule.view`/`rule.create`) |
+| Batch simulation | `POST /v1/simulations/batch` — policy impact analysis over a population (rates, reason/grade distribution, active-vs-candidate decision shifts, per-segment impact); side-effect free |
+| Advanced manual review | `POST /v1/manual-review/cases/{id}/comments`, `.../documents/{doc_id}/resolve`; `escalate` accepts `escalated_to`; `request-documents` accepts `document_names[]`; case detail returns `sla_due_at`, `sla_breached`, `comments`, `documents` |
+| Full maker-checker | strategy `submit-approval` accepts `simulation_id`; activation requires attached simulation evidence; `/v1/approvals` exposes `simulation_ref` |
+| Model registry | `GET/POST /v1/models`, `PATCH /v1/models/{id}` (`model.view`/`model.manage`) |
+| Monitoring trend | `GET /v1/monitoring/decision-trend` — daily decision-volume buckets |
+
+New permissions: `model.view`, `model.manage`. New audit events include `FEATURE_*`, `MANUAL_REVIEW_COMMENT_ADDED`, `MANUAL_REVIEW_DOCUMENT_RESOLVED`, `MODEL_REGISTERED`, `MODEL_UPDATED`.

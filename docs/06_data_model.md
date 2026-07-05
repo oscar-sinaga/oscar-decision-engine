@@ -298,3 +298,14 @@ Schema is defined by SQLAlchemy models (`backend/app/models.py`) and Alembic mig
 - `audit_logs.actor_label` denormalizes the username for stable audit display; `metadata_json` holds sanitized context.
 - Config statuses are `DRAFT / PENDING_APPROVAL / ACTIVE / REJECTED / RETIRED` (REJECTED added for maker-checker rejections).
 - All jsonb columns use PostgreSQL `JSONB`; enums are stored as constrained varchar for migration simplicity.
+
+## 8. Phase 2 Addendum (2026-07-05)
+
+Tables added in Phase 2 (migrations `cc396755f845`, `553675a0147d`, `d915f8cefdbb`, `1864d7efc83f`):
+
+- `features` — governed data dictionary (path, label, data_type, source, category, allowed_values, active).
+- `manual_review_comments` — append-only case comment thread.
+- `manual_review_documents` — requested-document checklist (status REQUESTED/RECEIVED/WAIVED).
+- `registered_models` — model registry (code+version_label unique, provider, active, metadata).
+- `manual_review_cases` gains `sla_due_at`, `escalated_to`.
+- `approval_requests` gains `simulation_ref` (attached simulation evidence for maker-checker).

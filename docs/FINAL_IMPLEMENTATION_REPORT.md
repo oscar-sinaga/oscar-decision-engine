@@ -21,7 +21,11 @@
 
 ## Scope Deferred (per docs/05 Phase 2/3)
 
-Batch simulation, feature catalog management UI, SLA/assignment automation, model registry, champion/challenger, external adapters (bureau/eKYC/model service run in payload-mock mode), DB-level immutability triggers, `pii.view`-gated unmasking (masking is applied at persistence), Prometheus/OTel exporters.
+At MVP handoff (2026-07-04): batch simulation, feature catalog management UI, SLA/assignment automation, model registry, champion/challenger, external adapters, DB-level immutability triggers, `pii.view`-gated unmasking, Prometheus/OTel exporters.
+
+Subsequently delivered in **Phase 2** (see the Phase 2 Enhancements section at the end of this report): feature catalog, batch simulation / policy impact analysis, advanced manual review (SLA/comments/documents/escalation), full maker-checker (mandatory simulation attachment), and model registry + dashboard trends.
+
+Still deferred: champion/challenger and Phase 3 items; external data-source integration (bureau/eKYC/model-serving with real credentials) and deployment/environment promotion — both pending human/business decisions; DB-level immutability triggers; `pii.view`-gated unmasking (masking applied at persistence); Prometheus/OTel exporters.
 
 ## Repository Structure
 
@@ -96,7 +100,7 @@ None encountered. `docs/BLOCKERS.md` remains empty.
 
 ## Documentation Created or Updated
 
-`docs/IMPLEMENTATION_STATUS.md` (per phase), `docs/IMPLEMENTATION_DECISIONS.md` (ADR-001…009), as-built addenda in `docs/06`/`docs/07`, root/back/front READMEs, this report.
+`docs/IMPLEMENTATION_STATUS.md` (per phase, incl. Phase 2), `docs/IMPLEMENTATION_DECISIONS.md` (ADR-001…011), as-built + Phase 2 addenda in `docs/06`/`docs/07`, root/back/front READMEs, this report.
 
 ## Instructions to Run Locally
 
@@ -115,3 +119,19 @@ docker compose up -d --build   # postgres + API (8000) + workbench (3000)
 ## Recommended Next Phase
 
 Phase 2 backlog per docs/05: batch simulation & policy impact analysis, feature catalog, external adapters (bureau/eKYC/model service), full maker-checker with scheduled activation, advanced manual-review workflow (SLA/assignment), model registry, deployment management, and observability exporters.
+
+---
+
+## Phase 2 Enhancements (post-MVP, completed 2026-07-05)
+
+Delivered on branch `feature/oscar-mvp` after the MVP, as safely-buildable Phase 2 items from `docs/05_mvp_scope.md`. Each shipped as its own vertical slice with tests, migration, docs, and a local commit.
+
+- **P2.1 Feature Catalog / Data Dictionary** — `features` table + `/v1/features` CRUD; rule/strategy validation and `/v1/meta` now driven by the governed active catalog (ADR-010); seeded from the engine registry.
+- **P2.2 Batch Simulation / Policy Impact Analysis** — `/v1/simulations/batch` runs a candidate strategy version across a population and reports approval/reject/manual-review rates, reason-code and risk-grade distribution, active-vs-candidate decision-shift matrix, and per-segment impact; side-effect free.
+- **P2.3 Advanced Manual Review** — priority-derived SLA target + breach flag, append-only comment thread, document checklist (request → received/waived), escalation target; all audited.
+- **P2.4 Full maker-checker** — strategy activation requires attached simulation evidence of the exact version (ADR-011); `simulation_ref` surfaced on `/v1/approvals`; configurable.
+- **P2.5 Model Registry + dashboard trend** — `registered_models` + `/v1/models` CRUD under new `model.view`/`model.manage`; `/v1/monitoring/decision-trend` daily buckets; workbench screen + trend chart.
+
+**Quality gates (Phase 2 end):** backend ruff + mypy `--strict` (116 source files) + **114 pytest tests**; frontend prettier/eslint/svelte-check strict + Vitest (12) + production build; full Docker Compose stack rebuilt and validated; **4 Playwright E2E** tests pass; security/PII sweep clean (no `.env`, no PII literals outside tests). 5 Alembic migrations apply on a clean database. New ADRs: 010, 011.
+
+**Still deferred (need human/business decision):** external data-source integration (bureau/eKYC/model-serving with real credentials) and deployment/environment promotion management. Everything else in the Phase 2 catalogue is implemented.
