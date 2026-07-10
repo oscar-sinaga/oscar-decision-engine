@@ -5,6 +5,8 @@ This pack is the implementation handoff for **OSCAR Decision Engine**, an intern
 > **Implementation status:** the MVP described by this pack is implemented in
 > `backend/` (FastAPI 0.139.0) and `frontend/` (SvelteKit workbench).
 > See `docs/IMPLEMENTATION_STATUS.md` and `docs/FINAL_IMPLEMENTATION_REPORT.md`.
+> Phase 3 specification: `docs/phase3/`. **New to credit risk / decision engines?**
+> Start with the Indonesian learning curriculum in `docs/learning/`.
 
 ## Running the Implemented System
 
