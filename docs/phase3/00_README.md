@@ -31,8 +31,9 @@ Evolve OSCAR from a *credit policy outcome rule engine* (rule → decision + rea
 | 9 | `09_screen_spec.md` | Rule builder v2, flow canvas, decision-table grid, expression editor |
 | 10 | `10_test_plan.md` | Test matrix incl. determinism, security fuzzing, migration golden tests |
 | 11 | `11_execution_plan.md` | Ordered sub-phases, per-phase acceptance criteria, commit plan, risks |
-| 12 | `AGENT_EXECUTION_PROMPT.md` | Self-contained autonomous prompt for any coding agent |
-| 13 | `IMPLEMENTATION_STATUS.md` | Live progress tracker (update before every phase commit) |
+| 12 | `12_penjelasan_fitur_id.md` | Non-normative Indonesian explainer: analogies and case studies for every feature |
+| 13 | `AGENT_EXECUTION_PROMPT.md` | Self-contained autonomous prompt for any coding agent |
+| 14 | `IMPLEMENTATION_STATUS.md` | Live progress tracker (update before every phase commit) |
 
 ## How to execute this pack with an AI coding agent
 
