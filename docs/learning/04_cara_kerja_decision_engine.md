@@ -1,14 +1,14 @@
-# Bab 4 — Membuka Kap Mesin: Cara Kerja Decision Engine
+# Bab 4 — Membuka Kap Mesin, Cara Kerja Decision Engine
 
-Bab ini membedah anatomi decision engine memakai istilah yang persis dipakai OSCAR, supaya saat Anda membuka aplikasinya semuanya terasa familiar.
+Bab ini membedah anatomi decision engine memakai istilah yang persis dipakai OSCAR. Dengan begitu, saat Anda membuka aplikasinya nanti, semuanya sudah terasa akrab.
 
-## 4.1 Peta besar: dari payload sampai keputusan
+## 4.1 Peta besar, dari payload sampai keputusan
 
 ```
   PAYLOAD (data aplikasi dari LOS)
       │
       ▼
-  ① FEATURES ── data mentah dinormalkan + dihitung (LTV, DTI, umur kendaraan…)
+  ① FEATURES ── data mentah dinormalkan dan dihitung (LTV, DTI, umur kendaraan…)
       │
       ▼
   ② STRATEGY / DECISION FLOW ── "rute pemeriksaan" langkah demi langkah:
@@ -25,17 +25,17 @@ Bab ini membedah anatomi decision engine memakai istilah yang persis dipakai OSC
   ④ TRACE & AUDIT: rekaman lengkap "kenapa"-nya (kotak hitam)
 ```
 
-## 4.2 ① Features — bahasa yang dimengerti mesin
+## 4.2 Bagian pertama, features sebagai bahasa yang dimengerti mesin
 
-Payload mentah (`penghasilan: 8.500.000`, `tahun motor: 2020`) diubah jadi **fitur** bernama baku: `applicant.monthly_income`, `vehicle.age_years`, dan fitur **turunan** yang dihitung engine: `loan.ltv = pinjaman / nilai taksiran`, `affordability.dti = (cicilan berjalan + cicilan baru) / penghasilan`.
+Payload mentah, misalnya penghasilan 8.500.000 dan tahun motor 2020, diubah menjadi fitur dengan nama baku seperti `applicant.monthly_income` dan `vehicle.age_years`. Ada juga fitur turunan yang dihitung oleh engine, misalnya `loan.ltv` yang merupakan hasil pembagian pinjaman dengan nilai taksiran, serta `affordability.dti` yang merupakan rasio total cicilan terhadap penghasilan.
 
-Daftar fitur yang sah hidup di **feature catalog** — kamus data resmi. Aturan hanya boleh menyebut fitur yang ada di kamus (typo `aplicant.income` langsung ditolak saat aturan dibuat, bukan meledak di produksi).
+Daftar fitur yang sah tersimpan di feature catalog, semacam kamus data resmi. Aturan hanya boleh menyebut fitur yang ada di kamus tersebut. Kalau ada yang salah ketik, misalnya `aplicant.income`, sistem langsung menolaknya saat aturan dibuat, bukan meledak di produksi.
 
-> **Analogi:** formulir medical check-up. Apa pun cerita pasien, hasilnya ditulis dalam kolom baku: tensi, gula darah, kolesterol. Dokter mana pun (rule mana pun) membaca kolom yang sama. Feature catalog = daftar kolom resminya.
+> **Analogi.** Bayangkan formulir medical check-up. Apa pun cerita pasien, hasilnya selalu ditulis dalam kolom yang baku, yaitu tensi, gula darah, dan kolesterol. Dokter mana pun membaca kolom yang sama, dan rule mana pun juga begitu. Feature catalog adalah daftar kolom resminya.
 
-## 4.3 ② Rules — kalimat kebijakan yang bisa dieksekusi
+## 4.3 Bagian kedua, rules sebagai kalimat kebijakan yang bisa dieksekusi
 
-Satu rule = **kondisi** + **aksi**. Contoh nyata dari seed OSCAR:
+Satu rule terdiri dari kondisi dan aksi. Berikut contoh nyata dari data awal OSCAR.
 
 ```
 JIKA  affordability.dti > 0.45         → REJECT,        alasan HIGH_DTI
@@ -44,21 +44,21 @@ JIKA  fraud.identity_match = false     → FRAUD_INVESTIGATION, alasan APPLICATI
 JIKA  applicant.age < 21               → REJECT,        alasan APPLICANT_UNDER_MIN_AGE
 ```
 
-Kondisi bisa digabung AND/OR dan bersarang. Rules dikelompokkan jadi **rule set** per tema (ELIGIBILITY_MOTOR, FRAUD_BASIC, AFFORDABILITY_STANDARD) supaya rapi dan bisa dipakai-ulang di banyak strategy.
+Kondisi bisa digabung dengan DAN atau ATAU, bahkan bisa bersarang. Rules kemudian dikelompokkan menjadi rule set per tema, misalnya ELIGIBILITY_MOTOR, FRAUD_BASIC, dan AFFORDABILITY_STANDARD, supaya rapi dan bisa dipakai ulang di banyak strategy.
 
-Penting: hasil rule **tidak harus vonis final**. Rule bisa hanya "mengangkat bendera" (tambah reason code lalu lanjut), dan — setelah Phase 3 — bisa **menulis nilai** (`outputs.collateral_risk = HIGH`) yang dipakai langkah berikutnya. Vonis finalnya lahir belakangan.
+Ada satu hal penting. Hasil sebuah rule tidak harus berupa vonis akhir. Rule bisa sekadar "mengangkat bendera", artinya menambah reason code lalu melanjutkan proses. Setelah Phase 3 nanti, rule bahkan bisa menulis nilai, misalnya `outputs.collateral_risk = HIGH`, yang kemudian dipakai oleh langkah berikutnya. Vonis akhirnya lahir belakangan.
 
-> **Analogi:** rules = **daftar periksa (checklist) pramugari sebelum terbang**. Tiap butir jelas, biner, tertulis. Ada butir yang fatal (pintu tidak tertutup → batal terbang = STOP), ada yang catatan (satu lampu baca mati → catat, tetap terbang = CONTINUE + flag).
+> **Analogi.** Rules ibarat daftar periksa pramugari sebelum terbang. Setiap butir jelas dan tegas. Ada butir yang fatal, misalnya pintu belum tertutup sehingga penerbangan batal, dan itu setara STOP. Ada pula butir yang sekadar catatan, misalnya satu lampu baca mati sehingga dicatat tetapi pesawat tetap terbang, dan itu setara CONTINUE dengan penanda.
 
-## 4.4 ② Scorecard — tempat model statistik menumpang
+## 4.4 Bagian ketiga, scorecard sebagai tempat model statistik menumpang
 
-Scorecard menerjemahkan **skor** (dari model — dunia Anda!) menjadi **grade risiko**: skor 684 → grade **B**. Grade inilah yang dipakai aturan/tabel berikutnya. Versi model tercatat di setiap keputusan (`MOTOR_SCORE_V1`) — penting untuk audit dan untuk Anda saat menganalisis performa model per versi.
+Scorecard menerjemahkan skor, yang berasal dari model buatan Anda, menjadi grade risiko. Misalnya skor 684 menjadi grade B. Grade inilah yang dipakai aturan dan tabel keputusan berikutnya. Versi modelnya juga tercatat di setiap keputusan, contohnya `MOTOR_SCORE_V1`. Ini penting untuk audit, sekaligus berguna bagi Anda saat menganalisis performa model per versi.
 
-> **Analogi:** nilai ujian mentah (684) dikonversi jadi nilai huruf (B) berdasarkan tabel konversi yang disepakati fakultas. Dosen (model) memberi angka; **tabel konversinya (scorecard) adalah kebijakan** — fakultas bisa mengubah batas nilai B tanpa mengganti dosennya.
+> **Analogi.** Nilai ujian mentah, misalnya 684, dikonversi menjadi nilai huruf B berdasarkan tabel konversi yang disepakati fakultas. Dosen, dalam hal ini model, memberi angka. Namun tabel konversinya, yaitu scorecard, adalah kebijakan. Fakultas bisa mengubah batas nilai B tanpa perlu mengganti dosennya.
 
-## 4.5 ② Decision table — matriks "ketua rapat"
+## 4.5 Bagian keempat, decision table sebagai matriks sang ketua rapat
 
-Tabel keputusan menggabungkan beberapa masukan jadi keputusan akhir, dalam bentuk yang paling disukai orang bisnis — **baris-baris seperti Excel**, dievaluasi dari atas ke bawah (first match):
+Decision table menggabungkan beberapa masukan menjadi keputusan akhir. Bentuknya paling disukai orang bisnis karena berupa baris-baris seperti Excel, dievaluasi dari atas ke bawah dengan prinsip yang cocok pertama menang.
 
 | Grade | DTI | Keputusan | Limit |
 |---|---|---|---|
@@ -68,63 +68,63 @@ Tabel keputusan menggabungkan beberapa masukan jadi keputusan akhir, dalam bentu
 | C | ≤ 0.35 | MANUAL_REVIEW | — |
 | * | * | REJECT | — |
 
-Baris terakhir (`*`,`*`) = jaring pengaman "selain itu semua". Mesin juga memperingatkan kalau ada dua baris yang tumpang-tindih (ambigu).
+Baris terakhir dengan tanda bintang berperan sebagai jaring pengaman, artinya berlaku untuk semua kasus yang tidak tertangkap baris di atasnya. Mesin juga memberi peringatan kalau ada dua baris yang tumpang-tindih dan berpotensi ambigu.
 
-## 4.6 ② Strategy / decision flow — rute pemeriksaannya
+## 4.6 Bagian kelima, strategy atau decision flow sebagai rute pemeriksaan
 
-Strategy menyusun semua komponen di atas jadi **urutan** (dan setelah Phase 3: **alur bercabang**). Strategy aktif dipilih otomatis berdasarkan **produk + segmen** — produk motor lease-back punya rute sendiri, mobil punya rute sendiri.
+Strategy menyusun semua komponen di atas menjadi urutan langkah. Setelah Phase 3, urutan ini bahkan bisa berupa alur bercabang. Strategy yang aktif dipilih otomatis berdasarkan kombinasi produk dan segmen. Produk motor lease-back punya rutenya sendiri, begitu pula produk mobil.
 
-Urutannya bermakna bisnis: pemeriksaan **murah & fatal duluan** (validasi, blacklist, umur) supaya kasus yang jelas-jelas gagal berhenti cepat ("fail fast") sebelum pemeriksaan mahal (tarik skor, hitung-hitungan detail).
+Urutan langkahnya punya makna bisnis. Pemeriksaan yang murah dan fatal ditaruh di depan, misalnya validasi, daftar hitam, dan umur, supaya kasus yang jelas-jelas gagal berhenti lebih cepat. Prinsip ini sering disebut fail fast. Pemeriksaan yang mahal, misalnya penarikan skor dan perhitungan detail, ditaruh belakangan.
 
-> **Analogi:** alur pemeriksaan bandara — cek tiket dulu (murah, cepat), baru x-ray bagasi (mahal, lambat). Tidak ada gunanya meng-x-ray orang yang tiketnya saja salah tanggal.
+> **Analogi.** Alur pemeriksaan di bandara juga begitu. Tiket dicek lebih dulu karena murah dan cepat, baru kemudian bagasi masuk mesin x-ray yang mahal dan lambat. Tidak ada gunanya meng-x-ray barang milik orang yang tanggal tiketnya saja salah.
 
-## 4.7 ③ Output — bukan sekadar ya/tidak
+## 4.7 Bagian keenam, output yang lebih kaya daripada sekadar ya atau tidak
 
-Satu keputusan lengkap berisi: **decision** (APPROVE / REJECT / MANUAL_REVIEW / APPROVE_WITH_CONDITION / FRAUD_INVESTIGATION), **reason codes** (kode alasan baku — bukan teks bebas, supaya bisa dihitung & dilaporkan), dan bila relevan **limit / tenor / pricing** yang disetujui. Ingat pelajaran bab 1: mengecilkan limit atau menaikkan DP sering lebih cerdas daripada menolak mentah.
+Satu keputusan yang lengkap berisi tiga hal. Pertama, decision itu sendiri, yaitu APPROVE, REJECT, MANUAL_REVIEW, APPROVE_WITH_CONDITION, atau FRAUD_INVESTIGATION. Kedua, reason codes, yaitu kode alasan baku, bukan teks bebas, supaya bisa dihitung dan dilaporkan. Ketiga, bila relevan, limit, tenor, dan pricing yang disetujui. Ingat pelajaran bab 1, bahwa mengecilkan limit atau menaikkan uang muka sering kali lebih cerdas daripada menolak mentah-mentah.
 
-## 4.8 ④ Trace — kotak hitam setiap keputusan
+## 4.8 Bagian ketujuh, trace sebagai kotak hitam setiap keputusan
 
-Setiap keputusan menyimpan **decision trace**: snapshot input, nilai semua fitur, langkah-langkah yang dilalui beserta hasilnya, rule mana yang kena (nilai aktual vs ambang), skor & versi model, versi strategy/rules yang persis dipakai, sampai keputusan akhir. Immutable — tidak bisa diedit siapa pun.
+Setiap keputusan menyimpan decision trace, yaitu rekaman berisi salinan input, nilai semua fitur, langkah-langkah yang dilalui beserta hasilnya, rule mana saja yang kena lengkap dengan nilai aktual dibanding ambangnya, skor beserta versi modelnya, versi strategy dan rules yang persis dipakai, sampai keputusan akhirnya. Rekaman ini tidak bisa diubah oleh siapa pun.
 
-Inilah jawaban atas pertanyaan compliance di bab 2: *"aplikasi 6 bulan lalu ini kenapa ditolak?"* → buka trace → terlihat persis: DTI 51% > ambang 45% versi aturan #3. Selesai, tanpa arkeologi kode.
+Inilah jawaban untuk pertanyaan compliance di bab 2 tadi, yaitu kenapa aplikasi enam bulan lalu ditolak. Cukup buka trace, dan terlihat persis bahwa DTI 51% melebihi ambang 45% menurut aturan versi ketiga. Kasus selesai tanpa perlu arkeologi kode.
 
-> **Analogi:** black box pesawat + struk belanja super rinci digabung jadi satu. Bukan cuma "totalnya 150 ribu", tapi item per item, harga saat itu, kasir siapa, promo versi apa.
+> **Analogi.** Bayangkan kotak hitam pesawat digabung dengan struk belanja yang super rinci. Bukan cuma "totalnya 150 ribu", melainkan barang per barang, harga saat itu, kasir siapa, dan promo versi apa.
 
-## 4.9 Jalan cerita lengkap: aplikasi Pak Budi masuk mesin
+## 4.9 Jalan cerita lengkap, aplikasi Pak Budi masuk mesin
 
-(payload dari bab 1; strategy LEASEBACK_MOTOR aktif)
+Payload-nya dari bab 1, dan strategy LEASEBACK_MOTOR sedang aktif.
 
 ```
-Step 1 VALIDATION      : kolom wajib lengkap                     → PASSED
-Step 2 CALCULATION     : loan.ltv = 15jt/18jt = 0.83
-                         affordability.dti = 0.39                → PASSED
-Step 3 RULE_SET fraud  : identity ✓, dokumen ✓, blacklist ✗      → PASSED
-Step 4 RULE_SET elig.  : umur 34 ≥ 21 ✓, motor 2020 ≤ 8 th ✓     → PASSED
-Step 5 RULE_SET afford.: dti 0.39 ≤ 0.45 ✓ (dekat ambang → flag) → TRIGGERED (flag saja)
-Step 6 SCORECARD       : skor 684 → grade B, model MOTOR_SCORE_V1→ PASSED
-Step 7 DECISION_TABLE  : baris "B, dti 0.35–0.45" match
-                         → APPROVE_WITH_CONDITION, limit 12,5jt  → MATCHED
+Langkah 1 VALIDATION      : kolom wajib lengkap                     → LOLOS
+Langkah 2 CALCULATION     : loan.ltv = 15jt/18jt = 0.83
+                            affordability.dti = 0.39                → LOLOS
+Langkah 3 RULE_SET fraud  : identitas ✓, dokumen ✓, blacklist ✗     → LOLOS
+Langkah 4 RULE_SET elig.  : umur 34 ≥ 21 ✓, motor 2020 ≤ 8 th ✓     → LOLOS
+Langkah 5 RULE_SET afford.: dti 0.39 ≤ 0.45 ✓, tapi dekat ambang    → TERPICU (hanya penanda)
+Langkah 6 SCORECARD       : skor 684 → grade B, model MOTOR_SCORE_V1→ LOLOS
+Langkah 7 DECISION_TABLE  : baris "B, dti 0.35–0.45" cocok
+                            → APPROVE_WITH_CONDITION, limit 12,5jt  → COCOK
 ──────────────────────────────────────────────────────────────
-HASIL : APPROVE_WITH_CONDITION · limit 12.500.000 · tenor 18 bln
+HASIL : APPROVE_WITH_CONDITION · limit 12.500.000 · tenor 18 bulan
 ALASAN: REQUESTED_AMOUNT_ABOVE_ELIGIBLE_LIMIT
-TRACE : tersimpan lengkap (7 langkah di atas, versi semua konfigurasi)
-WAKTU : ±130 ms
+TRACE : tersimpan lengkap, tujuh langkah di atas beserta versi semua konfigurasi
+WAKTU : sekitar 130 milidetik
 ```
 
-Bandingkan dengan **Mas Roni** (bab 1): step 5 langsung kena `dti 0.67 > 0.45 → REJECT (HIGH_DTI)` dan step LTV `2.0 > 0.85` menambah alasan — mesin berhenti lebih awal, jawaban keluar dalam sekejap, alasan tercatat dua-duanya.
+Sekarang bandingkan dengan Mas Roni dari bab 1. Di langkah kelima dia langsung terkena aturan DTI karena 0.67 melebihi 0.45, sehingga hasilnya REJECT dengan alasan HIGH_DTI. Aturan LTV juga menambah alasan karena 2.0 jauh melebihi 0.85. Mesin berhenti lebih awal, jawaban keluar dalam sekejap, dan kedua alasannya tercatat.
 
-Dan kasus abu-abu? Pemohon dengan DTI 0.43 (mepet) → decision table mengarahkan **MANUAL_REVIEW** → otomatis jadi tiket antrean underwriter, lengkap dengan trace-nya sebagai bahan pemeriksaan. Mesin tahu batas kemampuannya — itu fitur, bukan kelemahan.
+Lalu bagaimana dengan kasus abu-abu? Pemohon dengan DTI 0.43 yang mepet ambang akan diarahkan decision table ke MANUAL_REVIEW. Kasusnya otomatis menjadi tiket antrean underwriter, lengkap dengan trace sebagai bahan pemeriksaan. Mesin tahu batas kemampuannya sendiri, dan itu justru fitur, bukan kelemahan.
 
 ## 4.10 Sifat-sifat yang membuatnya layak dipercaya
 
 | Sifat | Artinya | Kenapa penting |
 |---|---|---|
-| **Deterministik** | Input sama + versi kebijakan sama = hasil selalu sama | Keadilan antar pemohon; bisa diuji; bisa direproduksi di pengadilan/audit |
-| **Explainable** | Selalu ada reason code + trace | Regulator, nasabah, dan perbaikan kebijakan |
-| **Versioned & immutable** | Konfigurasi aktif tak bisa diubah diam-diam; perubahan = versi baru | Rekonstruksi masa lalu; tanggung jawab jelas |
-| **Side-effect-free simulation** | Kebijakan draft bisa diuji tanpa menyentuh produksi | Ubah kebijakan tanpa berjudi |
-| **Terpisah dari kode** | Risk mengubah kebijakan tanpa deploy software | Kecepatan reaksi bisnis |
+| **Deterministik** | Input yang sama dengan versi kebijakan yang sama selalu menghasilkan keputusan yang sama | Adil antar pemohon, bisa diuji, dan bisa direproduksi untuk audit maupun sengketa hukum |
+| **Explainable** | Selalu ada reason code dan trace | Dibutuhkan regulator, nasabah, dan proses perbaikan kebijakan |
+| **Versioned dan immutable** | Konfigurasi aktif tidak bisa diubah diam-diam, dan setiap perubahan menjadi versi baru | Masa lalu bisa direkonstruksi dan tanggung jawab menjadi jelas |
+| **Simulasi tanpa efek samping** | Kebijakan draft bisa diuji tanpa menyentuh produksi | Kebijakan bisa diubah tanpa berjudi |
+| **Terpisah dari kode** | Tim risk mengubah kebijakan tanpa menunggu rilis software | Bisnis bisa bereaksi cepat |
 
 ## 4.11 Rangkuman bab
 
-Payload → **fitur** (kamus resmi) → **strategy** menjalankan **rule sets**, **scorecard**, **decision table** dalam rute yang disengaja → keluar **keputusan + alasan + syarat** → semuanya terekam di **trace**. Setiap komponen berversi, dan mesin yang sama melayani produksi maupun simulasi. Bab berikutnya: siapa memakai layar yang mana untuk mengurus semua ini.
+Payload berubah menjadi fitur lewat kamus resmi. Strategy kemudian menjalankan rule sets, scorecard, dan decision table dalam rute yang disengaja, lalu keluarlah keputusan beserta alasan dan syaratnya. Semuanya terekam di trace, setiap komponen punya versi, dan mesin yang sama melayani produksi maupun simulasi. Bab berikutnya membahas siapa memakai layar yang mana untuk mengurus semua ini.

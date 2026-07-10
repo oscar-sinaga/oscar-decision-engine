@@ -1,97 +1,94 @@
 # Bab 1 — Dasar Bisnis Credit Risk: Kenapa Ada yang Mau Meminjamkan Uang?
 
-## 1.1 Mulai dari warung: analogi paling dasar
+## 1.1 Mulai dari warung, analogi paling dasar
 
-Bayangkan **warung Bu Tejo**. Pelanggan tetap boleh **ngebon** (kasbon): ambil barang sekarang, bayar akhir bulan. Kenapa Bu Tejo mau?
+Bayangkan warung Bu Tejo. Pelanggan tetapnya boleh ngebon alias kasbon, yaitu mengambil barang sekarang dan membayarnya akhir bulan. Kenapa Bu Tejo mau repot-repot begitu?
 
-1. **Penjualan naik** — orang yang lagi bokek tetap belanja.
-2. **Pelanggan jadi setia** — yang dikasih bon jarang pindah warung.
-3. Bu Tejo **kenal** pelanggannya — dia tahu Pak RT pasti bayar, dan tahu si Anu suka ngemplang.
+Pertama, penjualannya naik karena orang yang sedang tidak pegang uang pun tetap bisa belanja. Kedua, pelanggan jadi setia, sebab orang yang diberi bon jarang pindah ke warung lain. Ketiga, dan ini kuncinya, Bu Tejo kenal pelanggannya. Dia tahu Pak RT pasti bayar, dan dia juga tahu si Anu suka ngemplang.
 
-Tapi ada risikonya: sebagian bon **tidak pernah dibayar**. Maka diam-diam Bu Tejo melakukan tiga hal yang — percaya atau tidak — adalah inti seluruh industri kredit:
+Tentu ada risikonya, yaitu sebagian bon tidak pernah dibayar. Karena itu, diam-diam Bu Tejo melakukan tiga hal yang ternyata merupakan inti seluruh industri kredit.
 
-1. **Menyeleksi** siapa yang boleh ngebon (tidak semua orang!).
-2. **Membatasi** berapa besar bon per orang (Pak RT boleh 500 ribu, orang baru cuma 50 ribu).
-3. **Menaikkan harga sedikit** untuk menutup bon yang hangus.
+1. Dia menyeleksi siapa yang boleh ngebon. Tidak semua orang!
+2. Dia membatasi besar bon per orang. Pak RT boleh sampai lima ratus ribu, sedangkan orang baru cukup lima puluh ribu.
+3. Dia menaikkan harga sedikit untuk menutup bon yang hangus.
 
-Bank dan multifinance adalah **warung Bu Tejo dalam skala jutaan pelanggan**. Masalahnya: Bu Tejo kenal 50 pelanggannya secara pribadi; multifinance harus menilai **ribuan orang asing per hari**. Seluruh disiplin *credit risk management* lahir dari satu pertanyaan: **bagaimana menilai orang asing secepat dan seakurat Bu Tejo menilai tetangganya?**
+Bank dan multifinance pada dasarnya adalah warung Bu Tejo dalam skala jutaan pelanggan. Bedanya, Bu Tejo mengenal kelima puluh pelanggannya secara pribadi, sementara multifinance harus menilai ribuan orang asing setiap hari. Seluruh disiplin credit risk management lahir dari satu pertanyaan sederhana. Bagaimana caranya menilai orang asing secepat dan seakurat Bu Tejo menilai tetangganya sendiri?
 
 ## 1.2 Dari mana untungnya, dan ke mana perginya
 
-Mesin uang bisnis pembiayaan (disederhanakan) untuk 1 kontrak motor:
+Mari kita sederhanakan mesin uang bisnis pembiayaan untuk satu kontrak motor.
 
 ```
-Pendapatan bunga & biaya      : + Rp 3.000.000   (selama tenor)
-Biaya dana (cost of fund)     : - Rp 1.200.000   (uang yang dipinjamkan pun "disewa" dari bank/obligasi)
-Biaya operasional & akuisisi  : - Rp   700.000   (sales, survey, sistem, gaji)
-Kerugian kredit (credit loss) : - Rp   ???       ← INI YANG DIKELOLA CREDIT RISK
+Pendapatan bunga dan biaya    : + Rp 3.000.000   (selama masa kredit)
+Biaya dana (cost of fund)     : - Rp 1.200.000   (uang yang dipinjamkan pun "disewa" dari bank atau obligasi)
+Biaya operasional & akuisisi  : - Rp   700.000   (gaji sales, survei, sistem)
+Kerugian kredit (credit loss) : - Rp   ???       ← inilah yang dikelola tim credit risk
 ─────────────────────────────
 Laba                          : sisanya
 ```
 
-Perhatikan: tiga baris pertama relatif tetap. **Satu-satunya angka yang bisa meledak adalah credit loss.** Kalau dari 100 kontrak ada 3 yang gagal bayar total (loss 3%), bisnis untung. Kalau 8 yang gagal (loss 8%), seluruh laba — dan sebagian modal — hangus. Margin lending itu tipis; **beda beberapa persen bad rate = beda hidup-mati perusahaan.**
+Perhatikan baik-baik. Tiga baris pertama nilainya relatif tetap, sehingga satu-satunya angka yang bisa meledak adalah kerugian kredit. Kalau dari seratus kontrak ada tiga yang gagal bayar total, bisnis masih untung. Namun kalau yang gagal delapan, seluruh laba ikut hangus, bahkan modal pun tergerus. Margin bisnis pembiayaan itu tipis. Selisih beberapa persen tingkat gagal bayar saja sudah menentukan hidup matinya perusahaan.
 
-> **Analogi:** pedagang buah memperhitungkan bahwa dari 100 kg mangga, 5 kg pasti busuk sebelum laku. Ia tetap untung *karena busuknya terprediksi dan sudah dihargai*. Bisnisnya hancur bukan karena ada buah busuk, tapi kalau tiba-tiba yang busuk 20 kg. Credit risk management = memastikan "tingkat busuk" tetap di angka yang sudah diperhitungkan.
+> **Analogi.** Pedagang buah selalu memperhitungkan bahwa dari seratus kilo mangga, lima kilo pasti busuk sebelum laku. Dia tetap untung karena tingkat busuknya terprediksi dan sudah dimasukkan ke harga jual. Bisnisnya hancur bukan karena ada buah busuk, melainkan kalau tiba-tiba yang busuk dua puluh kilo. Credit risk management adalah pekerjaan memastikan "tingkat busuk" tetap berada di angka yang sudah diperhitungkan.
 
-## 1.3 Rumus mental yang dipakai orang risk: Expected Loss
+## 1.3 Rumus mental orang risk, yaitu expected loss
 
-Orang risk memandang setiap pinjaman dengan tiga pertanyaan (ini juga fondasi matematis yang nanti dekat dengan dunia Anda sebagai DS):
+Orang risk memandang setiap pinjaman lewat tiga pertanyaan. Kerangka ini nantinya juga dekat dengan dunia Anda sebagai data scientist.
 
-| Komponen | Pertanyaan | Contoh |
+| Komponen | Pertanyaannya | Contoh |
 |---|---|---|
 | **PD** (Probability of Default) | Berapa peluang orang ini gagal bayar? | 4% |
-| **LGD** (Loss Given Default) | Kalau gagal, berapa % uang yang benar-benar hilang? (setelah motor ditarik & dilelang) | 40% |
-| **EAD** (Exposure at Default) | Saat gagal, sisa utangnya berapa? | Rp 10 juta |
+| **LGD** (Loss Given Default) | Kalau dia gagal, berapa persen uang yang benar-benar hilang setelah motornya ditarik dan dilelang? | 40% |
+| **EAD** (Exposure at Default) | Saat dia gagal, sisa utangnya berapa? | Rp 10 juta |
 
-**Expected Loss = PD × LGD × EAD** = 4% × 40% × 10 juta = **Rp 160.000**. Kalau margin bersih dari kontrak itu Rp 900.000, kontrak ini layak. Kalau PD-nya 15%, EL = Rp 600.000 — hampir memakan seluruh margin → tolak, atau kecilkan pinjaman (EAD turun), atau minta uang muka lebih besar (LGD turun), atau naikkan bunga (margin naik). **Lihat: "keputusan kredit" bukan cuma ya/tidak — ia bisa berupa limit, tenor, DP, dan harga.** Ini alasan kenapa decision engine nanti outputnya bukan cuma APPROVE/REJECT tapi juga limit/tenor/pricing.
+Ketiganya dikalikan menjadi expected loss. Dalam contoh ini, 4% dikali 40% dikali sepuluh juta menghasilkan Rp 160.000. Kalau margin bersih dari kontrak itu Rp 900.000, kontraknya layak diambil. Sebaliknya, kalau PD-nya 15%, expected loss membengkak menjadi Rp 600.000 dan hampir memakan seluruh margin. Pilihannya menjadi menolak, atau mengecilkan pinjaman supaya EAD turun, atau meminta uang muka lebih besar supaya LGD turun, atau menaikkan bunga supaya marginnya naik.
 
-## 1.4 Trade-off abadi: gas vs rem
+Di sinilah terlihat satu hal penting. Keputusan kredit bukan sekadar ya atau tidak, melainkan juga bisa berupa penyesuaian limit, tenor, uang muka, dan harga. Itulah alasan decision engine nantinya tidak hanya mengeluarkan APPROVE atau REJECT, tetapi juga limit, tenor, dan pricing.
 
-Setiap perusahaan pembiayaan punya dua pedal:
+## 1.4 Tarik-menarik abadi antara gas dan rem
 
-- **Gas (bisnis/sales):** approve lebih banyak → volume naik, market share naik, komisi naik.
-- **Rem (risk):** approve lebih selektif → kerugian turun, tapi volume turun.
+Setiap perusahaan pembiayaan punya dua pedal. Pedal gas dipegang tim bisnis, karena semakin banyak yang disetujui, volume dan pangsa pasar ikut naik. Pedal rem dipegang tim risk, karena semakin selektif persetujuan, kerugian semakin kecil walaupun volumenya ikut turun.
 
-> **Analogi jaring ikan:** kebijakan kredit itu seperti memilih ukuran mata jaring. Jaring rapat = ikan kecil (nasabah berisiko) tersaring, tapi banyak ikan bagus ikut lolos tak tertangkap (kehilangan bisnis). Jaring longgar = tangkapan banyak, tapi penuh ikan buruk. **Tidak ada jaring yang "benar" — yang ada adalah pilihan sadar di mana perusahaan mau berdiri**, dan pilihan itu bernama *credit policy* (risk appetite).
+> **Analogi jaring ikan.** Kebijakan kredit itu seperti memilih ukuran mata jaring. Jaring yang rapat menyaring ikan kecil, dalam hal ini nasabah berisiko, tetapi banyak ikan bagus ikut lolos tak tertangkap, artinya bisnis hilang. Jaring yang longgar menghasilkan tangkapan banyak, tetapi penuh ikan buruk. Tidak ada ukuran jaring yang "benar". Yang ada hanyalah pilihan sadar perusahaan mau berdiri di titik mana, dan pilihan itulah yang disebut credit policy atau risk appetite.
 
-Dua kesalahan yang selalu ditimbang:
-- **Salah tolak (false reject):** menolak orang yang sebenarnya akan lancar → kehilangan margin + orang itu jadi nasabah kompetitor.
-- **Salah terima (false approve):** menerima orang yang gagal bayar → rugi pokok.
+Ada dua jenis kesalahan yang selalu ditimbang. Yang pertama salah tolak, yaitu menolak orang yang sebenarnya akan lancar, sehingga perusahaan kehilangan margin dan orang itu menjadi nasabah pesaing. Yang kedua salah terima, yaitu menerima orang yang akhirnya gagal bayar, sehingga perusahaan kehilangan pokok pinjaman.
 
-Karena rugi pokok jauh lebih besar dari kehilangan margin, dunia kredit "default-nya konservatif" — tapi terlalu konservatif juga mati (tidak ada pendapatan). Menyeimbangkan inilah pekerjaan harian orang-orang yang akan Anda temui di bab 2.
+Karena kehilangan pokok jauh lebih menyakitkan daripada kehilangan margin, dunia kredit secara alami cenderung konservatif. Namun terlalu konservatif juga mematikan karena tidak ada pendapatan sama sekali. Menyeimbangkan keduanya itulah pekerjaan harian orang-orang yang akan Anda temui di bab 2.
 
-## 1.5 Bagaimana orang asing dinilai: 5C
+## 1.5 Cara menilai orang asing lewat kerangka 5C
 
-Kerangka klasik penilaian kredit — cara berpikir yang nanti Anda lihat menjelma jadi *rules* dan *fitur model*:
+Ada kerangka klasik penilaian kredit yang disebut 5C. Cara berpikir inilah yang nanti menjelma menjadi rule dan fitur model.
 
-| C | Arti | Analogi menilai calon penyewa kos | Wujudnya di data |
+| C | Artinya | Analogi menilai calon penyewa kos | Wujudnya di data |
 |---|---|---|---|
-| **Character** | Niat & rekam jejak bayar | "Dulu di kos lama bayarnya lancar nggak?" | Riwayat SLIK/bureau, kolektibilitas, DPD historis, blacklist |
-| **Capacity** | Kemampuan bayar dari penghasilan | "Gajinya cukup nggak buat bayar kos tiap bulan?" | Penghasilan, DTI/FOIR, jumlah cicilan berjalan |
-| **Capital** | Modal/kekayaan sendiri | "Punya tabungan nggak kalau kepepet?" | Uang muka (DP), saldo tabungan, aset |
-| **Collateral** | Jaminan yang bisa diambil kalau gagal | "Ada deposit yang bisa dipotong?" | Nilai & usia kendaraan, LTV |
-| **Condition** | Kondisi eksternal | "Kerjanya di industri yang lagi PHK massal?" | Jenis pekerjaan, industri, wilayah, kondisi ekonomi |
+| **Character** | Niat dan rekam jejak bayar | "Di kos yang lama bayarnya lancar tidak?" | Riwayat SLIK, kolektibilitas, riwayat keterlambatan, daftar hitam |
+| **Capacity** | Kemampuan bayar dari penghasilan | "Gajinya cukup tidak untuk bayar kos tiap bulan?" | Penghasilan, DTI atau FOIR, jumlah cicilan berjalan |
+| **Capital** | Modal atau kekayaan sendiri | "Punya tabungan tidak kalau kepepet?" | Uang muka, saldo tabungan, aset |
+| **Collateral** | Jaminan yang bisa diambil kalau gagal | "Ada deposit yang bisa dipotong?" | Nilai dan usia kendaraan, LTV |
+| **Condition** | Kondisi eksternal | "Kerjanya di industri yang sedang PHK massal bukan?" | Jenis pekerjaan, industri, wilayah, kondisi ekonomi |
 
-Multifinance menerjemahkan 5C ini menjadi hal-hal yang **terukur**: umur, penghasilan, DTI (rasio cicilan/penghasilan), LTV (pinjaman/nilai kendaraan), riwayat DPD (hari keterlambatan), skor kredit. Angka-angka inilah **bahan baku** rule dan model — dan di OSCAR mereka hidup sebagai *feature catalog* (`applicant.monthly_income`, `loan.ltv`, `affordability.dti`, `bureau.max_dpd_12m`, ...).
+Multifinance menerjemahkan kelima C itu menjadi hal-hal yang terukur, misalnya umur, penghasilan, DTI yang merupakan rasio cicilan terhadap penghasilan, LTV yang merupakan rasio pinjaman terhadap nilai kendaraan, riwayat hari keterlambatan, dan skor kredit. Angka-angka inilah bahan baku rule dan model. Di OSCAR, semuanya hidup sebagai feature catalog, misalnya `applicant.monthly_income`, `loan.ltv`, `affordability.dti`, dan `bureau.max_dpd_12m`.
 
-## 1.6 Contoh kasus mini: dua pemohon, satu kebijakan
+## 1.6 Contoh kasus mini, dua pemohon dengan satu kebijakan
 
-Produk: lease-back motor (pemilik motor "menjual" motornya ke perusahaan lalu mengangsurnya kembali — motor jadi jaminan, uang tunai cair ke pemilik).
+Produknya lease-back motor. Artinya, pemilik motor "menjual" motornya ke perusahaan pembiayaan lalu mengangsurnya kembali. Motornya menjadi jaminan, sedangkan uang tunainya cair ke pemilik.
 
 | | Pak Budi | Mas Roni |
 |---|---|---|
 | Pengajuan | 15 juta, 24 bulan | 18 juta, 36 bulan |
-| Penghasilan | 8,5 juta/bln | 4 juta/bln (tidak tetap) |
-| Cicilan berjalan | 2,5 jt/bln | 1,8 jt/bln |
-| **DTI (capacity)** | (2,5jt + ±0,8jt cicilan baru) / 8,5jt ≈ **39%** | (1,8jt + ±0,9jt) / 4jt ≈ **67%** |
-| Motor (collateral) | Vario 2020, taksiran 18 jt → **LTV 83%** | Beat 2013, taksiran 9 jt → **LTV 200%** ⚠️ |
-| Riwayat SLIK (character) | Lancar, DPD 0 | Pernah DPD 45 hari tahun lalu |
+| Penghasilan | 8,5 juta per bulan | 4 juta per bulan, tidak tetap |
+| Cicilan berjalan | 2,5 juta per bulan | 1,8 juta per bulan |
+| **DTI (capacity)** | (2,5 jt + kira-kira 0,8 jt cicilan baru) dibagi 8,5 jt, sekitar **39%** | (1,8 jt + kira-kira 0,9 jt) dibagi 4 jt, sekitar **67%** |
+| Motor (collateral) | Vario 2020, taksiran 18 juta, jadi **LTV 83%** | Beat 2013, taksiran 9 juta, jadi **LTV 200%** ⚠️ |
+| Riwayat SLIK (character) | Lancar, tidak pernah telat | Pernah telat 45 hari tahun lalu |
 
-Tanpa alat apa pun, intuisi Anda sudah bilang: Pak Budi layak (mungkin dengan syarat), Mas Roni sangat berisiko (minta 2× nilai motornya!). **Credit policy adalah menuliskan intuisi itu menjadi aturan eksplisit** — "DTI maksimal 45%", "LTV maksimal 85%", "DPD 12 bulan terakhir maksimal 30 hari" — supaya ribuan kasus per hari dinilai **konsisten**, oleh siapa pun (atau oleh mesin), dan bisa dipertanggungjawabkan. Bagaimana aturan-aturan itu dijalankan secara otomatis? Itulah cerita bab 3 & 4.
+Tanpa alat apa pun, intuisi Anda pasti sudah berbisik. Pak Budi layak dibiayai, mungkin dengan sedikit syarat, sedangkan Mas Roni sangat berisiko karena dia meminta dua kali lipat nilai motornya sendiri.
+
+Credit policy pada dasarnya adalah pekerjaan menuliskan intuisi semacam itu menjadi aturan yang eksplisit. Misalnya DTI maksimal 45%, LTV maksimal 85%, dan keterlambatan dalam dua belas bulan terakhir maksimal 30 hari. Tujuannya supaya ribuan kasus per hari dinilai secara konsisten oleh siapa pun, termasuk oleh mesin, dan hasilnya bisa dipertanggungjawabkan. Bagaimana aturan-aturan itu dijalankan secara otomatis? Itulah cerita bab 3 dan bab 4.
 
 ## 1.7 Rangkuman bab
 
-1. Lending untung dari margin bunga; satu-satunya biaya yang liar adalah **credit loss** — mengelolanya = mengelola hidup-mati perusahaan.
-2. Kerangka pikirnya **Expected Loss = PD × LGD × EAD**; karena itu keputusan kredit bukan cuma ya/tidak tapi juga **limit, tenor, DP, harga**.
-3. Kebijakan kredit = **pilihan sadar posisi di trade-off** risiko vs pertumbuhan (ukuran mata jaring).
-4. Orang asing dinilai lewat **5C** yang diterjemahkan menjadi fitur terukur — bahan baku rules & model.
+1. Bisnis pembiayaan untung dari margin bunga, dan satu-satunya biaya yang liar adalah kerugian kredit. Mengelola kerugian kredit sama saja dengan mengelola hidup matinya perusahaan.
+2. Kerangka berpikirnya adalah expected loss, yaitu PD dikali LGD dikali EAD. Karena itu keputusan kredit bukan cuma ya atau tidak, melainkan juga limit, tenor, uang muka, dan harga.
+3. Kebijakan kredit adalah pilihan sadar tentang posisi di tarik-menarik antara risiko dan pertumbuhan, seperti memilih ukuran mata jaring.
+4. Orang asing dinilai lewat kerangka 5C yang diterjemahkan menjadi fitur terukur, dan fitur itulah bahan baku rule serta model.
