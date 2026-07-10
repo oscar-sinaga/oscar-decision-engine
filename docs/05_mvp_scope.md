@@ -49,18 +49,24 @@ The MVP must prove that the company can:
 | Deployment Management | Promote config from dev/staging/prod |
 | Advanced Dashboard | Risk and operational monitoring |
 
-## Phase 3
+## Phase 3 — REVISED 2026-07-11 (product-owner decision, ADR-012)
 
-| Capability | Reason |
+The original Phase 3 roadmap (fraud monitoring, champion/challenger, model/drift
+monitoring, portfolio/vintage dashboards, collection integration) was **removed
+entirely** and replaced by **Generic Rule Authoring & Visual Decision Flow**,
+specified authoritatively in **`docs/phase3/`** (PRD, scope, architecture, DSL v2,
+expression language, data model, API, screens, test plan, execution plan, agent
+prompt).
+
+| Capability | Summary |
 |---|---|
-| Fraud Rule Integration | Application fraud and mismatch checks |
-| Application Fraud Monitoring | Fraud trend and investigation handoff |
-| Champion/Challenger | Controlled policy/model experiments |
-| Model Monitoring | Score distribution and model performance |
-| Drift Monitoring | Detect population/policy drift |
-| Portfolio Performance Monitoring | Link decision to delinquency/default performance |
-| Vintage/Delinquency Dashboard | Risk manager performance monitoring |
-| Collection Strategy Integration | Use decision data to inform downstream collection |
+| Rule Model v2 | Multi-branch CASE WHEN/ELSE rules, multiple actions, value/classification outputs (`SET_OUTPUT`) |
+| Output & category catalogs | Governed writable outputs; configurable rule categories; typed operator metadata |
+| Builder-first authoring UX | Nested groups, searchable typed pickers, human-readable + SQL-style previews, generated test form, usage info |
+| DAG decision flows | Strategy versions become validated acyclic graphs with CONDITION branching; deterministic single-token execution; auto-migration of existing linear strategies |
+| Visual flow canvas | Node-canvas designer (draft edit, read-only active) |
+| Safe expression language | Admin-gated text authoring (CASE WHEN/formula) compiled to whitelisted AST; **no SQL/eval execution ever** |
+| Decision-table grid editor | Typed spreadsheet-style editing with inline overlap warnings |
 
 ## Advanced / Do Not Build Yet
 

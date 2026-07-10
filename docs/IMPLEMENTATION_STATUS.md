@@ -5,7 +5,7 @@
 ## Overall Status
 
 - Completion: **100% of MVP scope** + Phase 2 in progress
-- Current phase: **Phase 2** (post-MVP enhancements) — P2.1–P2.5 complete
+- Current phase: Phase 2 complete; **Phase 3 specified** (docs/phase3/, ADR-012) — implementation not started
 - Latest local commit: (this commit) `feat(monitoring): add model registry and decision trend`
 - Last updated: 2026-07-05
 
@@ -61,4 +61,4 @@ See `docs/FINAL_IMPLEMENTATION_REPORT.md` §Known Limitations.
 
 ## Next Work
 
-Phase 2 backlog per `docs/05_mvp_scope.md`; human review items listed in the final report.
+Execute Phase 3 per `docs/phase3/AGENT_EXECUTION_PROMPT.md` (sub-phases P3.1–P3.8; tracker: `docs/phase3/IMPLEMENTATION_STATUS.md`). Old Phase 3 roadmap removed — see ADR-012.
