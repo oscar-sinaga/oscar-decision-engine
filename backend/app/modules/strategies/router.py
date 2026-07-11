@@ -15,7 +15,6 @@ from app.modules.auth.permissions import Permissions
 from app.modules.strategies import service
 from app.modules.strategies.models import Strategy, StrategyVersion
 from app.modules.strategies.schemas import (
-    StepResponse,
     StrategyCreateRequest,
     StrategyDetailResponse,
     StrategyResponse,
@@ -45,17 +44,8 @@ def _version_response(version: StrategyVersion) -> StrategyVersionResponse:
         version=version.version,
         status=version.status,
         version_note=version.version_note,
-        steps=[
-            StepResponse(
-                order=s.step_order,
-                type=s.step_type,
-                name=s.name,
-                reference_code=s.reference_code,
-                on_error=s.on_error,
-                config=s.config_json,
-            )
-            for s in sorted(version.steps, key=lambda s: s.step_order)
-        ],
+        graph=service.graph_response(version),
+        steps=service.derive_linear_steps(version),
         created_at=version.created_at,
         activated_at=version.activated_at,
         effective_from=version.effective_from,
@@ -105,7 +95,10 @@ async def list_strategies(
     strategies = (
         await session.scalars(
             select(Strategy)
-            .options(selectinload(Strategy.versions).selectinload(StrategyVersion.steps))
+            .options(
+                selectinload(Strategy.versions).selectinload(StrategyVersion.nodes),
+                selectinload(Strategy.versions).selectinload(StrategyVersion.edges),
+            )
             .order_by(Strategy.strategy_code)
         )
     ).all()

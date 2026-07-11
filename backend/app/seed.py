@@ -27,7 +27,8 @@ from app.models import (
     Scorecard,
     ScorecardVersion,
     Strategy,
-    StrategyStep,
+    StrategyEdge,
+    StrategyNode,
     StrategyVersion,
     User,
 )
@@ -39,6 +40,7 @@ from app.shared.database.session import get_sessionmaker
 from app.shared.domain.enums import (
     ActorType,
     ConfigStatus,
+    NodeType,
     ProductType,
     ReasonCodeCategory,
     ReasonSeverity,
@@ -551,18 +553,61 @@ async def seed_strategy(session: AsyncSession) -> None:
     )
     session.add(version)
     await session.flush()
-    for step in LEASEBACK_MOTOR_STEPS:
+    session.add(
+        StrategyNode(
+            strategy_version_id=version.id,
+            node_key="start",
+            node_type=NodeType.START,
+            name="Start",
+            position_x=0,
+            position_y=0,
+        )
+    )
+    previous = "start"
+    for index, step in enumerate(LEASEBACK_MOTOR_STEPS, start=1):
+        key = f"n{index}"
+        step_type = StepType(step["type"])
+        node_type = (
+            NodeType.DECISION_TABLE if step_type is StepType.OUTPUT else NodeType(step_type.value)
+        )
         session.add(
-            StrategyStep(
+            StrategyNode(
                 strategy_version_id=version.id,
-                step_order=step["order"],
-                step_type=step["type"],
+                node_key=key,
+                node_type=node_type,
                 name=step["name"],
                 reference_code=step.get("reference_code"),
                 on_error=step.get("on_error", StepOnError.FAIL),
                 config_json=step.get("config", {}),
+                position_x=240 * index,
+                position_y=0,
             )
         )
+        session.add(
+            StrategyEdge(
+                strategy_version_id=version.id,
+                from_node_key=previous,
+                to_node_key=key,
+            )
+        )
+        previous = key
+    session.add(
+        StrategyNode(
+            strategy_version_id=version.id,
+            node_key="end",
+            node_type=NodeType.END,
+            name="End",
+            position_x=240 * (len(LEASEBACK_MOTOR_STEPS) + 1),
+            position_y=0,
+        )
+    )
+    session.add(
+        StrategyEdge(
+            strategy_version_id=version.id,
+            from_node_key=previous,
+            to_node_key="end",
+        )
+    )
 
 
 async def seed_models(session: AsyncSession) -> None:

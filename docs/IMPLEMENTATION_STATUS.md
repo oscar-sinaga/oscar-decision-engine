@@ -5,8 +5,8 @@
 ## Overall Status
 
 - Completion: **100% of MVP scope** + Phase 2 in progress
-- Current phase: **Phase 3 in progress** — P3.1–P3.3 complete; P3.4 next
-- Latest local commit: (this commit) `feat(ui): builder-first rule authoring with branches and typed inputs`
+- Current phase: **Phase 3 in progress** — P3.1–P3.4 complete; P3.5 next
+- Latest local commit: (this commit) `feat(strategy): DAG decision-flow execution with graph migration`
 - Last updated: 2026-07-11
 
 ## Phase 3 Progress
@@ -16,7 +16,8 @@
 | P3.1 Rule Model v2 | **Complete** — CASE WHEN/ELSE branches, ordered multi-action execution, `SET_OUTPUT`, legacy normalization, typed catalog validation, `rule_kind`, migration `8f3c2a1b7d04`; 135 backend tests. |
 | P3.2 Catalogs & metadata | **Complete** — writable output catalog + `RULE_OUTPUT` seeds, managed/audited rule categories, typed `/v1/meta`, rule usage endpoint, admin-only `rule.author_expression`; 141 backend tests and frontend gates green. |
 | P3.3 Rule authoring UX | **Complete** — nested typed condition builder, CASE WHEN/ELSE and multi-action editors, round-trip formatter, builder-first create/detail, generated test form and usage panel; 15 Vitest and frontend gates green. |
-| P3.4–P3.8 | Pending — tracked in `docs/phase3/IMPLEMENTATION_STATUS.md`. |
+| P3.4 DAG execution engine | **Complete** — graph persistence/validation/execution, legacy steps conversion, trace paths, migration `f4b7c9d2e601`, golden reproducibility. |
+| P3.5–P3.8 | Pending — tracked in `docs/phase3/IMPLEMENTATION_STATUS.md`. |
 
 ## Phase 2 Progress (post-MVP, docs/05)
 

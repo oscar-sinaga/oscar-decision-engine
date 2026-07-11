@@ -24,7 +24,12 @@ from app.modules.scorecards.models import (
     ScorecardVersion,
 )
 from app.modules.simulations.models import Simulation, SimulationResult
-from app.modules.strategies.models import Strategy, StrategyStep, StrategyVersion
+from app.modules.strategies.models import (
+    Strategy,
+    StrategyEdge,
+    StrategyNode,
+    StrategyVersion,
+)
 
 __all__ = [
     "Application",
@@ -52,7 +57,8 @@ __all__ = [
     "Simulation",
     "SimulationResult",
     "Strategy",
-    "StrategyStep",
+    "StrategyEdge",
+    "StrategyNode",
     "StrategyVersion",
     "User",
 ]

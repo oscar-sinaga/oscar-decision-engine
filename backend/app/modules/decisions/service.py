@@ -324,9 +324,17 @@ async def build_trace_response(session: AsyncSession, decision: Decision) -> Tra
         strategy=TraceStrategyRef(
             strategy_code=strategy.strategy_code if strategy else "UNKNOWN",
             version=strategy_version.version if strategy_version else 0,
+            execution="GRAPH",
         ),
         input_snapshot=trace.input_snapshot,
         feature_values=trace.feature_values,
+        outputs=sanitize_snapshot(
+            {
+                key: value
+                for key, value in trace.feature_values.items()
+                if key.startswith("outputs.")
+            }
+        ),
         steps=trace.step_results,
         score_result=trace.score_results,
         final_decision=trace.final_output,

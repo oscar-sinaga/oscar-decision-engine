@@ -16,7 +16,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.engine.decision_table import (
     DecisionTableConfig,
@@ -25,6 +25,7 @@ from app.engine.decision_table import (
 from app.engine.dsl import (
     ActionType,
     BranchedRuleDefinition,
+    ConditionNode,
     RuleBranch,
     RuleDefinition,
 )
@@ -34,6 +35,7 @@ from app.engine.scorecard import ScorecardConfig, resolve_score
 from app.shared.domain.enums import (
     DECISION_SEVERITY,
     DecisionType,
+    NodeType,
     StepOnError,
     StepStatus,
     StepType,
@@ -41,6 +43,7 @@ from app.shared.domain.enums import (
 
 NO_DECISION_REASON_CODE = "NO_DECISION_PRODUCED"
 STEP_ERROR_REASON_CODE = "STEP_EXECUTION_ERROR"
+MAX_GRAPH_VISITS = 200
 
 
 class ResolvedRule(BaseModel):
@@ -69,13 +72,99 @@ class StepPlan(BaseModel):
     scorecard: ScorecardConfig | None = None
 
 
+class NodePlan(BaseModel):
+    """A resolved strategy graph node.
+
+    Executable business nodes carry the same resolved configuration as the
+    legacy :class:`StepPlan`.  START/END are routing sentinels and CONDITION
+    carries a safe DSL condition evaluated against the in-memory feature map.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    node_key: str
+    node_type: NodeType
+    name: str
+    reference_code: str | None = None
+    reference_version: int | None = None
+    on_error: StepOnError = StepOnError.FAIL
+    config: dict[str, Any] = Field(default_factory=dict)
+    rules: list[ResolvedRule] = Field(default_factory=list)
+    decision_table: DecisionTableConfig | None = None
+    scorecard: ScorecardConfig | None = None
+    condition: ConditionNode | None = None
+
+    def as_step(self, order: int) -> StepPlan:
+        """Return the existing step-runner input for an executable node."""
+
+        if self.node_type in (NodeType.START, NodeType.CONDITION, NodeType.END):
+            raise ValueError(f"Node type {self.node_type} is not an executable step")
+        step_type = StepType(self.node_type.value)
+        return StepPlan(
+            order=order,
+            step_type=step_type,
+            name=self.name,
+            reference_code=self.reference_code,
+            reference_version=self.reference_version,
+            on_error=self.on_error,
+            config=self.config,
+            rules=self.rules,
+            decision_table=self.decision_table,
+            scorecard=self.scorecard,
+        )
+
+
 class ExecutablePlan(BaseModel):
     strategy_code: str
     strategy_version: int
     strategy_version_id: str
     product_type: str
     segment: str
-    steps: list[StepPlan]
+    nodes: dict[str, NodePlan] = Field(default_factory=dict)
+    edges: dict[str, dict[str | None, str]] = Field(default_factory=dict)
+    start_key: str = "start"
+    # Internal compatibility input for existing engine unit fixtures.  It is
+    # normalized into a linear graph at model creation and is not used by the
+    # runtime driver afterward.
+    steps: list[StepPlan] = Field(default_factory=list, exclude=True)
+    legacy_trace_skips: bool = Field(default=False, exclude=True)
+
+    @model_validator(mode="after")
+    def normalize_legacy_steps(self) -> "ExecutablePlan":
+        self._normalize_legacy_steps()
+        return self
+
+    def _normalize_legacy_steps(self) -> None:
+        if not self.steps or (self.nodes and not self.legacy_trace_skips):
+            return
+        start = NodePlan(node_key=self.start_key, node_type=NodeType.START, name="Start")
+        nodes: dict[str, NodePlan] = {self.start_key: start}
+        edges: dict[str, dict[str | None, str]] = {}
+        previous = self.start_key
+        for index, step in enumerate(sorted(self.steps, key=lambda item: item.order), start=1):
+            key = f"n{index}"
+            node_type = (
+                NodeType.DECISION_TABLE
+                if step.step_type is StepType.OUTPUT
+                else NodeType(step.step_type.value)
+            )
+            nodes[key] = NodePlan(
+                node_key=key,
+                node_type=node_type,
+                name=step.name,
+                reference_code=step.reference_code,
+                reference_version=step.reference_version,
+                on_error=step.on_error,
+                config=step.config,
+                rules=step.rules,
+                decision_table=step.decision_table,
+                scorecard=step.scorecard,
+            )
+            edges[previous] = {None: key}
+            previous = key
+        self.nodes = nodes
+        self.edges = edges
+        self.legacy_trace_skips = True
 
 
 class ValidationFailure(BaseModel):
@@ -128,22 +217,100 @@ class _ExecutionContext:
 
 
 def run_strategy(plan: ExecutablePlan, payload: dict[str, Any]) -> ExecutionResult:
+    # Existing engine fixtures may mutate ``steps`` after construction. Keep
+    # that compatibility path deterministic while native graph plans ignore it.
+    plan._normalize_legacy_steps()
     started = time.perf_counter()
     executed_at = datetime.now(UTC)
     context = _ExecutionContext(build_base_features(payload))
     step_results: list[dict[str, Any]] = []
 
-    for step in plan.steps:
-        if context.stop:
-            step_results.append(_step_record(step, StepStatus.SKIPPED, 0.0))
+    current = plan.edges.get(plan.start_key, {}).get(None)
+    visits = 0
+
+    while current is not None and not context.stop:
+        visits += 1
+        if visits > MAX_GRAPH_VISITS:
+            error_record = {
+                "step_order": visits,
+                "step_name": "graph traversal",
+                "error_type": "GraphVisitLimitExceeded",
+                "on_error": StepOnError.FAIL.value,
+            }
+            context.errors.append(error_record)
+            context.add_candidate(DecisionType.ERROR, STEP_ERROR_REASON_CODE)
+            break
+
+        node = plan.nodes.get(current)
+        if node is None:
+            error_record = {
+                "step_order": visits,
+                "step_name": current,
+                "error_type": "UnknownGraphNode",
+                "on_error": StepOnError.FAIL.value,
+            }
+            context.errors.append(error_record)
+            context.add_candidate(DecisionType.ERROR, STEP_ERROR_REASON_CODE)
+            break
+
+        if node.node_type is NodeType.END:
+            break
+
+        if node.node_type is NodeType.CONDITION:
+            condition_started = time.perf_counter()
+            if node.condition is None:
+                error_record = {
+                    "step_order": visits,
+                    "step_name": node.name,
+                    "error_type": "MissingCondition",
+                    "on_error": StepOnError.FAIL.value,
+                }
+                context.errors.append(error_record)
+                context.add_candidate(DecisionType.ERROR, STEP_ERROR_REASON_CODE)
+                break
+            matched, details = evaluate_node(node.condition, context.features)
+            label = "TRUE" if matched else "FALSE"
+            duration_ms = round((time.perf_counter() - condition_started) * 1000, 2)
+            step_results.append(
+                {
+                    "order": visits,
+                    "node_key": node.node_key,
+                    "type": NodeType.CONDITION.value,
+                    "name": node.name,
+                    "reference_code": None,
+                    "reference_version": None,
+                    "status": StepStatus.EVALUATED.value,
+                    "duration_ms": duration_ms,
+                    "condition_result": matched,
+                    "taken_edge": label,
+                    "evaluated_conditions": details,
+                }
+            )
+            current = plan.edges.get(current, {}).get(label)
             continue
+
+        step = node.as_step(visits)
         step_started = time.perf_counter()
         try:
             status, detail = _run_step(step, context)
         except Exception as exc:  # noqa: BLE001 - fallback path must be recorded
             status, detail = _apply_step_error(step, context, exc)
         duration_ms = round((time.perf_counter() - step_started) * 1000, 2)
-        step_results.append(_step_record(step, status, duration_ms, **detail))
+        step_results.append(
+            _step_record(step, status, duration_ms, node_key=node.node_key, **detail)
+        )
+        current = plan.edges.get(current, {}).get(None)
+
+    # Ordered-plan compatibility: historical unit fixtures and pre-M2 plans
+    # recorded remaining linear steps as SKIPPED after a stop. Native graph
+    # execution records only the visited path.
+    while context.stop and plan.legacy_trace_skips and current is not None:
+        node = plan.nodes.get(current)
+        if node is None or node.node_type in (NodeType.CONDITION, NodeType.END):
+            break
+        step = node.as_step(len(step_results) + 1)
+        step_results.append(_step_record(step, StepStatus.SKIPPED, 0.0, node_key=node.node_key))
+        current = plan.edges.get(current, {}).get(None)
 
     final_decision = _resolve_final_decision(context)
     limit_fields = _resolve_outputs(context)

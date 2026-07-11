@@ -1,4 +1,4 @@
-"""Strategy identity, immutable versions, ordered steps (docs/06 §2.6–2.8)."""
+"""Strategy identity, immutable versions, and Phase 3 decision-flow graphs."""
 
 import uuid
 from datetime import datetime
@@ -17,7 +17,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.database.base import Base
-from app.shared.domain.enums import ConfigStatus, ProductType, StepOnError, StepType
+from app.shared.domain.enums import ConfigStatus, NodeType, ProductType, StepOnError
 
 
 class Strategy(Base):
@@ -58,25 +58,54 @@ class StrategyVersion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     strategy: Mapped[Strategy] = relationship(back_populates="versions")
-    steps: Mapped[list["StrategyStep"]] = relationship(
-        back_populates="strategy_version", order_by="StrategyStep.step_order"
+    nodes: Mapped[list["StrategyNode"]] = relationship(
+        back_populates="strategy_version",
+        order_by="StrategyNode.node_key",
+        cascade="all, delete-orphan",
+    )
+    edges: Mapped[list["StrategyEdge"]] = relationship(
+        back_populates="strategy_version",
+        order_by="StrategyEdge.from_node_key, StrategyEdge.label, StrategyEdge.to_node_key",
+        cascade="all, delete-orphan",
     )
 
 
-class StrategyStep(Base):
-    __tablename__ = "strategy_steps"
-    __table_args__ = (UniqueConstraint("strategy_version_id", "step_order"),)
+class StrategyNode(Base):
+    __tablename__ = "strategy_nodes"
+    __table_args__ = (UniqueConstraint("strategy_version_id", "node_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     strategy_version_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("strategy_versions.id")
+        UUID(as_uuid=True),
+        ForeignKey("strategy_versions.id", ondelete="CASCADE"),
+        index=True,
     )
-    step_order: Mapped[int] = mapped_column(Integer)
-    step_type: Mapped[StepType] = mapped_column(String(30))
-    name: Mapped[str] = mapped_column(String(200))
-    # Code of the referenced rule set / decision table / scorecard / calculation profile.
+    node_key: Mapped[str] = mapped_column(String(50))
+    node_type: Mapped[NodeType] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(200), default="")
     reference_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    on_error: Mapped[StepOnError] = mapped_column(String(30), default=StepOnError.FAIL)
+    on_error: Mapped[StepOnError] = mapped_column(String(20), default=StepOnError.FAIL)
     config_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    position_x: Mapped[int] = mapped_column(Integer, default=0)
+    position_y: Mapped[int] = mapped_column(Integer, default=0)
 
-    strategy_version: Mapped[StrategyVersion] = relationship(back_populates="steps")
+    strategy_version: Mapped[StrategyVersion] = relationship(back_populates="nodes")
+
+
+class StrategyEdge(Base):
+    __tablename__ = "strategy_edges"
+    __table_args__ = (
+        UniqueConstraint("strategy_version_id", "from_node_key", "to_node_key", "label"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    strategy_version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("strategy_versions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    from_node_key: Mapped[str] = mapped_column(String(50))
+    to_node_key: Mapped[str] = mapped_column(String(50))
+    label: Mapped[str | None] = mapped_column(String(10), nullable=True)
+
+    strategy_version: Mapped[StrategyVersion] = relationship(back_populates="edges")

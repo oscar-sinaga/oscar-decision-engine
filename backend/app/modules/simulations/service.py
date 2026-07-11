@@ -77,9 +77,20 @@ def _simulation_trace(
 ) -> dict[str, Any]:
     return {
         "execution_mode": ExecutionMode.SIMULATION.value,
-        "strategy": {"strategy_code": plan.strategy_code, "version": plan.strategy_version},
+        "strategy": {
+            "strategy_code": plan.strategy_code,
+            "version": plan.strategy_version,
+            "execution": "GRAPH",
+        },
         "input_snapshot": sanitize_snapshot(payload),
         "feature_values": result.feature_values,
+        "outputs": sanitize_snapshot(
+            {
+                key: value
+                for key, value in result.feature_values.items()
+                if key.startswith("outputs.")
+            }
+        ),
         "steps": result.step_results,
         "score_result": result.score_result,
         "final_decision": {

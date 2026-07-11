@@ -6,7 +6,7 @@
 
 - Status: **In progress**
 - Baseline: MVP + Phase 2 complete — 114 backend tests, 12 Vitest, 4 Playwright, Alembic head `1864d7efc83f`
-- Current sub-phase: P3.4 — DAG execution engine
+- Current sub-phase: P3.5 — Visual flow canvas
 - Latest Phase 3 commit: `feat(ui): builder-first rule authoring with branches and typed inputs`
 
 ## Sub-phase tracker
@@ -16,7 +16,7 @@
 | P3.1 | Rule Model v2 (engine) | **Complete** | tests: 135 passed; ruff + mypy strict clean · migration: `8f3c2a1b7d04`, up/down/up green · commit: `feat(rules): rule model v2 with CASE WHEN branches and typed outputs` |
 | P3.2 | Catalogs & metadata | **Complete** | tests: 141 backend passed; ruff + mypy clean; frontend lint/check, 12 Vitest, build green · commit: `feat(catalog): output catalog, rule categories, typed metadata` |
 | P3.3 | Rule authoring UX overhaul | **Complete** | frontend lint + svelte-check 0/0 + 15 Vitest + production build green · commit: `feat(ui): builder-first rule authoring with branches and typed inputs` |
-| P3.4 | DAG execution engine | Pending | golden: — · migration M2: — · commit: — |
+| P3.4 | DAG execution engine | **Complete** | golden: 4 canonical cases green · 63 unit + 102 integration tests green in segmented runs · migration `f4b7c9d2e601` up/down/up green · ruff + mypy clean · commit: `feat(strategy): DAG decision-flow execution with graph migration` |
 | P3.5 | Visual flow canvas | Pending | playwright: — · commit: — |
 | P3.6 | Expression language + SQL preview | Pending | fuzz: — · commit: — |
 | P3.7 | Decision-table grid editor | Pending | playwright: — · commit: — |
@@ -35,10 +35,14 @@
 - Task 1.6 also updates `strategies/plan_builder.py` (not named in that atomic card)
   because it is the mandatory shared production/simulation bridge and otherwise active
   v2 rules would validate through the API but fail when executed.
+- P3.4 adds `NodeType` to `shared/domain/enums.py` although task 4.2 names only
+  `engine/executor.py`; graph persistence, API metadata, validation, and execution must
+  share one typed enum to prevent drift between layers.
 
 ## Known limitations / follow-ups discovered
 
-- (none yet)
+- Docker/Compose is unavailable in the ChatGPT container. Compose rebuild and Playwright verification are recorded in `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md` for execution on the user's workstation.
+- A monolithic `pytest -q` invocation is terminated by the container timeout after roughly 69 tests; every test file was therefore run in segmented groups (63 unit + 102 integration, all green).
 
 ## Blockers
 

@@ -71,6 +71,19 @@ class RuleCategory(StrEnum):
     FINAL_DECISION = "FINAL_DECISION"
 
 
+class NodeType(StrEnum):
+    """Executable strategy graph node types (Phase 3)."""
+
+    START = "START"
+    VALIDATION = "VALIDATION"
+    CALCULATION = "CALCULATION"
+    RULE_SET = "RULE_SET"
+    SCORECARD = "SCORECARD"
+    DECISION_TABLE = "DECISION_TABLE"
+    CONDITION = "CONDITION"
+    END = "END"
+
+
 class StepType(StrEnum):
     VALIDATION = "VALIDATION"
     RULE_SET = "RULE_SET"
@@ -88,6 +101,7 @@ class StepOnError(StrEnum):
 
 class StepStatus(StrEnum):
     PASSED = "PASSED"
+    EVALUATED = "EVALUATED"
     TRIGGERED = "TRIGGERED"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"

@@ -173,7 +173,11 @@ async def test_trace_reconstructs_decision(db_client: AsyncClient) -> None:
     trace = response.json()
     assert trace["trace_id"] == created["trace_id"]
     assert trace["execution_mode"] == "PRODUCTION"
-    assert trace["strategy"] == {"strategy_code": "LEASEBACK_MOTOR", "version": 1}
+    assert trace["strategy"] == {
+        "strategy_code": "LEASEBACK_MOTOR",
+        "version": 1,
+        "execution": "GRAPH",
+    }
 
     # Feature values show the exact calculated inputs.
     assert trace["feature_values"]["loan.ltv"] == 0.833333

@@ -59,6 +59,7 @@ class DecisionResponse(BaseModel):
 class TraceStrategyRef(BaseModel):
     strategy_code: str
     version: int
+    execution: str = "GRAPH"
 
 
 class TraceResponse(BaseModel):
@@ -69,6 +70,7 @@ class TraceResponse(BaseModel):
     strategy: TraceStrategyRef
     input_snapshot: dict[str, Any]
     feature_values: dict[str, Any]
+    outputs: dict[str, Any] = Field(default_factory=dict)
     steps: list[dict[str, Any]]
     score_result: dict[str, Any] | None
     final_decision: dict[str, Any]

@@ -31,7 +31,7 @@ from app.modules.governance.service import (
 from app.modules.reason_codes.models import ReasonCode
 from app.modules.rules.models import Rule, RuleCategory, RuleSet, RuleSetMember, RuleVersion
 from app.modules.rules.schemas import RuleCreateRequest, RuleVersionUpdateRequest
-from app.modules.strategies.models import Strategy, StrategyStep, StrategyVersion
+from app.modules.strategies.models import Strategy, StrategyNode, StrategyVersion
 from app.shared.domain.enums import ApprovalStatus, ConfigStatus, FeatureDataType
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from app.shared.domain.version_lifecycle import (
@@ -248,10 +248,10 @@ async def get_rule_usage(session: AsyncSession, rule: Rule) -> dict[str, Any]:
             await session.execute(
                 select(Strategy, StrategyVersion)
                 .join(StrategyVersion, StrategyVersion.strategy_id == Strategy.id)
-                .join(StrategyStep, StrategyStep.strategy_version_id == StrategyVersion.id)
+                .join(StrategyNode, StrategyNode.strategy_version_id == StrategyVersion.id)
                 .where(
-                    StrategyStep.step_type == "RULE_SET",
-                    StrategyStep.reference_code.in_(codes),
+                    StrategyNode.node_type == "RULE_SET",
+                    StrategyNode.reference_code.in_(codes),
                 )
                 .order_by(Strategy.strategy_code, StrategyVersion.version)
             )
