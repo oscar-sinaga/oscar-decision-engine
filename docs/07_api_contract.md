@@ -369,3 +369,44 @@ Post-MVP endpoints added in Phase 2:
 | Monitoring trend | `GET /v1/monitoring/decision-trend` — daily decision-volume buckets |
 
 New permissions: `model.view`, `model.manage`. New audit events include `FEATURE_*`, `MANUAL_REVIEW_COMMENT_ADDED`, `MANUAL_REVIEW_DOCUMENT_RESOLVED`, `MODEL_REGISTERED`, `MODEL_UPDATED`.
+
+## 13. Phase 3 Addendum (2026-07-11)
+
+### Rule authoring and metadata
+
+- Rule create/version endpoints accept exactly one of: legacy `condition` + `action`, v2 `branches` + optional `default_actions`, or `expression` + `output_target`.
+- `GET /v1/rules/{id}` returns normalized definitions, `sql_preview` (display only), and the persisted expression text/compiled definition where applicable.
+- `POST /v1/rules/{id}/versions/{version_id}/test` returns matched branch, ordered actions, and `outputs_after` for the generated workbench test form.
+- `GET /v1/rules/{id}/usage` reports rule sets and strategy versions using the rule.
+- `POST /v1/expressions/validate` parses, resolves, type-checks, and reports safe AST metadata. It requires `rule.author_expression`; it never executes SQL.
+- `GET /v1/meta` additionally returns `operators_by_type`, `writable_outputs`, `node_types`, `rule_kinds`, and managed `rule_categories`.
+- `GET/POST /v1/rule-categories` and `PATCH /v1/rule-categories/{id}` manage audited categories.
+
+### Strategy graph compatibility
+
+Strategy-version create/update accepts exactly one of:
+
+```json
+{"steps": [{"order": 1, "type": "RULE_SET", "reference_code": "ELIGIBILITY_MOTOR"}]}
+```
+
+or:
+
+```json
+{
+  "graph": {
+    "nodes": [
+      {"node_key": "start", "node_type": "START", "position": {"x": 0, "y": 80}},
+      {"node_key": "eligibility", "node_type": "RULE_SET", "reference_code": "ELIGIBILITY_MOTOR", "position": {"x": 240, "y": 80}},
+      {"node_key": "end", "node_type": "END", "position": {"x": 480, "y": 80}}
+    ],
+    "edges": [{"from": "start", "to": "eligibility"}, {"from": "eligibility", "to": "end"}]
+  }
+}
+```
+
+Responses always include `graph`; `steps` is also returned only when the graph is a simple linear path. Graph validation is repeated on save, submit, and activate.
+
+### Decision tables
+
+The existing `/v1/decision-tables` version endpoints remain the contract for the grid editor. Version responses include computed `warnings`, including overlapping rows. Outputs support decision, reason code(s), risk grade, approved limit/formula, tenor, and pricing fields. No separate browser-only storage exists.

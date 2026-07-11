@@ -82,7 +82,6 @@ prompt).
 | Full Channeling/Joint Financing Platform | Strategic product layer, not MVP engine |
 | AI Assistance | Advanced assistive feature; needs strong governance |
 | Advanced Geolocation Monitoring | Fraud/AML-specific; not MVP |
-| Full visual drag-and-drop flow builder | Expensive; use step-based strategy first |
 
 ## MVP Success Criteria
 

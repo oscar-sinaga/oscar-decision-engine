@@ -8,7 +8,8 @@ erDiagram
     DECISION ||--|| DECISION_TRACE : has
     DECISION }o--|| STRATEGY_VERSION : executed_with
     STRATEGY ||--o{ STRATEGY_VERSION : has
-    STRATEGY_VERSION ||--o{ STRATEGY_STEP : contains
+    STRATEGY_VERSION ||--o{ STRATEGY_NODE : contains
+    STRATEGY_VERSION ||--o{ STRATEGY_EDGE : connects
     RULE_SET ||--o{ RULE_VERSION : contains
     RULE ||--o{ RULE_VERSION : has
     DECISION_TABLE ||--o{ DECISION_TABLE_VERSION : has
@@ -139,17 +140,35 @@ Immutable executable strategy.
 | activated_at | timestamp | optional |
 | activated_by | FK user | optional |
 
-### 2.8 `strategy_steps`
+### 2.8 `strategy_nodes` and `strategy_edges`
+
+Phase 3 replaces the linear `strategy_steps` table with a persisted DAG. Existing rows were data-migrated to equivalent START → step nodes → END graphs.
+
+`strategy_nodes`:
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID |  |
-| strategy_version_id | FK |  |
-| step_order | int |  |
-| step_type | enum | VALIDATION, RULE_SET, DECISION_TABLE, SCORECARD, CALCULATION, OUTPUT |
-| reference_id | UUID/string | rule_set_id/decision_table_version_id/etc |
+| id | UUID | Internal node ID |
+| strategy_version_id | FK | Owning immutable strategy version |
+| node_key | string | Stable key unique within the version |
+| node_type | enum/string | START, END, VALIDATION, CALCULATION, RULE_SET, SCORECARD, DECISION_TABLE, CONDITION |
+| name | string | Human-readable label |
+| reference_code | string | Optional rule-set, scorecard, or table code |
 | on_error | enum | FAIL, MANUAL_REVIEW, CONTINUE |
-| config_json | jsonb |  |
+| config_json | jsonb | Required fields, calculations, or CONDITION DSL |
+| position_x / position_y | int | Canvas coordinates; execution does not depend on them |
+
+`strategy_edges`:
+
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | Internal edge ID |
+| strategy_version_id | FK | Owning immutable strategy version |
+| from_node_key | string | Source node |
+| to_node_key | string | Destination node |
+| label | string/null | `TRUE`/`FALSE` for CONDITION edges; null otherwise |
+
+The graph validator enforces one START, at least one END, no cycles, no orphan nodes, valid branch labels, no self-loops or duplicate edges, and configured size limits. Legacy API requests using `steps[]` remain accepted and are converted server-side to a linear graph.
 
 ### 2.9 `reason_codes`
 
@@ -309,3 +328,26 @@ Tables added in Phase 2 (migrations `cc396755f845`, `553675a0147d`, `d915f8cefdb
 - `registered_models` — model registry (code+version_label unique, provider, active, metadata).
 - `manual_review_cases` gains `sla_due_at`, `escalated_to`.
 - `approval_requests` gains `simulation_ref` (attached simulation evidence for maker-checker).
+
+## 9. Phase 3 Addendum (2026-07-11)
+
+Phase 3 is represented by Alembic migrations `8f3c2a1b7d04` (rule model/catalog additions) and `f4b7c9d2e601` (strategy graph conversion).
+
+### Rule model and catalogs
+
+- `rule_versions` now stores `rule_kind`, optional `branches_json`, nullable legacy `action_json`, and optional `expression_text`.
+- A v2 rule uses exactly one authoring shape: legacy `condition + action`, ordered `branches + default_actions`, or admin-gated `expression + output_target`.
+- `features` adds `writable`; `RULE_OUTPUT` identifies governed output targets.
+- `rule_categories` is a managed, audited catalog used by rule validation and workbench metadata.
+
+### Strategy graph storage
+
+- Migration M2 creates `strategy_nodes` and `strategy_edges`, converts every historical `strategy_steps` version to a behavior-equivalent linear graph, then removes `strategy_steps`.
+- The downgrade is intentionally linear-only: it reconstructs steps only when the graph is representable as a single path.
+- Canvas positions are presentation metadata; deterministic edge traversal and node configuration define execution.
+
+### Trace additions
+
+- Each execution step records `node_key`; CONDITION entries also record `condition_result` and `taken_edge`.
+- Strategy trace metadata records `execution: "GRAPH"`.
+- A masked top-level `outputs` snapshot captures governed values produced by rules and tables without exposing denied PII keys.

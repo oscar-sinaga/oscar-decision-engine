@@ -429,6 +429,14 @@ export interface Feature {
 	created_at: string | null;
 }
 
+export interface RuleCategoryCatalog {
+	id: string;
+	code: string;
+	label: string;
+	active: boolean;
+	created_at: string | null;
+}
+
 export interface RegisteredModel {
 	id: string;
 	code: string;

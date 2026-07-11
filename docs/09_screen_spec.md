@@ -262,3 +262,31 @@ Audit Log filters should include:
 - approval/override context.
 
 Raw technical logs remain restricted to engineering/operations tooling and must not expose customer PII. The decision detail screen may show safe runtime metadata such as correlation ID, request ID, duration, fallback, and safe error code.
+
+## 14. Phase 3 Workbench Addendum (2026-07-11)
+
+### Feature Catalog and rule categories
+
+- Feature creation includes source `RULE_OUTPUT` and a governed `writable` flag.
+- Filters include source and outputs-only views.
+- Authorized users can toggle active/writable state and manage active rule-category codes and labels.
+
+### Builder-first rule authoring
+
+- `/rules/new` and `/rules/{id}` use typed feature/operator/value pickers, nested groups, ordered CASE WHEN branches, ELSE actions, and multiple actions.
+- Human-readable, SQL-style, and generated JSON tabs are available; JSON is read-only for supported shapes and is not required for the primary journey.
+- The detail page generates a typed dry-run form from referenced features and shows rule-set/strategy usage.
+- EXPRESSION is visible only to users with `rule.author_expression`; the editor validates with debounce and chooses a writable output target.
+
+### Visual decision-flow canvas
+
+- `/strategies/{id}` renders the persisted OSCAR graph using custom nodes and edges.
+- Drafts support palette insertion, configuration drawer, TRUE/FALSE CONDITION handles, validation, save/new version, and auto-layout.
+- Non-draft versions are read-only but retain navigation and zoom.
+- Decision trace shows node keys, branch taken, output snapshot, and a link to the executed read-only flow.
+
+### Decision-table grid
+
+- `/decision-tables` lists versioned tables; `/decision-tables/{id}` provides typed condition columns and output cells.
+- Users can add/copy/delete/reorder rows, reorder/remove columns, use wildcard `*`, select FIRST_MATCH or PRIORITY, and see overlap warnings inline.
+- Lifecycle actions remain maker-checker controlled; Advanced JSON is available only as a secondary escape hatch.

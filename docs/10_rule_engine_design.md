@@ -188,3 +188,29 @@ Recommended approach:
 - Guided condition builder for risk users.
 - Advanced expression/SQL only for admin/engineering in later phase.
 - Strong validation and sandbox execution if ever allowed.
+
+## 11. Phase 3 Rule and Flow Engine (2026-07-11)
+
+Phase 3 keeps the original guided DSL and adds two safe, deterministic execution layers.
+
+### Rule Model v2
+
+A rule may contain ordered CASE WHEN branches with an optional ELSE. Each branch executes an ordered list of typed actions such as `SET_DECISION`, `ADD_REASON_CODE`, `SET_OUTPUT`, routing, and stop/continue behavior. `SET_OUTPUT` may target only active catalog features marked writable; later rules, conditions, tables, and traces can consume those outputs.
+
+Legacy rules are normalized into the v2 runtime shape, preserving historical outcomes. Rule execution returns the matched branch, ordered actions, and output state for traceability.
+
+### Safe expression language
+
+The advanced authoring option is **not free SQL**. OSCAR uses a hand-written tokenizer and recursive-descent parser that produces a JSON-serializable, whitelisted AST. The interpreter has no access to Python evaluation, SQL execution, filesystem, network, time, or randomness. It enforces feature resolution, type rules, SQL-like NULL behavior, and hard limits on length, depth, nodes, CASE branches, and IN-list size. SQL-style text is generated only as a non-executable preview.
+
+Expression authoring requires `rule.author_expression` (seeded for ADMIN). Runtime execution of an already approved expression follows the same strategy `on_error` behavior as other node failures and stores safe error classes without payload values.
+
+### DAG strategy execution
+
+A strategy version is a validated directed acyclic graph. Execution starts at the single START node and follows one deterministic edge at a time until END. CONDITION nodes choose labeled TRUE/FALSE edges; ordinary nodes have one outgoing edge. Rejoining branches is supported. A visit guard prevents runaway execution even if persisted data is corrupted.
+
+The same plan builder and executor are used by production decisions and simulations. Existing linear strategies were migrated to equivalent graphs, and golden tests lock the four canonical outcomes to prevent behavioral drift.
+
+### Decision-table engine
+
+The table runtime remains server-side and independent from the grid UI. FIRST_MATCH evaluates rows in order; PRIORITY uses explicit row priority. Wildcards and typed operators are normalized to the same catalog-aware comparison semantics as rules. Overlap analysis is advisory and returned with persisted versions; it never silently changes execution order.

@@ -54,9 +54,11 @@ Vitest: `rule-format` JSON↔builder round-trip (legacy, v2 nested, branch+else,
 
 ## 7. Exit checklist (P3.8)
 
-- [ ] All suites green (backend, Vitest, Playwright old+new) on rebuilt compose stack
-- [ ] Golden reproducibility green
-- [ ] Expression fuzz list green
-- [ ] PRD §6 journey recorded in Playwright and passing
-- [ ] No JSON required anywhere in the §6 journey (manual spot-check)
-- [ ] Docs sync (05/06/07/09/10 + phase3 pack statuses + ADRs) committed
+- [ ] All suites green on rebuilt compose stack — backend/Vitest gates are green; Docker and browser runtime are workstation-pending.
+- [x] Golden reproducibility green.
+- [x] Expression fuzz list green.
+- [ ] PRD §6 journey recorded in Playwright and passing — all 3 new specs are recorded and discovered; browser execution is workstation-pending.
+- [ ] No JSON required anywhere in the §6 journey — implemented by the primary UI surfaces; final manual spot-check is workstation-pending.
+- [x] Docs sync (05/06/07/09/10 + Phase 3 statuses + ADRs) completed in the final Phase 3 commit.
+
+The unchecked items are environmental acceptance gates, not unfinished implementation. See `LOCAL_ENVIRONMENT_VALIDATION.md`.

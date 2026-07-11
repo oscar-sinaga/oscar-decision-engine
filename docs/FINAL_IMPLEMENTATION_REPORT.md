@@ -135,3 +135,55 @@ Delivered on branch `feature/oscar-mvp` after the MVP, as safely-buildable Phase
 **Quality gates (Phase 2 end):** backend ruff + mypy `--strict` (116 source files) + **114 pytest tests**; frontend prettier/eslint/svelte-check strict + Vitest (12) + production build; full Docker Compose stack rebuilt and validated; **4 Playwright E2E** tests pass; security/PII sweep clean (no `.env`, no PII literals outside tests). 5 Alembic migrations apply on a clean database. New ADRs: 010, 011.
 
 **Still deferred (need human/business decision):** external data-source integration (bureau/eKYC/model-serving with real credentials) and deployment/environment promotion management. Everything else in the Phase 2 catalogue is implemented.
+
+## Phase 3 Final Report (completed 2026-07-11)
+
+### Scope delivered
+
+Phase 3 replaced the former roadmap with Generic Rule Authoring & Visual Decision Flow and delivered all P3.1–P3.8 implementation work:
+
+1. Rule Model v2 with ordered CASE WHEN/ELSE branches, multiple typed actions, and governed `SET_OUTPUT`.
+2. Writable output and rule-category catalogs plus richer metadata and usage APIs.
+3. Builder-first rule create/detail UX with typed nested conditions, previews, generated dry-run form, and usage visibility.
+4. Validated DAG strategy persistence/execution, legacy linear conversion, CONDITION branching, graph trace, and migration `f4b7c9d2e601`.
+5. Visual Svelte Flow canvas with OSCAR-owned serializers, read-only active versions, configuration drawer, validation, and auto-layout.
+6. Admin-gated safe expression language with a hand-written parser/interpreter, complexity limits, deterministic NULL semantics, persisted AST, and non-executable SQL-style preview.
+7. Typed decision-table grid with row/column operations, FIRST_MATCH/PRIORITY, wildcard cells, output formulas, lifecycle controls, and overlap warnings.
+8. Hardening: Feature Catalog writable/output controls and rule-category management, stable Playwright base URL, three new Phase 3 E2E journeys, and documentation synchronization.
+
+### Compatibility and governance
+
+- Legacy rules and `steps[]` strategy requests remain supported at the API boundary.
+- Existing strategy rows are migrated to behavior-equivalent graphs; four canonical golden payloads preserve decision, reason code, risk grade, and approved limit.
+- Production and simulation share the same plan builder/executor.
+- Maker-checker, exact-version simulation evidence, immutable active versions, audit events, PII masking, and reason-code behavior remain enforced.
+- Expressions never execute SQL/Python and have no filesystem, network, clock, or randomness access.
+
+### Quality evidence
+
+- P3.4: four golden cases; 63 unit + 102 integration tests; migration up/down/up.
+- P3.6: 104 unit + 106 integration tests; 24 Vitest; security fuzz and runtime error paths.
+- P3.7 backend regression: 105 unit + 106 integration tests, segmented, all green.
+- P3.8 final backend rerun: Ruff/mypy clean; 105 unit + 106 integration tests, segmented, all green.
+- P3.8 frontend: lint, Svelte check 0/0, 27 Vitest, production build green.
+- Seven Playwright tests are now defined and discovered: four existing plus authoring, graph/governance/trace, and expression-permission journeys.
+- Local PostgreSQL stack smoke without Docker: health 200, login 200, and graph-backed decision 201 with the seeded expected result.
+
+### Environment-qualified validation
+
+Docker is not installed in the implementation container. Playwright runtime was attempted twice: the managed Chromium download failed with DNS `EAI_AGAIN`, while `/usr/bin/chromium` launched but its mandatory `URLBlocklist: ["*"]` policy blocked local navigation with `ERR_BLOCKED_BY_ADMINISTRATOR`. Therefore, the repository does not claim a browser pass from this container. `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md` contains exact workstation commands and the remaining manual acceptance checklist. Integration and agent handoff are documented in `docs/phase3/LOCAL_REPOSITORY_INTEGRATION.md` and `docs/phase3/LOCAL_AGENT_CONTINUATION_PROMPT.md`.
+
+### Phase 3 commits
+
+- `58c6efb` — `feat(rules): rule model v2 with CASE WHEN branches and typed outputs`
+- `6bef0cb` — `feat(catalog): output catalog, rule categories, typed metadata`
+- `4eadf83` — `feat(ui): builder-first rule authoring with branches and typed inputs`
+- `18500d3` — `feat(strategy): DAG decision-flow execution with graph migration`
+- `a5f998d` — `feat(ui): visual decision-flow canvas`
+- `8da4863` — `feat(rules): safe expression language with SQL-style preview (admin-gated)`
+- `f757811` — `feat(ui): decision table grid editor`
+- final — `docs: synchronize Phase 3 documentation and final report`
+
+### Production readiness note
+
+Phase 3 is implementation-complete for the repository scope. Before production deployment, complete the workstation compose/browser gate, organization-specific security and performance testing, secret management, backup/recovery verification, real adapter integration, UAT, and controlled environment promotion.

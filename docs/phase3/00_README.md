@@ -35,7 +35,10 @@ Evolve OSCAR from a *credit policy outcome rule engine* (rule → decision + rea
 | 13 | `13_task_breakdown.md` | **Atomic task checklist** — ordered task cards with file lists, done-conditions, verify commands |
 | 14 | `14_code_reference.md` | **Verified ground truth** about the existing codebase: signatures, fixtures, conventions, seeds |
 | 15 | `AGENT_EXECUTION_PROMPT.md` | Self-contained autonomous prompt for any coding agent |
-| 16 | `IMPLEMENTATION_STATUS.md` | Live progress tracker (update before every phase commit) |
+| 16 | `IMPLEMENTATION_STATUS.md` | Final Phase 3 status and evidence tracker |
+| 17 | `LOCAL_ENVIRONMENT_VALIDATION.md` | Remaining Docker/browser workstation acceptance commands |
+| 18 | `LOCAL_REPOSITORY_INTEGRATION.md` | Safe bundle/merge/migration procedure for an older local clone |
+| 19 | `LOCAL_AGENT_CONTINUATION_PROMPT.md` | Copy-paste prompt for the local agent that runs final workstation acceptance |
 
 ## How to execute this pack with an AI coding agent
 
@@ -50,3 +53,7 @@ The pack is deliberately hardened for **smaller/cheaper executor models**: `13_t
 - Frontend: SvelteKit 2 / Svelte 5 runes, TS strict, Tailwind 4; Vitest 12 tests; Playwright 4 E2E; production build green.
 - Runtime: `docker compose up -d` — postgres on host port **5455** (dev/test), backend :8000, workbench :3000. Test DB `oscar_test` is recreated by the pytest session fixture.
 - Demo users (password `OscarDemo123!`): `admin`, `riskanalyst`, `riskmanager`, `underwriter`, `compliance`, `datascientist`, `engineer`, `auditor`, `los-client`.
+
+## Implementation outcome (2026-07-11)
+
+P3.1–P3.8 have been implemented on `feature/oscar-mvp` as seven feature commits plus the final documentation commit. Code-level, PostgreSQL migration, API smoke, backend segmented, and frontend gates are recorded in `IMPLEMENTATION_STATUS.md`. Docker Compose and browser-backed Playwright execution remain a workstation validation step because Docker and the Chromium binary/CDN were unavailable in the implementation container.

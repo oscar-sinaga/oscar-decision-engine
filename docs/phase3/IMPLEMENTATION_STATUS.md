@@ -1,49 +1,45 @@
 # Phase 3 Implementation Status
 
-> Maintained by the implementing agent. Update **before every sub-phase commit** with status, evidence (test counts, migration IDs), and any recorded decisions. This file tracks Phase 3 only; the repository-wide tracker remains `docs/IMPLEMENTATION_STATUS.md`.
+> Final implementation tracker for the Phase 3 specification pack.
 
 ## Overall
 
-- Status: **In progress**
-- Baseline: MVP + Phase 2 complete — 114 backend tests, 12 Vitest, 4 Playwright, Alembic head `1864d7efc83f`
-- Current sub-phase: P3.8 — Hardening, E2E, docs sync
-- Latest Phase 3 commit: `feat(ui): decision table grid editor`
+- Status: **Implementation complete; workstation compose/browser validation pending**
+- Completed sub-phases: **P3.1–P3.8**
+- Latest Phase 3 commit: `docs: synchronize Phase 3 documentation and final report`
+- Environment note: `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md`
 
 ## Sub-phase tracker
 
-| Sub-phase | Title | Status | Evidence (fill on completion) |
+| Sub-phase | Title | Status | Evidence |
 |---|---|---|---|
-| P3.1 | Rule Model v2 (engine) | **Complete** | tests: 135 passed; ruff + mypy strict clean · migration: `8f3c2a1b7d04`, up/down/up green · commit: `feat(rules): rule model v2 with CASE WHEN branches and typed outputs` |
-| P3.2 | Catalogs & metadata | **Complete** | tests: 141 backend passed; ruff + mypy clean; frontend lint/check, 12 Vitest, build green · commit: `feat(catalog): output catalog, rule categories, typed metadata` |
-| P3.3 | Rule authoring UX overhaul | **Complete** | frontend lint + svelte-check 0/0 + 15 Vitest + production build green · commit: `feat(ui): builder-first rule authoring with branches and typed inputs` |
-| P3.4 | DAG execution engine | **Complete** | golden: 4 canonical cases green · 63 unit + 102 integration tests green in segmented runs · migration `f4b7c9d2e601` up/down/up green · ruff + mypy clean · commit: `feat(strategy): DAG decision-flow execution with graph migration` |
-| P3.5 | Visual flow canvas | **Complete** | `@xyflow/svelte` 1.6.2 pinned · frontend lint/check, 19 Vitest, build green · backend trace/graph integration 16 passed · ADR-013 · commit: `feat(ui): visual decision-flow canvas` |
-| P3.6 | Expression language + SQL preview | **Complete** | 104 unit + 106 integration tests green in segmented runs · 24 Vitest · frontend lint/check/build green · security fuzz + runtime error-path tests · ADR-014 · commit: `feat(rules): safe expression language with SQL-style preview (admin-gated)` |
-| P3.7 | Decision-table grid editor | **Complete** | typed grid + wildcard cells + row/column operations + FIRST_MATCH/PRIORITY + persisted overlap badges + lifecycle UI · risk-grade table output supported · 105 unit + 106 integration tests · frontend lint/check/build + 27 Vitest green · commit: `feat(ui): decision table grid editor` |
-| P3.8 | Hardening, E2E, docs sync | Pending | exit checklist: — · commit: — |
+| P3.1 | Rule Model v2 | Complete | 135 backend tests at gate; Ruff/mypy clean; migration `8f3c2a1b7d04`. |
+| P3.2 | Catalogs & metadata | Complete | 141 backend tests; frontend gates green. |
+| P3.3 | Rule authoring UX | Complete | 15 Vitest; lint/check/build green. |
+| P3.4 | DAG execution engine | Complete | Four golden cases; 63 unit + 102 integration; migration `f4b7c9d2e601` up/down/up. |
+| P3.5 | Visual flow canvas | Complete | `@xyflow/svelte` 1.6.2; 19 Vitest; trace/graph integrations green; ADR-013. |
+| P3.6 | Expression language + SQL preview | Complete | 104 unit + 106 integration + 24 Vitest; security fuzz and error paths; ADR-014. |
+| P3.7 | Decision-table grid editor | Complete | 105 unit + 106 integration + 27 Vitest; frontend full gate green. |
+| P3.8 | Hardening, E2E, docs sync | Complete with external validation note | Feature/category UI hardening; 3 new E2E specs (7 total) discovered; frontend lint/check/27 Vitest/build green; final backend rerun 105 unit + 106 integration; local PostgreSQL migration/seed and health/login/decision smoke green. Docker is unavailable; managed Chromium download/navigation restrictions require the workstation browser gate. |
 
 ## Decisions recorded during execution
 
-- Baseline drift: the clean `feature/oscar-mvp` branch is five commits ahead of its remote,
-  rather than the prompt's older local-commit count; existing history is preserved.
-- M1 makes `rule_versions.action_json` nullable because the authoritative v2 storage
-  contract requires `NULL` for branched rules; retaining its legacy NOT NULL constraint
-  would make task 1.4 impossible. Legacy rows and semantics are unchanged.
-- Typed comparison value validation moves from the framework-free DSL shape parser to
-  catalog-aware rule validation, as required by `04_rule_model_v2.md` §5; this enables
-  DATE comparisons while preserving numeric/string/boolean type enforcement at the API.
-- Task 1.6 also updates `strategies/plan_builder.py` (not named in that atomic card)
-  because it is the mandatory shared production/simulation bridge and otherwise active
-  v2 rules would validate through the API but fail when executed.
-- P3.4 adds `NodeType` to `shared/domain/enums.py` although task 4.2 names only
-  `engine/executor.py`; graph persistence, API metadata, validation, and execution must
-  share one typed enum to prevent drift between layers.
+- M1 makes `rule_versions.action_json` nullable because branched/expression rules use authoritative non-legacy storage; legacy rows remain valid.
+- Typed comparison validation is catalog-aware, enabling DATE and governed output types while preserving strict type enforcement.
+- Strategy plan building is the single production/simulation bridge; v2 rules and graph nodes resolve through it.
+- Graph persistence and execution share `NodeType`; legacy `steps[]` is converted at the API boundary.
+- Canvas persistence stores OSCAR graph DTOs only; library-internal Svelte Flow state is never authoritative (ADR-013).
+- Expressions use a whitelisted parsed AST, never raw SQL, `eval`, or `exec` (ADR-014).
+- P3.8 closed a specification gap in the Feature Catalog UI: writable/RULE_OUTPUT controls, outputs-only filtering, and rule-category management now match the backend delivered in P3.2.
+- Playwright configuration now defines a stable base URL and discovers all seven scenarios.
 
-## Known limitations / follow-ups discovered
+## Validation limitations
 
-- Docker/Compose is unavailable in the ChatGPT container. Compose rebuild and Playwright verification are recorded in `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md` for execution on the user's workstation.
-- A monolithic `pytest -q` invocation is terminated by the container timeout after roughly 69 tests; every test file was therefore run in segmented groups (63 unit + 102 integration, all green).
+- Docker/Compose is not installed in the implementation container.
+- The Playwright-managed Chromium binary was absent and its CDN download failed with DNS `EAI_AGAIN`. A system Chromium fallback launched, but the container enforces managed policy `URLBlocklist: ["*"]`, so navigation to the local workbench was blocked with `ERR_BLOCKED_BY_ADMINISTRATOR`.
+- The full browser suite is therefore defined and statically discovered, but its runtime result must be produced on the user's workstation.
+- A monolithic backend pytest process exceeded the execution-container limit; every backend test file was run in segmented groups and passed at the final backend-changing phase.
 
 ## Blockers
 
-- None.
+- None in code or documentation.
