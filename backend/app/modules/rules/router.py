@@ -9,8 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.engine.dsl import RuleAction
+from app.engine.dsl import ActionType, ExpressionRuleDefinition, RuleAction
 from app.engine.evaluator import evaluate_node
+from app.engine.expression import ast_from_json, evaluate_expression
+from app.engine.preview import dsl_to_sql_preview
 from app.modules.auth.dependencies import require_permission
 from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
@@ -41,17 +43,33 @@ class LifecycleRequest(BaseModel):
 
 def _version_response(version: RuleVersion) -> RuleVersionResponse:
     definition = service.normalize_stored_definition(version)
-    branched = definition.model_dump(mode="json", by_alias=True)
-    legacy = version.action_json is not None
+    expression = (
+        definition.expression_text if isinstance(definition, ExpressionRuleDefinition) else None
+    )
+    output_target = (
+        definition.output_target if isinstance(definition, ExpressionRuleDefinition) else None
+    )
+    if isinstance(definition, ExpressionRuleDefinition):
+        branches: list[dict[str, Any]] = []
+        default = None
+        condition = None
+    else:
+        branched = definition.model_dump(mode="json", by_alias=True)
+        branches = cast(list[dict[str, Any]], branched["branches"])
+        default = cast(list[dict[str, Any]] | None, branched.get("default"))
+        condition = version.condition_json if version.action_json is not None else None
     return RuleVersionResponse(
         id=str(version.id),
         version=version.version,
         status=version.status,
         rule_kind=cast(RuleKind, version.rule_kind),
-        condition=version.condition_json if legacy else None,
+        condition=condition,
         action=version.action_json,
-        branches=branched["branches"],
-        default=branched.get("default"),
+        branches=branches,
+        default=default,
+        expression=expression,
+        output_target=output_target,
+        sql_preview=dsl_to_sql_preview(definition),
         version_note=version.version_note,
         created_at=version.created_at,
         effective_from=version.effective_from,
@@ -226,6 +244,19 @@ async def test_rule_version(
     """Dry-run a rule version against a sample feature map. No side effects."""
     rule = await service.get_rule(session, rule_id)
     version = service.get_rule_version(rule, version_id)
+    stored = service.normalize_stored_definition(version)
+    if isinstance(stored, ExpressionRuleDefinition):
+        value = evaluate_expression(ast_from_json(stored.expression_ast), body.features)
+        action = {"type": "SET_OUTPUT", "target": stored.output_target, "value": value}
+        return RuleTestResponse(
+            matched=True,
+            evaluated_conditions=[],
+            action={},
+            matched_branch=None,
+            actions_applied=[action],
+            outputs_after={stored.output_target: value},
+        )
+
     definition = await service.validate_rule_definition(
         session, version.condition_json, version.action_json
     )
@@ -243,15 +274,23 @@ async def test_rule_version(
         matched_branch = "default"
         actions = definition.default
     matched = matched_branch is not None
-    applied = [
-        action.model_dump(mode="json", exclude_none=True, exclude={"stop_execution"})
-        for action in actions
-    ]
-    outputs_after = {
-        action.target: action.value
-        for action in actions
-        if action.type.value == "SET_OUTPUT" and action.target is not None
-    }
+    features_after = dict(body.features)
+    applied: list[dict[str, Any]] = []
+    outputs_after: dict[str, Any] = {}
+    for action_model in actions:
+        action_payload = action_model.model_dump(
+            mode="json", exclude_none=True, exclude={"stop_execution", "expression_ast"}
+        )
+        if action_model.type is ActionType.SET_OUTPUT and action_model.target is not None:
+            value = action_model.value
+            if action_model.expression_ast is not None:
+                value = evaluate_expression(
+                    ast_from_json(action_model.expression_ast), features_after
+                )
+            features_after[action_model.target] = value
+            outputs_after[action_model.target] = value
+            action_payload["value"] = value
+        applied.append(action_payload)
     return RuleTestResponse(
         matched=matched,
         evaluated_conditions=details,

@@ -21,6 +21,7 @@ export interface BuilderAction {
 	reason_code?: string;
 	target?: string;
 	value?: unknown;
+	expression?: string;
 }
 
 export interface BuilderBranch {
@@ -90,6 +91,7 @@ function parseActions(value: unknown): BuilderAction[] | null {
 				: typeof action.attribute === 'string'
 					? { target: action.attribute }
 					: {}),
+			...(typeof action.expression === 'string' ? { expression: action.expression } : {}),
 			...('value' in action
 				? { value: action.value }
 				: 'attribute_value' in action
@@ -161,7 +163,11 @@ function actionToJson(action: BuilderAction): JsonObject {
 		...(action.decision ? { decision: action.decision } : {}),
 		...(action.reason_code ? { reason_code: action.reason_code } : {}),
 		...(action.target ? { target: action.target } : {}),
-		...(action.value !== undefined ? { value: action.value } : {})
+		...(action.expression
+			? { expression: action.expression }
+			: action.value !== undefined
+				? { value: action.value }
+				: {})
 	};
 }
 
@@ -196,7 +202,7 @@ function conditionText(condition: BuilderCondition): string {
 
 function actionText(action: BuilderAction): string {
 	if (action.type === 'SET_OUTPUT')
-		return `${action.target ?? 'output'} = ${JSON.stringify(action.value)}`;
+		return `${action.target ?? 'output'} = ${action.expression ?? JSON.stringify(action.value)}`;
 	if (action.type === 'SET_DECISION') return action.decision ?? 'decision';
 	return [action.type, action.reason_code].filter(Boolean).join(' ');
 }
@@ -209,4 +215,81 @@ export function humanPreview(state: BuilderState): string {
 		lines.push(`ELSE → ${state.defaultActions.map(actionText).join(', ')}`);
 	}
 	return lines.join('\n');
+}
+
+function sqlLiteral(value: unknown): string {
+	if (value === null || value === undefined) return 'NULL';
+	if (value === true) return 'TRUE';
+	if (value === false) return 'FALSE';
+	if (typeof value === 'string') return `'${value.replaceAll("'", "''")}'`;
+	if (Array.isArray(value)) return `(${value.map(sqlLiteral).join(', ')})`;
+	return String(value);
+}
+
+function conditionSql(condition: BuilderCondition): string {
+	let text: string;
+	if (condition.kind === 'condition') {
+		if (condition.operator === 'exists') text = `${condition.field} IS NOT NULL`;
+		else if (condition.operator === 'is_null') text = `${condition.field} IS NULL`;
+		else if (condition.operator === 'in')
+			text = `${condition.field} IN ${sqlLiteral(condition.value)}`;
+		else if (condition.operator === 'not_in')
+			text = `${condition.field} NOT IN ${sqlLiteral(condition.value)}`;
+		else text = `${condition.field} ${condition.operator} ${sqlLiteral(condition.value)}`;
+	} else {
+		text = `(${condition.children.map(conditionSql).join(condition.logic === 'all' ? ' AND ' : ' OR ')})`;
+	}
+	return condition.negated ? `(NOT ${text})` : text;
+}
+
+function outputOnly(actions: BuilderAction[]): BuilderAction | null {
+	return actions.length === 1 && actions[0].type === 'SET_OUTPUT' && actions[0].target
+		? actions[0]
+		: null;
+}
+
+function actionSqlValue(action: BuilderAction): string {
+	return action.expression ?? sqlLiteral(action.value);
+}
+
+function actionComment(action: BuilderAction): string {
+	return [
+		action.type,
+		action.decision,
+		action.target,
+		action.reason_code ? `(${action.reason_code})` : ''
+	]
+		.filter(Boolean)
+		.join(' ');
+}
+
+export function sqlPreview(state: BuilderState): string {
+	const outputs = state.branches.map((branch) => outputOnly(branch.then));
+	const fallback = state.defaultActions ? outputOnly(state.defaultActions) : null;
+	const targets = new Set(outputs.filter(Boolean).map((action) => action!.target));
+	if (fallback) targets.add(fallback.target);
+	if (outputs.every(Boolean) && targets.size === 1) {
+		const target = [...targets][0];
+		const lines = ['CASE'];
+		state.branches.forEach((branch, index) => {
+			lines.push(`  WHEN ${conditionSql(branch.when)} THEN ${actionSqlValue(outputs[index]!)}`);
+		});
+		if (fallback) lines.push(`  ELSE ${actionSqlValue(fallback)}`);
+		lines.push(`END  -- writes ${target}`);
+		return lines.join('\n');
+	}
+	const lines: string[] = [];
+	state.branches.forEach((branch, index) => {
+		lines.push(`${index === 0 ? 'WHEN' : 'ELSE WHEN'} ${conditionSql(branch.when)}`);
+		branch.then.forEach((action) => lines.push(`  -- ${actionComment(action)}`));
+	});
+	if (state.defaultActions) {
+		lines.push('ELSE');
+		state.defaultActions.forEach((action) => lines.push(`  -- ${actionComment(action)}`));
+	}
+	return lines.join('\n');
+}
+
+export function expressionSqlPreview(expression: string, outputTarget: string): string {
+	return `${expression}\n-- writes ${outputTarget}`;
 }

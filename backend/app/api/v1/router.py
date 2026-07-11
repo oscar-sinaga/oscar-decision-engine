@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.api.v1.expressions import router as expressions_router
 from app.api.v1.meta import router as meta_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
@@ -22,6 +23,7 @@ from app.modules.strategies.router import router as strategies_router
 
 api_router = APIRouter(prefix="/v1")
 api_router.include_router(auth_router)
+api_router.include_router(expressions_router)
 api_router.include_router(decisions_router)
 api_router.include_router(rules_router)
 api_router.include_router(rule_categories_router)

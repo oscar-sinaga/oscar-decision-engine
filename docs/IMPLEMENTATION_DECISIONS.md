@@ -156,3 +156,14 @@
 - **Reasoning:** Svelte Flow provides the required interaction primitives while the serializer boundary keeps the backend contract independent from a UI library. Exact pinning prevents an unreviewed canvas API change from entering through a floating range.
 - **Consequences:** Flow nodes/edges are converted through `frontend/src/lib/flow/serializers.ts`; upgrade work must include serializer and canvas regression tests. Non-draft versions disable mutation but retain pan/zoom.
 - **Related documents/files:** `frontend/package.json`, `frontend/src/lib/flow/`, `frontend/src/routes/strategies/[id]/+page.svelte`, `docs/phase3/09_screen_spec.md`.
+
+### ADR-014 — OSCAR Expressions use a hand-written parser and interpreted AST
+
+- **Date:** 2026-07-11
+- **Status:** Accepted
+- **Context:** P3.6 requires expression-level authoring comparable to familiar SQL-style policy tools, while OSCAR's security constraints permanently prohibit raw SQL execution, Python `eval`/`exec`, and unrestricted code execution.
+- **Options considered:** (a) execute user-authored SQL, (b) translate expressions into Python and evaluate them, (c) define a small whitelisted language parsed into a persisted JSON AST and interpreted in-process.
+- **Decision:** Use option (c). `backend/app/engine/expression.py` implements a tokenizer, recursive-descent parser, static type/feature validation, hard complexity limits, JSON AST serialization, revalidation at execution, and a pure tree-walking interpreter. Expression authoring is gated by `rule.author_expression` (ADMIN); already-approved expressions execute without an extra runtime permission. SQL output is a display-only renderer and is never parsed or executed.
+- **Reasoning:** The AST boundary makes the executable surface explicit and auditable, preserves original text plus a reproducible compiled form, supports deterministic NULL semantics, and provides useful power without ambient access to Python, the database, filesystem, network, time, or randomness.
+- **Consequences:** Only catalog identifiers and the documented operators/functions are available. New language features require parser, validator, interpreter, renderer, fuzz, and compatibility tests. Runtime expression failures follow the existing strategy-node `on_error` path and store safe error classes rather than payload values.
+- **Related documents/files:** `backend/app/engine/expression.py`, `backend/app/engine/preview.py`, `backend/app/api/v1/expressions.py`, `frontend/src/lib/components/ExpressionEditor.svelte`, `docs/phase3/05_expression_language.md`.

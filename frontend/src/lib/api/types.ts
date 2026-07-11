@@ -1,7 +1,11 @@
 // API DTOs mirroring the FastAPI schemas (docs/07).
 
 export interface ApiErrorBody {
-	error: { code: string; message: string; details: { field?: string; issue?: string }[] };
+	error: {
+		code: string;
+		message: string;
+		details: { field?: string; issue?: string; line?: number; col?: number }[];
+	};
 	correlation_id: string | null;
 }
 
@@ -130,6 +134,9 @@ export interface RuleVersion {
 	action: Record<string, unknown> | null;
 	branches: { when: Record<string, unknown>; then: Record<string, unknown>[] }[];
 	default: Record<string, unknown>[] | null;
+	expression: string | null;
+	output_target: string | null;
+	sql_preview: string;
 	version_note: string;
 	created_at: string | null;
 	effective_from: string | null;

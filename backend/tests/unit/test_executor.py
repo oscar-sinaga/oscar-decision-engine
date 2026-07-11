@@ -3,7 +3,7 @@
 from typing import Any
 
 from app.engine.decision_table import parse_decision_table_config
-from app.engine.dsl import parse_rule_definition
+from app.engine.dsl import ExpressionRuleDefinition, parse_rule_definition
 from app.engine.executor import (
     ExecutablePlan,
     ResolvedRule,
@@ -11,6 +11,7 @@ from app.engine.executor import (
     most_severe,
     run_strategy,
 )
+from app.engine.expression import ast_to_json, validate_expression
 from app.engine.scorecard import parse_scorecard_config
 from app.shared.domain.enums import DecisionType, StepOnError, StepType
 
@@ -214,6 +215,52 @@ def test_step_error_fallback_routes_to_manual_review() -> None:
     assert result.final_decision is DecisionType.MANUAL_REVIEW
     assert "STEP_EXECUTION_ERROR" in result.reason_codes
     assert result.errors and result.errors[0]["on_error"] == "MANUAL_REVIEW"
+
+
+def test_expression_runtime_error_follows_step_on_error_without_leaking_values() -> None:
+    validated = validate_expression(
+        "applicant.monthly_income / applicant.existing_monthly_obligation",
+        {
+            "applicant.monthly_income": "NUMBER",
+            "applicant.existing_monthly_obligation": "NUMBER",
+        },
+    )
+    expression_rule = ResolvedRule(
+        rule_code="CALCULATE_RATIO",
+        version=1,
+        rule_kind="EXPRESSION",
+        definition=ExpressionRuleDefinition(
+            expression_ast=ast_to_json(validated.root),
+            output_target="outputs.ratio",
+            expression_text=("applicant.monthly_income / applicant.existing_monthly_obligation"),
+        ),
+    )
+    plan = _plan(
+        [
+            StepPlan(
+                order=1,
+                step_type=StepType.RULE_SET,
+                name="Expression Rules",
+                on_error=StepOnError.MANUAL_REVIEW,
+                rules=[expression_rule],
+            )
+        ]
+    )
+    payload = {
+        **BASE_PAYLOAD,
+        "applicant": {
+            **BASE_PAYLOAD["applicant"],
+            "monthly_income": 987_654_321,
+            "existing_monthly_obligation": 0,
+        },
+    }
+
+    result = run_strategy(plan, payload)
+
+    assert result.final_decision is DecisionType.MANUAL_REVIEW
+    assert result.errors and result.errors[0]["error_type"] == "ExpressionEvaluationError"
+    assert result.errors[0]["on_error"] == "MANUAL_REVIEW"
+    assert "987654321" not in str(result.errors)
 
 
 def test_conditional_approval_when_limit_below_requested() -> None:

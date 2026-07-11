@@ -8,7 +8,9 @@
 	import BranchEditor from '$lib/components/BranchEditor.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
+	import ExpressionEditor from '$lib/components/ExpressionEditor.svelte';
 	import JsonBlock from '$lib/components/JsonBlock.svelte';
+	import SqlPreview from '$lib/components/SqlPreview.svelte';
 	import {
 		builderToJson,
 		humanPreview,
@@ -29,11 +31,20 @@
 	let editing = $state(false);
 	let asNewVersion = $state(false);
 	let editorNote = $state('');
-	let tab = $state<'human' | 'json'>('human');
+	let tab = $state<'human' | 'sql' | 'json'>('human');
+	let expressionDraft = $state('');
+	let outputTargetDraft = $state('');
 	let testValues = $state<Record<string, unknown>>({});
 	let testResult = $state<Record<string, unknown> | null>(null);
 
 	function definition(version: RuleVersion) {
+		if (version.rule_kind === 'EXPRESSION') {
+			return {
+				rule_kind: version.rule_kind,
+				expression: version.expression,
+				output_target: version.output_target
+			};
+		}
 		return version.condition && version.action
 			? { rule_kind: version.rule_kind, condition: version.condition, action: version.action }
 			: { rule_kind: version.rule_kind, branches: version.branches, default: version.default };
@@ -41,9 +52,16 @@
 
 	function choose(version: RuleVersion) {
 		selectedVersion = version;
-		const parsed = jsonToBuilder(definition(version));
-		builder = parsed.state;
-		supported = parsed.supported;
+		if (version.rule_kind === 'EXPRESSION') {
+			builder = null;
+			supported = true;
+			expressionDraft = version.expression ?? '';
+			outputTargetDraft = version.output_target ?? '';
+		} else {
+			const parsed = jsonToBuilder(definition(version));
+			builder = parsed.state;
+			supported = parsed.supported;
+		}
 		editing = false;
 		testResult = null;
 		testValues = {};
@@ -82,9 +100,14 @@
 	}
 
 	let testFields = $derived.by(() => {
-		if (!builder) return [];
 		const paths = new SvelteSet<string>();
-		builder.branches.forEach((branch) => referenced(branch.when, paths));
+		if (builder) {
+			builder.branches.forEach((branch) => referenced(branch.when, paths));
+		} else if (selectedVersion?.expression) {
+			for (const token of selectedVersion.expression.match(/[A-Za-z_][A-Za-z0-9_.]*/g) ?? []) {
+				if (meta?.features.some((feature) => feature.path === token)) paths.add(token);
+			}
+		}
 		return [...paths].map(
 			(path) =>
 				meta?.features.find((feature) => feature.path === path) ?? {
@@ -125,18 +148,32 @@
 	}
 
 	function openEditor(newVersion: boolean) {
-		if (!builder || !selectedVersion) return;
-		builder = structuredClone(builder);
-		builder.form = 'branched';
+		if (!selectedVersion) return;
+		if (selectedVersion.rule_kind === 'EXPRESSION') {
+			expressionDraft = selectedVersion.expression ?? '';
+			outputTargetDraft = selectedVersion.output_target ?? '';
+		} else {
+			if (!builder) return;
+			builder = structuredClone(builder);
+			builder.form = 'branched';
+		}
 		editorNote = newVersion ? '' : selectedVersion.version_note;
 		asNewVersion = newVersion;
 		editing = true;
 	}
 
 	async function save() {
-		if (!rule || !selectedVersion || !builder) return;
+		if (!rule || !selectedVersion) return;
 		try {
-			const body = { ...builderToJson(builder), version_note: editorNote };
+			const body =
+				selectedVersion.rule_kind === 'EXPRESSION'
+					? {
+							rule_kind: 'EXPRESSION',
+							expression: expressionDraft,
+							output_target: outputTargetDraft,
+							version_note: editorNote
+						}
+					: { ...builderToJson(builder!), version_note: editorNote };
 			await api(
 				asNewVersion
 					? `/v1/rules/${rule.id}/versions`
@@ -155,6 +192,10 @@
 
 	const canCreate = $derived(auth.hasPermission('rule.create'));
 	const canApprove = $derived(auth.hasPermission('rule.approve'));
+	const canAuthorExpression = $derived(auth.hasPermission('rule.author_expression'));
+	const canEditSelected = $derived(
+		canCreate && supported && (selectedVersion?.rule_kind !== 'EXPRESSION' || canAuthorExpression)
+	);
 </script>
 
 <a class="text-xs text-blue-700 underline" href="/rules">← Back to rules</a>
@@ -181,7 +222,7 @@
 					</li>{/each}
 			</ul>
 			<div class="mt-3 flex flex-wrap gap-2 border-t pt-3">
-				{#if canCreate && selectedVersion.status === 'DRAFT' && supported}<button
+				{#if canEditSelected && selectedVersion.status === 'DRAFT'}<button
 						class="rounded bg-slate-200 px-2 py-1 text-xs font-semibold"
 						onclick={() => openEditor(false)}>Edit draft</button
 					><button
@@ -200,7 +241,7 @@
 						class="rounded bg-slate-600 px-2 py-1 text-xs text-white"
 						onclick={() => lifecycle('retire', 'Retired via workbench')}>Retire</button
 					>{/if}
-				{#if canCreate && supported && ['ACTIVE', 'RETIRED', 'REJECTED'].includes(selectedVersion.status)}<button
+				{#if canEditSelected && ['ACTIVE', 'RETIRED', 'REJECTED'].includes(selectedVersion.status)}<button
 						class="rounded bg-slate-200 px-2 py-1 text-xs"
 						onclick={() => openEditor(true)}>New draft from this</button
 					>{/if}
@@ -214,14 +255,21 @@
 			<div class="my-2 flex gap-2">
 				<button class="text-xs text-blue-700 underline" onclick={() => (tab = 'human')}
 					>Human</button
+				><button class="text-xs text-blue-700 underline" onclick={() => (tab = 'sql')}
+					>SQL-style</button
 				><button class="text-xs text-blue-700 underline" onclick={() => (tab = 'json')}
 					>Advanced JSON</button
 				>
 			</div>
-			{#if tab === 'human' && builder}<pre
-					class="whitespace-pre-wrap rounded bg-slate-50 p-3 text-sm">{humanPreview(
-						builder
-					)}</pre>{:else}<JsonBlock value={definition(selectedVersion)} maxHeight="24rem" />{/if}
+			{#if tab === 'human'}
+				<pre class="whitespace-pre-wrap rounded bg-slate-50 p-3 text-sm">{builder
+						? humanPreview(builder)
+						: `${selectedVersion.expression ?? ''} → ${selectedVersion.output_target ?? ''}`}</pre>
+			{:else if tab === 'sql'}
+				<SqlPreview value={selectedVersion.sql_preview} />
+			{:else}
+				<JsonBlock value={definition(selectedVersion)} maxHeight="24rem" />
+			{/if}
 		</Card>
 
 		<div class="space-y-4">
@@ -270,14 +318,23 @@
 		</div>
 	</div>
 
-	{#if editing && builder}<div class="mt-4">
-			<Card title={asNewVersion ? 'New draft version' : 'Edit draft'}
-				><BranchEditor
-					{meta}
-					{reasonCodes}
-					bind:branches={builder.branches}
-					bind:defaultActions={builder.defaultActions}
-				/><label class="mt-3 block text-xs font-semibold"
+	{#if editing}<div class="mt-4">
+			<Card title={asNewVersion ? 'New draft version' : 'Edit draft'}>
+				{#if selectedVersion.rule_kind === 'EXPRESSION'}
+					<ExpressionEditor
+						{meta}
+						bind:expression={expressionDraft}
+						bind:outputTarget={outputTargetDraft}
+					/>
+				{:else if builder}
+					<BranchEditor
+						{meta}
+						{reasonCodes}
+						bind:branches={builder.branches}
+						bind:defaultActions={builder.defaultActions}
+					/>
+				{/if}
+				<label class="mt-3 block text-xs font-semibold"
 					>Version note<input
 						class="mt-1 w-full rounded border-slate-300"
 						bind:value={editorNote}

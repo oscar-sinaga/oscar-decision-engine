@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Meta, ReasonCode } from '$lib/api/types';
+	import { auth } from '$lib/auth.svelte';
 	import type { BuilderAction } from '$lib/rule-format';
 
 	let {
@@ -22,8 +23,20 @@
 		touch();
 	}
 
+	function useExpression(action: BuilderAction, enabled: boolean) {
+		if (enabled) {
+			delete action.value;
+			action.expression = '';
+		} else {
+			delete action.expression;
+			action.value = '';
+		}
+		touch();
+	}
+
 	function resetAction(action: BuilderAction, type: string) {
-		for (const key of ['decision', 'reason_code', 'target', 'value'] as const) delete action[key];
+		for (const key of ['decision', 'reason_code', 'target', 'value', 'expression'] as const)
+			delete action[key];
 		action.type = type;
 		if (type === 'SET_DECISION') action.decision = 'MANUAL_REVIEW';
 		touch();
@@ -53,7 +66,23 @@
 						<option value={output.path}>{output.label} · {output.data_type}</option>
 					{/each}
 				</select>
-				{#if outputType(action) === 'BOOLEAN'}
+				{#if auth.hasPermission('rule.author_expression')}
+					<label class="flex items-center gap-1 text-xs text-slate-600">
+						<input
+							type="checkbox"
+							checked={action.expression !== undefined}
+							onchange={(event) => useExpression(action, event.currentTarget.checked)}
+						/> expression
+					</label>
+				{/if}
+				{#if action.expression !== undefined}
+					<input
+						class="min-w-64 flex-1 rounded border-slate-300 font-mono text-sm"
+						bind:value={action.expression}
+						oninput={touch}
+						placeholder="loan.requested_amount * 0.8"
+					/>
+				{:else if outputType(action) === 'BOOLEAN'}
 					<select
 						class="rounded border-slate-300 text-sm"
 						value={String(action.value ?? false)}

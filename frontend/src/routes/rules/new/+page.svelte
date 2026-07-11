@@ -6,10 +6,14 @@
 	import BranchEditor from '$lib/components/BranchEditor.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
+	import ExpressionEditor from '$lib/components/ExpressionEditor.svelte';
 	import JsonBlock from '$lib/components/JsonBlock.svelte';
+	import SqlPreview from '$lib/components/SqlPreview.svelte';
 	import {
 		builderToJson,
+		expressionSqlPreview,
 		humanPreview,
+		sqlPreview,
 		type BuilderAction,
 		type BuilderBranch,
 		type BuilderState
@@ -18,7 +22,9 @@
 	let meta = $state<Meta | null>(null);
 	let reasonCodes = $state<ReasonCode[]>([]);
 	let error = $state<unknown>(null);
-	let tab = $state<'human' | 'json'>('human');
+	let tab = $state<'human' | 'sql' | 'json'>('human');
+	let expression = $state('');
+	let outputTarget = $state('');
 	let branches = $state<BuilderBranch[]>([
 		{
 			when: {
@@ -46,7 +52,17 @@
 		branches,
 		defaultActions
 	});
-	let preview = $derived(builderToJson(builderState));
+	let isExpression = $derived(form.rule_kind === 'EXPRESSION');
+	let preview = $derived(
+		isExpression
+			? { rule_kind: 'EXPRESSION', expression, output_target: outputTarget }
+			: builderToJson(builderState)
+	);
+	let liveSqlPreview = $derived(
+		isExpression
+			? expressionSqlPreview(expression, outputTarget || 'outputs.target')
+			: sqlPreview(builderState)
+	);
 
 	$effect(() => {
 		api<Meta>('/v1/meta')
@@ -66,7 +82,9 @@
 		event.preventDefault();
 		error = null;
 		try {
-			const definition = builderToJson(builderState);
+			const definition = isExpression
+				? { expression, output_target: outputTarget }
+				: builderToJson(builderState);
 			const rule = await api<Rule>('/v1/rules', {
 				body: { ...form, ...definition }
 			});
@@ -132,9 +150,15 @@
 			</div>
 		</Card>
 
-		<Card title="CASE WHEN branches">
-			<BranchEditor {meta} {reasonCodes} bind:branches bind:defaultActions />
-		</Card>
+		{#if isExpression}
+			<Card title="Safe expression">
+				<ExpressionEditor {meta} bind:expression bind:outputTarget />
+			</Card>
+		{:else}
+			<Card title="CASE WHEN branches">
+				<BranchEditor {meta} {reasonCodes} bind:branches bind:defaultActions />
+			</Card>
+		{/if}
 		{#if error}<ErrorNote {error} />{/if}
 		<button
 			class="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
@@ -151,6 +175,12 @@
 				onclick={() => (tab = 'human')}>Human-readable</button
 			>
 			<button
+				class:font-bold={tab === 'sql'}
+				class="text-xs text-blue-700 underline"
+				type="button"
+				onclick={() => (tab = 'sql')}>SQL-style</button
+			>
+			<button
 				class:font-bold={tab === 'json'}
 				class="text-xs text-blue-700 underline"
 				type="button"
@@ -158,9 +188,11 @@
 			>
 		</div>
 		{#if tab === 'human'}
-			<pre class="whitespace-pre-wrap rounded bg-slate-50 p-3 text-sm text-slate-700">{humanPreview(
-					builderState
-				)}</pre>
+			<pre class="whitespace-pre-wrap rounded bg-slate-50 p-3 text-sm text-slate-700">{isExpression
+					? `${expression || 'Expression'} → ${outputTarget || 'output target'}`
+					: humanPreview(builderState)}</pre>
+		{:else if tab === 'sql'}
+			<SqlPreview value={liveSqlPreview} />
 		{:else}
 			<p class="mb-2 text-xs text-slate-500">Read-only generated definition.</p>
 			<JsonBlock value={preview} />

@@ -18,21 +18,35 @@ class _RuleBody(BaseModel):
     action: dict[str, Any] | None = None
     branches: list[dict[str, Any]] | None = None
     default: list[dict[str, Any]] | None = None
+    expression: str | None = Field(default=None, min_length=1, max_length=2_000)
+    output_target: str | None = Field(default=None, min_length=1, max_length=200)
     version_note: str = ""
 
     @model_validator(mode="after")
     def _exactly_one_authoring_form(self) -> "_RuleBody":
         legacy = self.condition is not None or self.action is not None
         branched = self.branches is not None or self.default is not None
-        if legacy == branched:
-            raise ValueError("provide exactly one authoring form: condition+action or branches")
+        expression = self.expression is not None or self.output_target is not None
+        if sum((legacy, branched, expression)) != 1:
+            raise ValueError(
+                "provide exactly one authoring form: condition+action, branches, "
+                "or expression+output_target"
+            )
         if legacy and (self.condition is None or self.action is None):
             raise ValueError("legacy authoring requires both condition and action")
         if branched and self.branches is None:
             raise ValueError("branched authoring requires branches")
+        if expression and (self.expression is None or self.output_target is None):
+            raise ValueError("expression authoring requires expression and output_target")
+        if expression and self.rule_kind != "EXPRESSION":
+            raise ValueError("expression authoring requires rule_kind EXPRESSION")
+        if not expression and self.rule_kind == "EXPRESSION":
+            raise ValueError("rule_kind EXPRESSION requires expression authoring")
         return self
 
     def storage_body(self) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        if self.expression is not None:
+            raise ValueError("expression rules require compilation before storage")
         if self.branches is not None:
             body: dict[str, Any] = {"branches": self.branches}
             if self.default is not None:
@@ -63,6 +77,9 @@ class RuleVersionResponse(BaseModel):
     action: dict[str, Any] | None
     branches: list[dict[str, Any]]
     default: list[dict[str, Any]] | None
+    expression: str | None = None
+    output_target: str | None = None
+    sql_preview: str
     version_note: str
     created_at: datetime | None
     effective_from: datetime | None

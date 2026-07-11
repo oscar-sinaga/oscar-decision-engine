@@ -96,6 +96,8 @@ class RuleAction(BaseModel):
     reason_code: str | None = None
     target: str | None = None
     value: Any = None
+    expression: str | None = Field(default=None, min_length=1, max_length=2_000)
+    expression_ast: dict[str, object] | None = None
     attribute: str | None = None
     attribute_value: Any = None
     stop_execution: bool = False
@@ -115,6 +117,20 @@ class RuleAction(BaseModel):
     @classmethod
     def _normalize_decision(cls, value: Any) -> Any:
         return DecisionType(value) if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_output_value_source(self) -> "RuleAction":
+        if self.type is not ActionType.SET_OUTPUT:
+            if self.expression is not None or self.expression_ast is not None:
+                raise ValueError("expression is supported only for SET_OUTPUT")
+            return self
+        has_literal = "value" in self.model_fields_set
+        has_expression = self.expression is not None
+        if has_literal == has_expression:
+            raise ValueError("SET_OUTPUT requires exactly one of value or expression")
+        if self.expression_ast is not None and not has_expression:
+            raise ValueError("expression_ast requires expression")
+        return self
 
 
 class RuleDefinition(BaseModel):
@@ -142,6 +158,16 @@ class BranchedRuleDefinition(BaseModel):
 
     branches: list[RuleBranch] = Field(min_length=1, max_length=20)
     default: list[RuleAction] | None = Field(default=None, min_length=1, max_length=10)
+
+
+class ExpressionRuleDefinition(BaseModel):
+    """Compiled safe expression writing one declared output feature."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expression_ast: dict[str, object]
+    output_target: str = Field(min_length=1, max_length=200)
+    expression_text: str = Field(min_length=1, max_length=2_000)
 
 
 def parse_rule_definition(

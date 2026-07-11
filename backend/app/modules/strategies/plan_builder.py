@@ -8,8 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.engine.decision_table import DecisionTableConfig, parse_decision_table_config
-from app.engine.dsl import ConditionNode, normalize_rule_definition
+from app.engine.dsl import (
+    BranchedRuleDefinition,
+    ConditionNode,
+    ExpressionRuleDefinition,
+    normalize_rule_definition,
+)
 from app.engine.executor import ExecutablePlan, NodePlan, ResolvedRule
+from app.engine.expression import ast_from_json, ast_to_json, render_expression
 from app.engine.scorecard import ScorecardConfig, parse_scorecard_config
 from app.modules.rules.models import RuleSet, RuleSetMember, RuleVersion
 from app.modules.scorecards.models import (
@@ -148,7 +154,22 @@ async def _resolve_rule_set(
         )
         if version is None:
             continue
-        definition = normalize_rule_definition(version.condition_json, version.action_json)
+        definition: BranchedRuleDefinition | ExpressionRuleDefinition
+        if version.rule_kind == "EXPRESSION":
+            raw_ast = version.condition_json.get("expression_ast")
+            output_target = version.condition_json.get("output_target")
+            if not isinstance(raw_ast, dict) or not isinstance(output_target, str):
+                raise ConfigurationError(
+                    f"Expression rule '{member.rule.rule_code}' has invalid compiled storage"
+                )
+            expression_ast = ast_from_json(raw_ast)
+            definition = ExpressionRuleDefinition(
+                expression_ast=ast_to_json(expression_ast),
+                output_target=output_target,
+                expression_text=version.expression_text or render_expression(expression_ast),
+            )
+        else:
+            definition = normalize_rule_definition(version.condition_json, version.action_json)
         resolved.append(
             ResolvedRule(
                 rule_code=member.rule.rule_code,

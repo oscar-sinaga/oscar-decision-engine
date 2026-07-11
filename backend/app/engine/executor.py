@@ -26,10 +26,13 @@ from app.engine.dsl import (
     ActionType,
     BranchedRuleDefinition,
     ConditionNode,
+    ExpressionRuleDefinition,
+    RuleAction,
     RuleBranch,
     RuleDefinition,
 )
 from app.engine.evaluator import evaluate_node
+from app.engine.expression import ast_from_json, evaluate_expression
 from app.engine.features import build_base_features, compute_derived_feature
 from app.engine.scorecard import ScorecardConfig, resolve_score
 from app.shared.domain.enums import (
@@ -54,7 +57,7 @@ class ResolvedRule(BaseModel):
     rule_code: str
     version: int
     rule_kind: str = "POLICY_OUTCOME"
-    definition: BranchedRuleDefinition | RuleDefinition
+    definition: BranchedRuleDefinition | RuleDefinition | ExpressionRuleDefinition
 
 
 class StepPlan(BaseModel):
@@ -393,6 +396,33 @@ def _run_rule_set_step(
     rule_results: list[dict[str, Any]] = []
     triggered = False
     for resolved in step.rules:
+        if isinstance(resolved.definition, ExpressionRuleDefinition):
+            value = evaluate_expression(
+                ast_from_json(resolved.definition.expression_ast), context.features
+            )
+            action = RuleAction(
+                type=ActionType.SET_OUTPUT,
+                target=resolved.definition.output_target,
+                value=value,
+            )
+            expression_applied = _apply_action(action, context)
+            rule_results.append(
+                {
+                    "rule_code": resolved.rule_code,
+                    "version": resolved.version,
+                    "rule_kind": resolved.rule_kind,
+                    "matched": True,
+                    "status": StepStatus.TRIGGERED.value,
+                    "evaluated_conditions": [],
+                    "matched_branch": "expression",
+                    "actions_applied": [expression_applied],
+                }
+            )
+            triggered = True
+            if context.stop:
+                break
+            continue
+
         legacy = isinstance(resolved.definition, RuleDefinition)
         if isinstance(resolved.definition, RuleDefinition):
             branches = [
@@ -454,9 +484,12 @@ def _apply_action(action: Any, context: _ExecutionContext) -> dict[str, Any]:
         context.add_reason(action.reason_code)
     elif action.type is ActionType.SET_OUTPUT:
         if action.target:
-            context.features[action.target] = action.value
+            value = action.value
+            if action.expression_ast is not None:
+                value = evaluate_expression(ast_from_json(action.expression_ast), context.features)
+            context.features[action.target] = value
             applied["target"] = action.target
-            applied["value"] = action.value
+            applied["value"] = value
         context.add_reason(action.reason_code)
     elif action.type is ActionType.STOP_EXECUTION:
         context.add_candidate(action.decision, action.reason_code)
