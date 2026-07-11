@@ -145,3 +145,14 @@
 - **Reasoning:** Verified code facts show the engine already carries the seeds of the generic model (nested condition trees; `SET_ATTRIBUTE` writing to the feature context at `engine/executor.py:252`), so the re-scope formalizes and exposes existing capability rather than rebuilding; determinism/audit guarantees are preserved by validated-acyclic graphs and a whitelist-parsed expression AST.
 - **Consequences:** Authoritative spec pack created at `docs/phase3/` (PRD, scope, architecture, DSL v2, expression spec, data model incl. `strategy_steps` → nodes/edges data migration, API contract, screens, test plan incl. golden reproducibility + security fuzz gates, execution plan P3.1–P3.8, agent execution prompt, status tracker). ADR-013 (canvas dependency) and ADR-014 (expression implementation) to be recorded during implementation.
 - **Related documents/files:** `docs/phase3/*`, `docs/05_mvp_scope.md` (Phase 3 section replaced), `AGENTS.md`, `backend/app/engine/{dsl,executor}.py`.
+
+### ADR-013 — Visual decision-flow canvas uses pinned Svelte Flow
+
+- **Date:** 2026-07-11
+- **Status:** Accepted
+- **Context:** P3.5 requires a maintained Svelte-native node canvas with custom nodes, handles, pan/zoom, edge routing, and controlled serialization. Building these interaction primitives in-house would add substantial accessibility and geometry risk.
+- **Options considered:** (a) bespoke SVG/HTML canvas, (b) generic diagram library, (c) `@xyflow/svelte`.
+- **Decision:** Use `@xyflow/svelte` pinned exactly at `1.6.2`; persist only OSCAR's own graph DTO, never library-internal state.
+- **Reasoning:** Svelte Flow provides the required interaction primitives while the serializer boundary keeps the backend contract independent from a UI library. Exact pinning prevents an unreviewed canvas API change from entering through a floating range.
+- **Consequences:** Flow nodes/edges are converted through `frontend/src/lib/flow/serializers.ts`; upgrade work must include serializer and canvas regression tests. Non-draft versions disable mutation but retain pan/zoom.
+- **Related documents/files:** `frontend/package.json`, `frontend/src/lib/flow/`, `frontend/src/routes/strategies/[id]/+page.svelte`, `docs/phase3/09_screen_spec.md`.

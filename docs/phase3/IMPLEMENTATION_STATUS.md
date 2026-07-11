@@ -6,7 +6,7 @@
 
 - Status: **In progress**
 - Baseline: MVP + Phase 2 complete — 114 backend tests, 12 Vitest, 4 Playwright, Alembic head `1864d7efc83f`
-- Current sub-phase: P3.5 — Visual flow canvas
+- Current sub-phase: P3.6 — Expression language + SQL preview
 - Latest Phase 3 commit: `feat(ui): builder-first rule authoring with branches and typed inputs`
 
 ## Sub-phase tracker
@@ -17,7 +17,7 @@
 | P3.2 | Catalogs & metadata | **Complete** | tests: 141 backend passed; ruff + mypy clean; frontend lint/check, 12 Vitest, build green · commit: `feat(catalog): output catalog, rule categories, typed metadata` |
 | P3.3 | Rule authoring UX overhaul | **Complete** | frontend lint + svelte-check 0/0 + 15 Vitest + production build green · commit: `feat(ui): builder-first rule authoring with branches and typed inputs` |
 | P3.4 | DAG execution engine | **Complete** | golden: 4 canonical cases green · 63 unit + 102 integration tests green in segmented runs · migration `f4b7c9d2e601` up/down/up green · ruff + mypy clean · commit: `feat(strategy): DAG decision-flow execution with graph migration` |
-| P3.5 | Visual flow canvas | Pending | playwright: — · commit: — |
+| P3.5 | Visual flow canvas | **Complete** | `@xyflow/svelte` 1.6.2 pinned · frontend lint/check, 19 Vitest, build green · backend trace/graph integration 16 passed · ADR-013 · commit: `feat(ui): visual decision-flow canvas` |
 | P3.6 | Expression language + SQL preview | Pending | fuzz: — · commit: — |
 | P3.7 | Decision-table grid editor | Pending | playwright: — · commit: — |
 | P3.8 | Hardening, E2E, docs sync | Pending | exit checklist: — · commit: — |

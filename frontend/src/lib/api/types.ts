@@ -67,9 +67,16 @@ export interface TraceResponse {
 	decision_id: string;
 	application_id: string;
 	execution_mode: string;
-	strategy: { strategy_code: string; version: number };
+	strategy: {
+		strategy_id: string | null;
+		version_id: string | null;
+		strategy_code: string;
+		version: number;
+		execution: string;
+	};
 	input_snapshot: Record<string, unknown>;
 	feature_values: Record<string, unknown>;
+	outputs: Record<string, unknown>;
 	steps: TraceStep[];
 	score_result: Record<string, unknown> | null;
 	final_decision: Record<string, unknown>;
@@ -80,12 +87,16 @@ export interface TraceResponse {
 
 export interface TraceStep {
 	order: number;
+	node_key?: string;
 	type: string;
 	name: string;
 	reference_code: string | null;
 	reference_version: number | null;
 	status: string;
 	duration_ms: number;
+	taken_edge?: string | null;
+	condition?: Record<string, unknown>;
+	condition_result?: boolean;
 	rule_results?: RuleResult[];
 	[key: string]: unknown;
 }
@@ -96,7 +107,9 @@ export interface RuleResult {
 	matched: boolean;
 	status: string;
 	evaluated_conditions: EvaluatedCondition[];
+	matched_branch?: number | 'default' | null;
 	action_applied?: Record<string, unknown>;
+	actions_applied?: Record<string, unknown>[];
 }
 
 export interface EvaluatedCondition {
@@ -175,12 +188,34 @@ export interface StrategyStep {
 	config: Record<string, unknown>;
 }
 
+export interface StrategyGraphNode {
+	node_key: string;
+	node_type: string;
+	name: string;
+	reference_code: string | null;
+	on_error: string;
+	config: Record<string, unknown>;
+	position: { x: number; y: number };
+}
+
+export interface StrategyGraphEdge {
+	from: string;
+	to: string;
+	label: string | null;
+}
+
+export interface StrategyGraph {
+	nodes: StrategyGraphNode[];
+	edges: StrategyGraphEdge[];
+}
+
 export interface StrategyVersion {
 	id: string;
 	version: number;
 	status: string;
 	version_note: string;
-	steps: StrategyStep[];
+	graph: StrategyGraph;
+	steps: StrategyStep[] | null;
 	created_at: string | null;
 	activated_at: string | null;
 	effective_from: string | null;

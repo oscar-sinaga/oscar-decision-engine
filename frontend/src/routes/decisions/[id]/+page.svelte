@@ -14,6 +14,26 @@
 	let traceError = $state<unknown>(null);
 	let expandedStep = $state<number | null>(null);
 
+	function conditionText(step: TraceResponse['steps'][number]): string {
+		const conditions = Array.isArray(step.evaluated_conditions)
+			? (step.evaluated_conditions as { field?: string; operator?: string; expected?: unknown }[])
+			: [];
+		if (!conditions.length) return step.name;
+		return conditions
+			.map(
+				(condition) =>
+					`${condition.field ?? '?'} ${condition.operator ?? ''} ${JSON.stringify(condition.expected)}`
+			)
+			.join(' AND ');
+	}
+
+	function actionText(action: Record<string, unknown>): string {
+		if (action.type === 'SET_OUTPUT')
+			return `${action.target ?? 'output'} = ${JSON.stringify(action.value)}`;
+		if (action.decision) return `${action.type}: ${action.decision}`;
+		return [action.type, action.reason_code].filter(Boolean).join(' · ');
+	}
+
 	$effect(() => {
 		const id = page.params.id;
 		api<DecisionResponse>(`/v1/decisions/${id}`)
@@ -141,6 +161,13 @@
 				title="Strategy execution timeline ({trace.strategy.strategy_code} v{trace.strategy
 					.version})"
 			>
+				{#if trace.strategy.strategy_id}
+					<a
+						class="mb-3 inline-block text-xs font-semibold text-blue-700 underline"
+						href="/strategies/{trace.strategy.strategy_id}?version={trace.strategy.version_id ??
+							''}">View executed flow →</a
+					>
+				{/if}
 				<ol class="space-y-2" data-testid="trace-steps">
 					{#each trace.steps as step (step.order)}
 						<li class="rounded border border-slate-200">
@@ -151,9 +178,18 @@
 								<span>
 									<span class="mr-2 font-mono text-xs text-slate-400">#{step.order}</span>
 									<span class="font-medium text-slate-800">{step.name}</span>
+									{#if step.node_key}<span
+											class="ml-2 rounded bg-slate-100 px-1 font-mono text-[10px] text-slate-500"
+											>{step.node_key}</span
+										>{/if}
 									<span class="ml-2 text-xs text-slate-400"
 										>{step.type}{step.reference_version ? ` v${step.reference_version}` : ''}</span
 									>
+									{#if step.type === 'CONDITION'}<span
+											class="ml-2 text-xs font-semibold {step.taken_edge === 'TRUE'
+												? 'text-emerald-600'
+												: 'text-red-600'}">→ {step.taken_edge}</span
+										>{/if}
 								</span>
 								<span class="flex items-center gap-2">
 									<Badge value={step.status} />
@@ -162,7 +198,17 @@
 							</button>
 							{#if expandedStep === step.order}
 								<div class="border-t border-slate-100 px-3 py-2">
-									{#if step.rule_results?.length}
+									{#if step.type === 'CONDITION'}
+										<div class="rounded bg-slate-50 p-2 text-xs">
+											<span class="font-semibold">Condition:</span>
+											{conditionText(step)}
+											<span
+												class="font-bold {step.taken_edge === 'TRUE'
+													? 'text-emerald-600'
+													: 'text-red-600'}">→ {step.taken_edge}</span
+											>
+										</div>
+									{:else if step.rule_results?.length}
 										<table class="w-full text-xs">
 											<thead class="text-left text-slate-400">
 												<tr
@@ -176,7 +222,16 @@
 													<tr class="border-t border-slate-100">
 														<td class="py-1 pr-2 font-mono">{rule.rule_code}</td>
 														<td class="py-1 pr-2">{rule.version}</td>
-														<td class="py-1 pr-2">{rule.matched ? 'YES' : 'no'}</td>
+														<td class="py-1 pr-2">
+															{rule.matched ? 'YES' : 'no'}
+															{#if rule.matched_branch !== undefined && rule.matched_branch !== null}
+																<div class="text-[10px] text-blue-700">
+																	{rule.matched_branch === 'default'
+																		? 'ELSE'
+																		: `branch ${Number(rule.matched_branch) + 1}`}
+																</div>
+															{/if}
+														</td>
 														<td class="py-1 font-mono text-[11px]">
 															{#each rule.evaluated_conditions as cond, index (index)}
 																<div>
@@ -188,6 +243,17 @@
 																	>
 																</div>
 															{/each}
+															{#if rule.actions_applied?.length}
+																<div class="mt-1 border-t border-slate-100 pt-1 text-blue-700">
+																	{#each rule.actions_applied as action, actionIndex (actionIndex)}
+																		<div>↳ {actionText(action)}</div>
+																	{/each}
+																</div>
+															{:else if rule.action_applied}
+																<div class="mt-1 border-t border-slate-100 pt-1 text-blue-700">
+																	↳ {actionText(rule.action_applied)}
+																</div>
+															{/if}
 														</td>
 													</tr>
 												{/each}
@@ -204,6 +270,9 @@
 			</Card>
 
 			<div class="space-y-4">
+				<Card title="Outputs">
+					<JsonBlock value={trace.outputs} maxHeight="12rem" />
+				</Card>
 				<Card title="Calculated features">
 					<JsonBlock value={trace.feature_values} maxHeight="14rem" />
 				</Card>

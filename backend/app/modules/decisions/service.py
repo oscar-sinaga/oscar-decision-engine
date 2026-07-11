@@ -322,6 +322,8 @@ async def build_trace_response(session: AsyncSession, decision: Decision) -> Tra
         application_id=decision.external_application_id,
         execution_mode=trace.execution_mode,
         strategy=TraceStrategyRef(
+            strategy_id=str(strategy.id) if strategy else None,
+            version_id=str(strategy_version.id) if strategy_version else None,
             strategy_code=strategy.strategy_code if strategy else "UNKNOWN",
             version=strategy_version.version if strategy_version else 0,
             execution="GRAPH",

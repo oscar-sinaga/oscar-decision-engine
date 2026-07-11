@@ -57,6 +57,8 @@ class DecisionResponse(BaseModel):
 
 
 class TraceStrategyRef(BaseModel):
+    strategy_id: str | None = None
+    version_id: str | None = None
     strategy_code: str
     version: int
     execution: str = "GRAPH"
