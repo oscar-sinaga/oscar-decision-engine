@@ -43,6 +43,6 @@ Semua akun memakai kata sandi `OscarDemo123!`. Cobalah berganti-ganti akun, kare
 | Audit Log | Jejak semua perubahan dan keputusan | 11 |
 | Admin | Pengguna, peran, dan antrean persetujuan | 11 |
 
-Urutan babnya begini. Bab 01 wajib dibaca lebih dulu karena menjelaskan siklus hidup versi yang berlaku untuk hampir semua objek. Bab 02 sampai 11 membedah tiap layar. Bab 12 menutup dengan skenario lengkap dari kacamata tiap peran di divisi credit risk, dan enak dibaca kapan saja sebagai gambaran besar.
+Urutan babnya begini. Bab 01 wajib dibaca lebih dulu karena menjelaskan siklus hidup versi yang berlaku untuk hampir semua objek. Bab 02 sampai 11 membedah tiap layar. Bab 12 merangkai semuanya menjadi skenario lengkap dari kacamata tiap peran di divisi credit risk. Bab 13 keluar dari layar dan membahas gambaran integrasi OSCAR dengan sistem korporat yang sudah ada, yaitu LOS, LMS, collection, dan Muffin, termasuk cara menghindari bottleneck.
 
 > Catatan. Semua data di lingkungan demo bersifat sintetis, dan semua angka pada contoh hanyalah ilustrasi, bukan kebijakan nyata perusahaan.
