@@ -6,7 +6,9 @@ This pack is the implementation handoff for **OSCAR Decision Engine**, an intern
 > `backend/` (FastAPI 0.139.0) and `frontend/` (SvelteKit workbench).
 > See `docs/IMPLEMENTATION_STATUS.md` and `docs/FINAL_IMPLEMENTATION_REPORT.md`.
 > Phase 3 specification: `docs/phase3/`. **New to credit risk / decision engines?**
-> Start with the Indonesian learning curriculum in `docs/learning/`.
+> Start with the Indonesian learning curriculum in `docs/learning/`, then the
+> hands-on Indonesian user guide in `docs/user-guide/` (screen-by-screen usage,
+> parameters, and per-role workflows).
 
 ## Running the Implemented System
 
