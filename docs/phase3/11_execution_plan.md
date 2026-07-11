@@ -20,7 +20,7 @@ OSCAR_DATABASE_URL=... uv run python -m app.seed
 **Commit**: `feat(rules): rule model v2 with CASE WHEN branches and typed outputs`
 
 ## P3.2 — Catalogs & metadata
-**Files**: `modules/features/*` (writable, RULE_OUTPUT), NEW `modules/rules/categories_router.py` + model (or inside rules module), `api/v1/meta.py`, `modules/rules/usage` endpoint (in `router.py`), `auth/permissions.py` (+`rule.author_expression` seed), `app/seed.py` (outputs.*, categories via M1 data-seed), M1 migration shared with P3.1 (single revision is acceptable if landed together — record choice in status doc).
+**Files**: `modules/features/*` (writable, RULE_OUTPUT), NEW `modules/rules/categories_router.py` (model class `RuleCategory` lives in `modules/rules/models.py`), `api/v1/meta.py`, `modules/rules/usage` endpoint (in `router.py`), `auth/permissions.py` (+`rule.author_expression` seed), `app/seed.py` (outputs.*). **Migrations: none in this sub-phase** — the single M1 revision created in P3.1 already contains every P3.2 schema change (features.writable, rule_categories); P3.2 is API/seed/meta work only.
 **Accept**: writable enforcement live (SET_OUTPUT to PAYLOAD/non-writable ⇒ 422); meta keys per `06` §3; usage endpoint correct incl. graph-era stub (rule sets + step/node references); category CRUD audited.
 **Commit**: `feat(catalog): output catalog, rule categories, typed metadata`
 

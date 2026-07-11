@@ -7,13 +7,27 @@ Do not return only a plan. Inspect the repository, then execute sub-phase by sub
 ## Mandatory context (read before coding)
 
 1. `docs/phase3/00_README.md` … `11_execution_plan.md` — **the authoritative Phase 3 specification.**
-2. `CLAUDE.md`, `AGENTS.md` — engineering discipline (git, gates, audit, PII, logging). Two amendments apply (ADR-012): the visual flow canvas is in scope, and "free SQL" is implemented as the safe expression language + display-only SQL preview. Raw SQL/eval/exec remain forbidden.
-3. Existing code you will extend — read these before touching them:
+2. **`docs/phase3/13_task_breakdown.md` — your execution checklist.** Work strictly task-by-task, top to bottom; run each task's verify command before moving on.
+3. **`docs/phase3/14_code_reference.md` — verified ground truth about the existing codebase** (signatures, fixtures, conventions, seeded objects). Read it fully before writing any code; trust it over your assumptions.
+4. `CLAUDE.md`, `AGENTS.md` — engineering discipline (git, gates, audit, PII, logging). Two amendments apply (ADR-012): the visual flow canvas is in scope, and "free SQL" is implemented as the safe expression language + display-only SQL preview. Raw SQL/eval/exec remain forbidden.
+5. Existing code you will extend — read a file before touching it:
    `backend/app/engine/{dsl,evaluator,executor,decision_table,scorecard,features}.py`,
    `backend/app/modules/strategies/{models,schemas,service,plan_builder}.py`,
    `backend/app/modules/rules/{models,schemas,service,router}.py`,
    `backend/app/modules/features/`, `backend/app/api/v1/meta.py`, `backend/app/seed.py`,
    `frontend/src/lib/components/ConditionBuilder.svelte`, `frontend/src/routes/rules/**`, `frontend/src/routes/strategies/[id]/+page.svelte`, `frontend/src/lib/api/types.ts`.
+
+## Operating rules (mandatory — designed so any executor, including smaller models, stays on rails)
+
+1. **One task at a time.** Follow `13_task_breakdown.md` in order. Do not start task N+1 until task N's verify command passes. Do not batch multiple tasks into one edit sweep.
+2. **Verify constantly.** After every meaningful change run the narrowest relevant test (`uv run pytest -q -x <file>`), and the full gate before each commit. Never declare something done without running its verify command.
+3. **Stay in scope.** Only modify files listed for the current task. If you believe another file must change, first write one line in `docs/phase3/IMPLEMENTATION_STATUS.md` under "Decisions" explaining why, then proceed.
+4. **Never weaken tests to pass.** Existing tests may be modified ONLY where the task explicitly says "adapt", and the adaptation must reflect a spec change documented in this pack — not silence a failure. Deleting/skipping/xfailing a failing test to go green is forbidden.
+5. **When stuck or the spec seems ambiguous**, resolve in this priority order, then record the choice in the status doc and continue: (a) keep all existing tests green, (b) follow the spec text literally, (c) mimic the nearest existing pattern in this codebase, (d) pick the simplest implementation. Use `docs/BLOCKERS.md` only for genuine hard blockers per the list below — ambiguity is not a blocker.
+6. **Copy patterns, don't invent.** For any new router/service/model/test, find the closest existing sibling (e.g. `model_registry` module, `test_feature_catalog.py`) and mirror its structure, naming, and error handling.
+7. **Forbidden at all times:** `eval`/`exec`/executing user-supplied SQL; pushing or amending commits; changing dependency versions (except adding pinned `@xyflow/svelte`); editing files under `alembic/versions/` that already exist; touching `docs/01..18` except the P3.8 sync task; real customer data.
+8. **Windows host specifics:** dev/test Postgres is host port **5455** (never assume 5432); backend commands run via `uv run` from `backend/`; frontend via `npm` from `frontend/`; run `npm run format` before `npm run lint`.
+9. **Commit discipline:** exactly the commit messages given per sub-phase in `13_task_breakdown.md`/`11_execution_plan.md`; update both status trackers in the same commit; never commit with a failing gate.
 
 ## Verified facts (2026-07-11 — trust these; do not re-derive)
 
@@ -25,7 +39,7 @@ Do not return only a plan. Inspect the repository, then execute sub-phase by sub
 - Demo users (password `OscarDemo123!`): admin, riskanalyst, riskmanager, underwriter, compliance, datascientist, engineer, auditor, los-client.
 - Windows host; backend uses `uv` (Python 3.13); frontend npm; never bind-assume port 5432 (dev/test Postgres is host port **5455**).
 
-## Execution sequence (each = one conventional local commit; details in `11_execution_plan.md`)
+## Execution sequence (each = one conventional local commit; per-phase details in `11_execution_plan.md`, per-task checklist in `13_task_breakdown.md`)
 
 1. **P3.1** Rule Model v2 — CASE WHEN branches + ELSE, multi-action, SET_OUTPUT, typed-operator matrix, `rule_kind`, migration M1, full legacy compatibility.
 2. **P3.2** Catalogs & metadata — `features.writable` output catalog + seeds, `rule_categories`, meta additions, `GET /v1/rules/{id}/usage`, permission `rule.author_expression` seeded.

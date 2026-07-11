@@ -59,7 +59,7 @@ Monospace textarea; debounced `POST /v1/expressions/validate` → inline status 
 ## 4. Catalog screens (extend existing)
 
 - **Feature Catalog** (`/features`): + `writable` toggle chip + column; create form gains writable + source RULE_OUTPUT; filter "Outputs only".
-- **Rule categories**: small management section (list/add/deactivate) — placed on `/features` page as a second card or `/admin`; implementer's choice, recorded in ADR.
+- **Rule categories**: small management section (list/add/deactivate) — **placed on the `/features` page as a second card** (decided; do not put it on `/admin`).
 
 ## 5. Trace screen additions (`/decisions/[id]`)
 

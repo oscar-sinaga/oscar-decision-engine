@@ -32,12 +32,16 @@ Evolve OSCAR from a *credit policy outcome rule engine* (rule → decision + rea
 | 10 | `10_test_plan.md` | Test matrix incl. determinism, security fuzzing, migration golden tests |
 | 11 | `11_execution_plan.md` | Ordered sub-phases, per-phase acceptance criteria, commit plan, risks |
 | 12 | `12_penjelasan_fitur_id.md` | Non-normative Indonesian explainer: analogies and case studies for every feature |
-| 13 | `AGENT_EXECUTION_PROMPT.md` | Self-contained autonomous prompt for any coding agent |
-| 14 | `IMPLEMENTATION_STATUS.md` | Live progress tracker (update before every phase commit) |
+| 13 | `13_task_breakdown.md` | **Atomic task checklist** — ordered task cards with file lists, done-conditions, verify commands |
+| 14 | `14_code_reference.md` | **Verified ground truth** about the existing codebase: signatures, fixtures, conventions, seeds |
+| 15 | `AGENT_EXECUTION_PROMPT.md` | Self-contained autonomous prompt for any coding agent |
+| 16 | `IMPLEMENTATION_STATUS.md` | Live progress tracker (update before every phase commit) |
 
 ## How to execute this pack with an AI coding agent
 
-Open the repository, ensure Docker is running, then provide the agent the contents of `docs/phase3/AGENT_EXECUTION_PROMPT.md`. The prompt is self-contained: it lists verified facts about the current codebase (so the agent does not re-discover them), the exact execution sequence, quality gates, and completion criteria. Any capable coding agent (Claude, GPT, etc.) should be able to execute it; sub-phases are independent commits so different agents can execute different sub-phases as long as they run in the specified order and keep `IMPLEMENTATION_STATUS.md` current.
+Open the repository, ensure Docker is running, then provide the agent the contents of `docs/phase3/AGENT_EXECUTION_PROMPT.md`. The prompt is self-contained: it lists verified facts about the current codebase (so the agent does not re-discover them), mandatory operating rules, the exact execution sequence, quality gates, and completion criteria. Any capable coding agent (Claude, GPT, etc.) should be able to execute it; sub-phases are independent commits so different agents can execute different sub-phases as long as they run in the specified order and keep `IMPLEMENTATION_STATUS.md` current.
+
+The pack is deliberately hardened for **smaller/cheaper executor models**: `13_task_breakdown.md` decomposes every sub-phase into ordered atomic tasks with per-task verify commands, `14_code_reference.md` supplies verified signatures/fixtures/conventions so the executor never has to guess internal APIs, every design choice in files 01–11 is pinned (no "implementer's choice" remains), and the prompt's operating rules define a stuck-resolution priority order so ambiguity never stalls or derails a run.
 
 ## Baseline the pack assumes (verified 2026-07-11)
 

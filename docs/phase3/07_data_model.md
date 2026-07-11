@@ -67,9 +67,9 @@ DROP TABLE strategy_steps
 
 ORM: `StrategyStep` model is deleted; `StrategyNode`/`StrategyEdge` added in `modules/strategies/models.py`; `app/models.py` exports updated; seeds write graphs.
 
-## M3 — `p3 permission expression` (lands with P3.6)
+## M3 — there is NO third migration (decided)
 
-No schema change (permissions are rows). Seed inserts permission `rule.author_expression` + grant to ADMIN via existing idempotent `seed_rbac`. If the implementing agent prefers migration-seeded permissions, keep consistency with Phase-2 practice: **seed script, not migration** — therefore M3 may be empty/omitted; listed here so nobody hunts for a missing migration.
+The `rule.author_expression` permission is rows, not schema. It is seeded via the existing idempotent `seed_rbac` in `app/seed.py` (consistent with Phase-2 practice). **Do not create a migration for it.** Phase 3 ships exactly two migrations: M1 (P3.1) and M2 (P3.4). This section exists only so nobody hunts for a missing third revision.
 
 ## Entity relationship delta
 

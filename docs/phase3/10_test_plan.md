@@ -50,7 +50,7 @@ Vitest: `rule-format` JSON↔builder round-trip (legacy, v2 nested, branch+else,
 - ruff format+check clean.
 - Latency smoke: decision P95 on compose stack for golden payloads < 500ms (existing informal budget) with graph executor.
 - `alembic upgrade head` from clean DB (fixture) + `upgrade→downgrade→upgrade` on seeded dev DB for M1/M2 (documented command in execution plan).
-- Frontend: svelte-check strict 0 errors; production build; bundle note — canvas lib loaded only on strategy detail route (dynamic import if needed).
+- Frontend: svelte-check strict 0 errors; production build. Canvas lib is imported only from the strategy-detail route modules (SvelteKit code-splits per route automatically — no manual dynamic import required).
 
 ## 7. Exit checklist (P3.8)
 
