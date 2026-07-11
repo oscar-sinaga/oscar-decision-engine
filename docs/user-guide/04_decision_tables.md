@@ -1,36 +1,33 @@
 # Bab 04 — Decision Tables, Matriks Keputusan Rasa Spreadsheet
 
-## 4.1 Kegunaannya
+## 4.1 Latar belakang, kenapa perlu tabel padahal sudah ada rule
 
-Decision table adalah tabel baris demi baris yang menggabungkan beberapa masukan menjadi satu hasil. Kalau rule ibarat analis yang menulis penilaian, decision table ibarat ketua rapat yang membaca semua penilaian lalu mengetok palu. Bentuk tabelnya sengaja mirip spreadsheet karena memang begitulah orang bisnis terbiasa menulis kebijakan.
+Kalau rule sudah bisa memvonis, buat apa tabel? Jawabannya soal bentuk pikiran. Kebijakan penggabung, misalnya "grade B dengan DTI sedang boleh jalan, grade C hanya kalau DTI rendah", paling alami dituangkan sebagai **matriks**, bukan serangkaian kalimat jika maka yang saling menimpa. Coba tulis matriks lima kali lima sebagai dua puluh lima rule terpisah, lalu bayangkan merawatnya. Tabel membuat kombinasi terlihat sekali pandang, dan lubang kebijakan, yaitu kombinasi yang belum terjawab, langsung tampak sebagai baris yang belum ada.
 
-Letaknya di menu **Decision Tables**, dan sejak Phase 3 pengeditannya memakai grid, bukan JSON.
+Ada alasan kedua yang lebih dalam. Sejak rule bisa menulis nilai, dibutuhkan satu tempat yang membaca semua nilai itu dan mengetok palu. Kalau rule ibarat para analis yang menulis penilaian, decision table ibarat **ketua rapat**. Memisahkan penilai dari pemutus membuat keduanya bisa diubah sendiri-sendiri, dan itu inti pola modular.
 
-## 4.2 Anatomi tabel
+Sejak Phase 3 pengeditannya memakai **grid** bergaya spreadsheet. Latar belakangnya sederhana, yaitu pemilik kebijakan ini terbiasa berpikir di Excel, dan sebelumnya mereka dipaksa mengedit JSON. Alat harus mengikuti pemakainya, bukan sebaliknya. Letaknya di menu **Decision Tables**.
 
-Sebuah tabel terdiri dari kolom kondisi di kiri, kolom hasil di kanan, dan baris-baris yang dievaluasi dari atas ke bawah.
+## 4.2 Anatomi tabel dan alasan desainnya
 
-| Bagian | Parameter | Penjelasan |
+| Bagian | Parameter | Kenapa dirancang begini |
 |---|---|---|
-| **Kolom kondisi** | Fitur dari katalog plus operator per sel | Bisa fitur apa pun termasuk output tulisan rule seperti `outputs.collateral_risk`. Sel yang dikosongkan berarti "berapa pun cocok" dan tampil sebagai tanda bintang |
-| **Kolom hasil** | decision, risk_grade, approved_limit, approved_tenor_months, pricing_rate, reason_code | Tidak semua wajib diisi. Sel limit boleh berupa angka pasti maupun persentase dari pengajuan sesuai kebijakan |
-| **Hit policy** | FIRST_MATCH atau PRIORITY | FIRST_MATCH berarti baris teratas yang cocok itulah yang menang, jadi urutan baris adalah bagian dari kebijakan. PRIORITY memakai kolom prioritas eksplisit sehingga urutan visual tidak menentukan |
-| **Baris** | Tambah, gandakan, hapus, geser urutan | Menggandakan baris lalu mengubah satu sel adalah cara tercepat menulis matriks bertingkat |
+| **Kolom kondisi** | Fitur dari katalog plus operator per sel | Boleh fitur apa pun termasuk output tulisan rule seperti `outputs.collateral_risk`, karena justru di sinilah nilai-nilai itu dipertemukan. Sel kosong berarti berapa pun cocok dan tampil sebagai bintang, supaya baris umum tidak perlu mengulang semua kolom |
+| **Kolom hasil** | decision, risk_grade, approved_limit, approved_tenor_months, pricing_rate, reason_code | Hasil sengaja lebih kaya daripada sekadar vonis, karena pelajaran dasar kredit berbunyi keputusan terbaik sering berupa syarat, misalnya limit dikecilkan, bukan tolak mentah |
+| **Hit policy** | FIRST_MATCH atau PRIORITY | FIRST_MATCH berarti baris teratas yang cocok menang, cocok untuk matriks bertingkat, dengan konsekuensi urutan baris adalah kebijakan. PRIORITY memakai kolom prioritas eksplisit untuk tabel yang barisnya sering ditata ulang, supaya menggeser tampilan tidak diam-diam mengubah makna |
+| **Baris** | Tambah, gandakan, hapus, geser | Menggandakan baris lalu mengubah satu sel adalah cara tercepat menulis matriks bertingkat |
 
-Mesin juga menghitung **peringatan tumpang tindih**. Kalau dua baris bisa sama-sama cocok untuk satu kasus, baris yang bermasalah diberi tanda supaya Anda sadar ada ambiguitas. Peringatan ini tidak memblokir penyimpanan karena kadang tumpang tindih memang disengaja dengan FIRST_MATCH, tetapi selalu periksa dulu sebelum mengabaikannya.
+Lalu ada **peringatan tumpang tindih**. Mesin menghitung pasangan baris yang bisa sama-sama cocok untuk satu kasus dan menandainya. Kenapa hanya memperingatkan, bukan memblokir? Karena pada FIRST_MATCH, tumpang tindih sering kali memang disengaja, yaitu baris spesifik di atas menutup baris umum di bawah. Yang berbahaya adalah tumpang tindih yang **tidak disadari**, dan tanda itu memastikan Anda menyadarinya sebelum menyimpan.
 
 ## 4.3 Cara memakainya
 
-1. Buka Decision Tables lalu pilih tabel, atau buat baru.
-2. Pada versi draft, tambahkan kolom kondisi lewat pemilih fitur, lalu isi sel-selnya dengan input yang menyesuaikan tipe.
-3. Susun baris dari kasus paling spesifik di atas menuju baris jaring pengaman di paling bawah, yaitu baris yang semua kondisinya bintang.
-4. Simpan, lalu jalani siklus submit dan approve seperti biasa. Versi aktif tidak bisa diedit.
+Buka tabel atau buat baru, lalu bekerja di versi draft. Tambahkan kolom kondisi lewat pemilih fitur, isi sel dengan input yang mengikuti tipe, dan susun baris dari kasus paling spesifik di atas menuju baris jaring pengaman di paling bawah, yaitu baris yang semua kondisinya bintang. Setelah rapi, jalani siklus ajukan dan setujui seperti biasa.
 
-Saran praktis. Selalu sediakan baris terakhir serba bintang sebagai jaring pengaman. Tanpa itu, kasus yang lolos dari semua baris membuat mesin memakai jalur konservatif bawaan, yaitu manual review dengan alasan tidak ada baris yang cocok. Aman, tetapi antrean review Anda jadi penuh kasus yang seharusnya terjawab tabel.
+Soal jaring pengaman itu, biasakan selalu ada. Tanpa baris serba bintang, kasus yang lolos dari semua baris jatuh ke jalur konservatif bawaan mesin, yaitu manual review dengan alasan tidak ada baris yang cocok. Perilaku bawaan itu sengaja dibuat konservatif, sebab diam-diam meloloskan kasus tak terjawab jauh lebih berbahaya daripada diam-diam menahannya. Tetap saja, antrean review yang penuh kasus semacam itu artinya tabel Anda bolong.
 
 ## 4.4 Studi kasus, menggabungkan hasil dua rule klasifikasi
 
-Lanjutan pola modular dari bab 03. Dua rule CLASSIFICATION sudah menulis `outputs.collateral_risk` dan `outputs.affordability_risk`. Sekarang tabel FINAL yang memutus.
+Melanjutkan bab 03. Dua rule CLASSIFICATION sudah menulis `outputs.collateral_risk` dan `outputs.affordability_risk`. Tabel inilah yang memutus.
 
 | collateral_risk | affordability_risk | decision | reason_code |
 |---|---|---|---|
@@ -39,10 +36,10 @@ Lanjutan pola modular dari bab 03. Dua rule CLASSIFICATION sudah menulis `output
 | * | HIGH | MANUAL_REVIEW | DTI_NEAR_THRESHOLD |
 | * | * | APPROVE | |
 
-Kekuatan pola ini terasa saat kebijakan berubah. Misalnya manajemen memutuskan kombinasi HIGH dan HIGH cukup manual review, bukan langsung tolak. Anda hanya mengubah **satu sel** pada baris pertama, tanpa menyentuh rule mana pun. Bandingkan kalau logika gabungan itu tertanam di dalam rule, perubahan kecil pun jadi operasi bongkar pasang.
+Kekuatan pola ini terasa saat kebijakan berubah. Misalnya manajemen melunak, kombinasi HIGH dan HIGH cukup manual review. Perubahannya **satu sel** pada baris pertama, tanpa menyentuh rule mana pun, tanpa efek samping ke kebijakan lain. Bandingkan bila logika gabungan tertanam di dalam rule, revisi kecil pun jadi bongkar pasang.
 
 Tabel bawaan `FINAL_DECISION_MOTOR` memakai pola serupa dengan masukan grade skor dan DTI, lengkap dengan kolom limit dan tenor. Bukalah sebagai contoh hidup.
 
 ## 4.5 Siapa memakainya
 
-Risk Policy Analyst menyusun barisnya. Risk Manager membaca tabel ini paling sering saat menyetujui, karena formatnya paling mudah direview dalam rapat. Underwriter sesekali membukanya untuk memahami kenapa sebuah kasus jatuh ke barisnya. Data scientist berkepentingan pada tabel yang membaca grade skor, karena di situlah band model bertemu kebijakan.
+Risk Policy Analyst menyusun barisnya. Risk Manager paling sering membaca tabel ini saat menyetujui, karena formatnya paling enak direview dalam rapat. Underwriter membukanya sesekali untuk memahami kenapa sebuah kasus jatuh ke barisnya, dan data scientist berkepentingan pada tabel yang membaca grade, karena di situlah band model bertemu kebijakan.

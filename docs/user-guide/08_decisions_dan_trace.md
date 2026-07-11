@@ -1,64 +1,55 @@
 # Bab 08 — Dashboard, Decisions, dan Trace, Membaca Apa yang Terjadi
 
-## 8.1 Bagaimana keputusan tercipta
+## 8.1 Latar belakang, keputusan harus bisa dipertanggungjawabkan selamanya
 
-Dalam operasi nyata, sistem LOS mengirim aplikasi ke API `POST /v1/decisions` memakai akun mesin seperti `los-client`, dan jawabannya kembali dalam hitungan ratusan milidetik. Manusia tidak mengetik apa pun di sini. Yang perlu Anda pahami adalah bentuk kirimannya, karena bidang-bidang inilah yang menjadi fitur.
+Tiga layar di bab ini melayani satu kebutuhan yang sama, yaitu **akuntabilitas**. Regulator, auditor, nasabah yang komplain, dan tim risk sendiri semuanya menanyakan hal serupa, kenapa hasilnya begini dan apa yang sedang terjadi sekarang. Sistem yang tidak bisa menjawab akan membayar mahal, entah lewat temuan audit, sengketa yang kalah, atau kerugian yang terlambat disadari. Karena itu setiap keputusan di OSCAR meninggalkan **trace** yang tidak bisa diubah, dan kesehatan keseluruhan dipantau lewat dashboard.
+
+## 8.2 Bagaimana keputusan tercipta
+
+Dalam operasi nyata, sistem LOS mengirim aplikasi ke API `POST /v1/decisions` memakai akun mesin seperti `los-client`, dan jawabannya kembali dalam ratusan milidetik. Manusia tidak mengetik apa pun di langkah ini. Yang perlu Anda kenali adalah bentuk kirimannya, karena bidang-bidang inilah yang menjadi fitur.
 
 | Bagian payload | Isi penting |
 |---|---|
-| `application_id`, `product_type`, `channel` | Identitas aplikasi serta penentu strategy mana yang dipakai |
+| `application_id`, `product_type`, `channel` | Identitas aplikasi, sekaligus penentu strategy mana yang menyambutnya |
 | `applicant` | Umur, penghasilan, kewajiban berjalan, dan data pemohon lain |
 | `loan` | Jumlah dan tenor yang diminta |
 | `vehicle` | Jenis, tahun, dan nilai taksiran jaminan |
-| `bureau` | Ringkasan SLIK seperti keterlambatan maksimal dua belas bulan terakhir |
+| `bureau` | Ringkasan SLIK, misalnya keterlambatan terburuk setahun terakhir |
 | `fraud` | Hasil verifikasi identitas, dokumen, daftar hitam, skor risiko perangkat |
 | `model_outputs` | Skor kredit beserta versi modelnya |
 
-Jawabannya memuat keputusan, kode-kode alasan, limit dan tenor yang disetujui bila ada, versi strategy yang dipakai, nomor trace, dan nomor kasus review bila kasusnya diarahkan ke manusia. Pengiriman ulang dengan kunci idempotency yang sama tidak menciptakan keputusan ganda, jadi LOS aman melakukan retry.
+Jawabannya memuat keputusan, kode alasan, limit dan tenor bila ada, versi strategy, nomor trace, dan nomor kasus review bila kasusnya lari ke manusia. Ada satu detail desain yang layak tahu, yaitu **idempotency**. Pengiriman ulang dengan kunci yang sama tidak melahirkan keputusan kedua. Latar belakangnya, jaringan di dunia nyata suka putus di tengah, dan LOS akan mencoba lagi. Tanpa pagar ini, satu pemohon bisa tercatat diputus dua kali dengan dua hasil, mimpi buruk rekonsiliasi.
 
-## 8.2 Dashboard, memantau kesehatan harian
+## 8.3 Dashboard, kaca depan bukan spion
 
-Menu **Dashboard** menampilkan angka hari-hari, yaitu jumlah aplikasi, approval rate, reject rate, manual review rate, latency, ukuran antrean review, distribusi keputusan, kode alasan teratas, dan tren volume harian. Semuanya bisa disaring per produk dan channel.
+Menu **Dashboard** menampilkan angka harian, yaitu volume, approval rate, reject rate, manual review rate, latency, ukuran antrean review, distribusi keputusan, kode alasan teratas, dan tren volume, semuanya bisa disaring per produk dan channel.
 
-Cara membacanya sederhana. Angka-angka ini adalah kaca depan, bukan spion. Approval rate yang bergeser lima poin tanpa ada perubahan kebijakan berarti populasi pemohonnya yang berubah, dan kode alasan teratas memberi tahu lewat pintu mana pergeserannya masuk. Selidiki sebelum menjadi kerugian.
+Kenapa metrik keputusan dipantau seketat ini padahal sudah ada laporan NPL? Karena NPL adalah spion, ia bercerita tentang kecelakaan yang terjadi enam bulan lalu. Metrik keputusan adalah kaca depan. Approval rate yang bergeser lima poin tanpa perubahan kebijakan berarti populasi pemohonnya yang berubah, dan kode alasan teratas menunjukkan lewat pintu mana pergeserannya masuk. Menyelidikinya hari ini jauh lebih murah daripada membacanya di laporan NPL tahun depan.
 
-## 8.3 Decisions, mencari keputusan lama
+## 8.4 Decisions, mencari keputusan lama
 
-Menu **Decisions** adalah riwayat semua keputusan dengan saringan berikut.
+Menu **Decisions** adalah riwayat semua keputusan, dengan saringan application ID untuk menjawab pertanyaan tentang satu aplikasi, saringan decision untuk melihat semua penolakan atau semua review, saringan produk dan channel untuk menyempitkan segmen, serta rentang tanggal untuk investigasi periode. Klik nomor keputusan untuk membuka detail dan trace-nya.
 
-| Saringan | Kegunaan |
-|---|---|
-| Application ID | Menjawab pertanyaan nasabah atau cabang tentang satu aplikasi |
-| Decision | Melihat semua REJECT atau semua MANUAL_REVIEW |
-| Product dan Channel | Menyempitkan ke segmen |
-| Rentang tanggal | Investigasi periode tertentu |
+## 8.5 Trace, membedah satu keputusan
 
-Klik nomor keputusan untuk membuka detailnya, dan dari sana masuk ke trace.
+Trace adalah kotak hitamnya, dan cara membacanya dari atas ke bawah.
 
-## 8.4 Trace, membedah satu keputusan
+1. **Kartu keputusan akhir**, berisi keputusan, grade, skor, limit, tenor, versi strategy, dan tautan ke kasus review bila ada.
+2. **Kode alasan** beserta pesannya.
+3. **Linimasa eksekusi**, node demi node sesuai urutan dilalui. Node CONDITION mencantumkan hasil evaluasinya dan cabang TRUE atau FALSE yang diambil, jadi rute persimpangan tidak pernah misterius.
+4. **Rincian rule**, bagian paling berharga. Setiap rule menampilkan kondisi per kondisi berupa nilai ambang berhadapan dengan nilai aktual pemohon, cabang ke berapa yang cocok, dan aksi yang dijalankan termasuk output yang ditulis. Perhatikan desainnya, trace menyimpan **nilai aktual saat itu**, bukan sekadar nama aturannya, karena penjelasan yang jujur membutuhkan angka yang dipakai saat memutus, bukan rekonstruksi belakangan.
+5. **Kartu outputs**, nilai akhir semua tulisan rule selama eksekusi.
+6. **Fitur terhitung dan snapshot input**. Data sensitif pada snapshot sudah tersamar, karena kebutuhan menjelaskan keputusan tidak boleh menjadi pintu bocornya data pribadi.
+7. Tautan **view flow** membuka kanvas baca-saja dari versi strategy yang dipakai.
 
-Trace adalah bukti lengkap yang menjawab "kenapa hasilnya begini". Bacalah dari atas ke bawah.
+Dua sifat penting menutup bagian ini. Trace tidak bisa diubah siapa pun termasuk admin, sebab bukti yang bisa disunting bukan bukti. Dan membuka trace pun tercatat di audit log, sebab isinya data sensitif dan akses ke data sensitif adalah peristiwa yang patut berjejak.
 
-1. **Kartu keputusan akhir**, berisi keputusan, grade, skor, limit, tenor, dan versi strategy. Bila kasus lari ke review, ada tautan langsung ke kasusnya.
-2. **Kode alasan**, lengkap dengan pesan internalnya.
-3. **Linimasa eksekusi**, yaitu node demi node sesuai urutan dilalui. Node CONDITION menampilkan hasil evaluasinya dan cabang TRUE atau FALSE yang diambil. Klik sebuah node untuk membuka rinciannya.
-4. **Rincian rule**, bagian paling berharga. Setiap rule yang dievaluasi menampilkan kondisi per kondisi dengan nilai ambang berhadapan dengan nilai aktual pemohon, cabang ke berapa yang cocok bila rule-nya bercabang, dan aksi yang dijalankan termasuk output yang ditulis.
-5. **Kartu outputs**, berisi nilai akhir semua output yang ditulis rule selama eksekusi.
-6. **Fitur terhitung dan snapshot input**, yaitu LTV, DTI, dan kawan-kawan, plus salinan input yang datanya sensitif sudah tersamar.
-7. Tautan **view flow** membuka kanvas baca-saja dari versi strategy yang dipakai, sehingga rute yang dilalui bisa dilihat sebagai gambar.
+## 8.6 Studi kasus, menjawab komplain dalam lima menit
 
-Dua hal penting soal trace. Pertama, trace tidak bisa diubah siapa pun, termasuk admin. Kedua, membuka trace pun tercatat di audit log karena isinya data sensitif.
+Cabang meneruskan komplain, aplikasi A-2210 ditolak padahal kata nasabah penghasilannya cukup.
 
-## 8.5 Studi kasus, menjawab komplain dalam lima menit
+Compliance menyaring Decisions dengan application ID dan menemukan keputusannya, REJECT beralasan HIGH_DTI. Di trace, rincian rule menunjukkan `affordability.dti` bernilai 0.51 berhadapan dengan ambang 0.45 milik DTI_MAX_STANDARD versi satu, dan bagian fitur terhitung memperlihatkan sumber angkanya, yaitu kewajiban berjalan 3,2 juta ditambah estimasi cicilan baru, dibagi penghasilan 8 juta. Jawaban ke nasabah pun konkret, penghasilannya memang cukup untuk cicilan baru saja, tetapi total kewajiban berjalannya membuat rasio melampaui batas, dan bila salah satu pinjaman lamanya lunas ia dipersilakan mengajukan lagi. Lima menit, nol tebakan, setiap klaim didukung angka yang terekam saat keputusan dibuat.
 
-Cabang meneruskan komplain, yaitu aplikasi A-2210 ditolak padahal menurut nasabah penghasilannya cukup.
+## 8.7 Siapa memakainya
 
-1. Compliance membuka Decisions, menyaring dengan application ID, dan menemukan keputusannya, REJECT dengan alasan HIGH_DTI.
-2. Dia membuka trace. Di rincian rule terlihat `affordability.dti` bernilai 0.51 berhadapan dengan ambang 0.45 dari rule DTI_MAX_STANDARD versi satu.
-3. Di fitur terhitung terlihat sumber angkanya, yaitu kewajiban berjalan 3,2 juta ditambah estimasi cicilan baru, dibagi penghasilan 8 juta.
-4. Jawaban ke nasabah menjadi konkret. Penghasilannya memang cukup untuk cicilan baru saja, tetapi total kewajiban berjalannya membuat rasio melampaui batas kebijakan. Kalau salah satu pinjaman lamanya lunas, silakan mengajukan lagi.
-5. Lima menit, tanpa satu pun tebakan, dan setiap klaim didukung angka yang terekam saat keputusan dibuat.
-
-## 8.6 Siapa memakainya
-
-Risk Manager membuka Dashboard tiap pagi. Underwriter membaca trace sebagai bahan investigasi kasus. Compliance dan auditor memakai Decisions serta trace untuk rekonstruksi. Data scientist menambang trace sebagai sumber fitur historis yang jujur, karena nilainya persis seperti saat keputusan diambil, bukan rekonstruksi belakangan.
+Risk Manager membuka Dashboard tiap pagi. Underwriter membaca trace sebagai bahan investigasi. Compliance dan auditor memakai Decisions serta trace untuk rekonstruksi. Data scientist menambang trace sebagai sumber fitur historis paling jujur, karena nilainya persis nilai saat keputusan diambil.

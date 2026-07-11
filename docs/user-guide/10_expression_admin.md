@@ -1,10 +1,12 @@
 # Bab 10 — Expression, Menulis Aturan sebagai Teks (Khusus Admin)
 
-## 10.1 Kegunaannya dan kenapa dibatasi
+## 10.1 Latar belakang, "free SQL" yang dijinakkan
 
-Expression adalah cara menulis rule sebagai teks formula, untuk kasus yang terasa bertele-tele kalau dirakit lewat builder. Dua bentuk pemakaiannya, yaitu rule berjenis EXPRESSION yang seluruh logikanya ditulis sebagai teks, dan aksi SET_OUTPUT yang nilainya berupa formula alih-alih angka mati.
+Produk decision engine kelas enterprise biasanya menyediakan mode "free SQL", yaitu pengguna mahir menulis logika sebagai teks bebas alih-alih mengklik builder. Kebutuhan di baliknya nyata, karena ada formula yang terasa bertele-tele bila dirakit kotak per kotak, misalnya batas cicilan yang merupakan nilai terkecil dari dua perhitungan.
 
-Kemampuan ini setara dengan fitur "free SQL" di produk sejenis, tetapi dengan satu perbedaan prinsip. Teks yang Anda tulis **tidak pernah dieksekusi sebagai SQL**. Server mengurainya menjadi struktur terkontrol yang hanya mengenal operasi yang diizinkan, lalu mesin sendiri yang menghitungnya. Karena kekuatannya besar, penulisannya dibatasi izin khusus yang di lingkungan demo hanya dimiliki akun `admin`. Semua orang lain tetap bisa **membaca** hasilnya lewat pratinjau.
+Masalahnya, SQL bebas di mesin keputusan itu berbahaya. Teks bebas bisa membaca data yang bukan haknya, hasilnya bisa berubah-ubah, dan menyuntikkan perintah lewat teks adalah serangan tertua di dunia perangkat lunak. OSCAR mengambil jalan tengahnya, yaitu **kekuatan menulis teks tetap ada, bahayanya dibuang**. Teks yang Anda tulis tidak pernah dieksekusi sebagai SQL. Server mengurainya menjadi struktur terkontrol yang hanya mengenal operasi yang diizinkan, dan mesin sendiri yang menghitungnya. Tidak ada akses tabel, tidak ada perintah tersembunyi, tidak ada tanggal hari ini atau angka acak, sehingga hasilnya selalu deterministik dan bisa direproduksi untuk audit.
+
+Karena kekuatannya tetap besar, penulisannya dibatasi lewat izin khusus yang untuk sekarang hanya dipegang `admin`. Pembatasan ini disengaja bertahap, mulai dari lingkar paling kecil dulu, dan bisa diperluas ke analis senior kapan saja lewat menu Admin tanpa perubahan sistem.
 
 ## 10.2 Sintaks yang didukung
 
@@ -12,14 +14,14 @@ Kemampuan ini setara dengan fitur "free SQL" di produk sejenis, tetapi dengan sa
 |---|---|---|
 | Formula nilai | aritmetika biasa | `monthly_income * 0.3 - existing_monthly_obligation` |
 | Perbandingan | `=` `!=` `>` `>=` `<` `<=` `IN (...)` `NOT IN (...)` `IS NULL` `IS NOT NULL` | `loan.ltv > 0.85 AND vehicle.type = 'MOTOR'` |
-| Logika | `AND` `OR` `NOT` dengan tanda kurung | `NOT (a OR b)` |
+| Logika | `AND` `OR` `NOT` dengan kurung | `NOT (a OR b)` |
 | Bercabang | `CASE WHEN ... THEN ... ELSE ... END` | contoh di bawah |
 | Fungsi | `MIN` `MAX` `ROUND` `ABS` `COALESCE` | `ROUND(MIN(x, y) / 12)` |
 | Nilai | angka, teks berkutip tunggal, TRUE, FALSE, NULL | `'MOTOR'`, `0.45` |
 
-Identifier hanya boleh berupa fitur yang terdaftar dan aktif di katalog, memakai path bertitiknya. Kata kunci boleh huruf besar atau kecil. Nilai yang hilang menjadi NULL, perhitungan dengan NULL menghasilkan NULL, cabang WHEN yang hasilnya NULL dianggap tidak cocok, dan `COALESCE` adalah alat resmi untuk memberi nilai pengganti.
+Identifier hanya boleh fitur yang terdaftar dan aktif di katalog, dan itu bukan kebetulan, melainkan kamus data yang sama dari bab 02 bekerja lagi di sini. Nilai yang hilang menjadi NULL, perhitungan dengan NULL menghasilkan NULL, cabang WHEN bernilai NULL dianggap tidak cocok, dan `COALESCE` adalah alat resmi memberi nilai pengganti. Lima fungsi itu saja yang ada, karena setiap fungsi tambahan adalah permukaan serangan tambahan, dan lima itu sudah menutup kebutuhan formula kredit yang lazim.
 
-Contoh lengkap gaya papan tarif.
+Contoh lengkap bergaya papan tarif.
 
 ```
 CASE WHEN applicant.saving_account_balance > 50000000 THEN 20000
@@ -31,27 +33,23 @@ END
 
 ## 10.3 Cara memakainya
 
-1. Buka Rules lalu New rule, pilih jenis EXPRESSION. Pilihan ini hanya tampil untuk akun berizin.
-2. Tulis teksnya di editor. Setiap Anda berhenti mengetik, server memvalidasi dan editor menampilkan hasilnya, entah tanda sah beserta tipe hasil yang disimpulkan, entah pesan kesalahan lengkap dengan baris dan kolomnya. Tombol insert feature membuka pemilih katalog dan menyisipkan path di posisi kursor supaya tidak salah ketik.
-3. Pilih **output target**, yaitu output writable yang akan menampung hasil formula, misalnya `outputs.max_installment`.
-4. Simpan sebagai draft, uji lewat form uji seperti rule biasa, lalu jalani siklus persetujuan yang sama. Tidak ada jalur pintas, expression pun melewati maker-checker.
+1. Buka Rules lalu New rule dan pilih jenis EXPRESSION. Pilihan ini hanya muncul untuk akun berizin.
+2. Tulis teksnya. Setiap kali Anda berhenti mengetik, server memvalidasi, dan editor menampilkan tanda sah beserta tipe hasil yang disimpulkan, atau pesan kesalahan lengkap dengan baris dan kolomnya. Tombol insert feature membuka pemilih katalog dan menyisipkan path di posisi kursor, membunuh salah ketik.
+3. Pilih **output target**, yaitu output writable yang menampung hasil formula, misalnya `outputs.max_installment`. Aturan writable dari bab 02 berlaku persis sama di sini.
+4. Simpan sebagai draft, uji lewat form uji, lalu jalani siklus persetujuan biasa. Tidak ada jalur pintas, expression pun melewati maker-checker, karena kekuatan lebih justru menuntut tata kelola yang sama ketatnya.
+
+Ada juga batas ukuran, yaitu panjang teks, kedalaman kurung, jumlah cabang, dan panjang daftar IN semuanya dibatasi. Kalau tertabrak, editor memberi tahu dengan jelas. Batas ini pagar terakhir supaya tidak ada teks raksasa yang membebani mesin keputusan.
 
 ## 10.4 Pratinjau bergaya SQL untuk semua orang
 
-Terlepas dari cara pembuatannya, setiap rule punya tab pratinjau bergaya SQL yang menampilkan bentuk `CASE WHEN ... END` yang familiar, dengan spanduk pengingat bahwa itu hanya tampilan. Gunanya untuk membaca cepat, misalnya risk manager yang terbiasa membaca SQL bisa mereview rule buatan builder tanpa membuka cabang satu per satu.
+Terlepas dari cara pembuatannya, setiap rule punya tab pratinjau bergaya SQL berbentuk `CASE WHEN ... END`, dengan spanduk pengingat bahwa itu tampilan semata. Latar belakang fitur kecil ini menarik, yaitu banyak orang risk yang besar di dunia SQL membaca CASE WHEN lebih cepat daripada membuka kartu cabang satu per satu. Jadi meskipun eksekusi SQL ditolak, **bahasa bacanya** dipertahankan sebagai jembatan untuk mereka.
 
-## 10.5 Batas yang sengaja dipasang
+## 10.5 Studi kasus
 
-Panjang teks, kedalaman kurung, jumlah cabang, dan panjang daftar IN semuanya dibatasi. Tidak ada akses ke tabel, tidak ada fungsi di luar lima yang disebut, tidak ada tanggal hari ini atau angka acak, sehingga hasil formula selalu deterministik dan bisa direproduksi untuk audit. Kalau Anda menabrak batas ini, editor memberi tahu dengan jelas.
+Admin diminta menulis batas cicilan maksimal, yaitu nilai terkecil antara sepertiga penghasilan dan seperdua belas limit yang layak.
 
-## 10.6 Studi kasus
+Dia membuat rule EXPRESSION bertarget `outputs.max_installment`, lalu menulis `ROUND(MIN(applicant.monthly_income * 0.3, outputs.eligible_limit / 12))`. Perhatikan formula ini membaca output tulisan rule lain, dan itu sah selama rule penulisnya berjalan lebih dulu di alur. Validasi hijau, diuji beberapa kombinasi, diajukan, disetujui manager, aktif. Decision table kemudian tinggal memakai `outputs.max_installment` sebagai kolom kondisi. Coba bayangkan formula yang sama dirakit lewat builder kotak per kotak, bisa, tetapi jauh lebih berbelit, dan justru untuk kasus seperti inilah expression ada.
 
-Admin diminta menulis batas cicilan maksimal yang bergantung dua hal sekaligus, yaitu sepertiga penghasilan atau seperdua belas limit yang layak, mana yang lebih kecil.
+## 10.6 Siapa memakainya
 
-1. Dia membuat rule EXPRESSION dengan output target `outputs.max_installment`.
-2. Teksnya `ROUND(MIN(applicant.monthly_income * 0.3, outputs.eligible_limit / 12))`. Perhatikan formula ini membaca output tulisan rule lain, dan itu sah selama rule penulisnya berjalan lebih dulu di alur.
-3. Validasi hijau, diuji dengan beberapa kombinasi nilai, diajukan, disetujui manager, aktif. Decision table kemudian memakai `outputs.max_installment` sebagai kolom kondisi.
-
-## 10.7 Siapa memakainya
-
-Admin atau engineering menulisnya, biasanya atas permintaan tim policy untuk formula yang builder tidak cukup luwes. Semua peran lain memanfaatkan pratinjau SQL-nya sebagai alat baca. Kalau kelak perusahaan ingin analis senior ikut menulis expression, izinnya tinggal diberikan lewat menu Admin tanpa perubahan sistem.
+Admin atau engineering menulisnya, biasanya atas pesanan tim policy untuk formula yang builder kurang luwes. Semua peran lain menikmati pratinjau SQL-nya sebagai alat baca.

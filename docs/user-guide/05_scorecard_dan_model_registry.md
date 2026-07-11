@@ -1,51 +1,44 @@
 # Bab 05 — Scorecard dan Model Registry, Tempat Model Statistik Bertemu Kebijakan
 
-## 5.1 Kegunaannya
+## 5.1 Latar belakang, kenapa skor tidak langsung dipakai
 
-Model skor menghasilkan angka, misalnya 684 pada rentang 300 sampai 850. Angka mentah sulit dipakai kebijakan, karena itu **scorecard** menerjemahkannya menjadi **grade** seperti A sampai E lewat tabel band. Grade inilah bahasa yang dipakai rule dan decision table. Sementara itu **Model Registry** adalah katalog identitas model, mencatat model apa saja yang dikonsumsi mesin beserta versinya, supaya setiap keputusan bisa menunjuk model versi mana yang dipakainya.
+Model skor menghasilkan angka, misalnya 684 pada rentang 300 sampai 850. Secara teknis aturan bisa saja langsung berbunyi "skor di atas 663 boleh jalan". Tapi bayangkan akibatnya. Setiap kali data scientist merilis model baru yang distribusi skornya bergeser, **semua** aturan yang menyebut angka skor harus ditulis ulang. Sebaliknya, setiap kali tim risk ingin mengetat, mereka harus paham seluk-beluk skala skor model.
 
-Pemisahan ini disengaja dan menguntungkan dua pihak. Tim risk bisa menggeser batas band tanpa menyentuh model, dan data scientist bisa merilis model baru tanpa menulis ulang kebijakan.
+Jalan keluarnya adalah menaruh satu lapisan penerjemah di tengah, yaitu **scorecard**, yang memetakan skor menjadi **grade** seperti A sampai E lewat tabel band. Kebijakan hanya bicara grade, model hanya bicara skor, dan tabel band menjadi kontrak di antara keduanya. Risk bisa menggeser batas band tanpa menyentuh model, data scientist bisa merilis model baru tanpa menulis ulang kebijakan. Batas band itu sendiri adalah kebijakan, karena itu ia berversi dan melewati persetujuan seperti aturan lain.
+
+Lalu kenapa perlu **Model Registry**? Karena setiap keputusan wajib bisa menjawab "model versi apa yang dipakai saat itu". Tanpa katalog resmi, jawaban itu tersebar di ingatan orang. Registry mencatat identitas tiap model beserta versinya, dan trace tiap keputusan menunjuk ke sana. Registry ini katalog dokumentasi, bukan tempat menjalankan model. Modelnya sendiri berjalan di luar, dan skornya dikirim LOS lewat payload pada bagian `model_outputs`.
 
 ## 5.2 Scorecard dan parameternya
 
-Scorecard dikelola lewat versi seperti objek lain. Isinya sederhana, yaitu daftar band.
-
-| Parameter | Arti | Contoh |
+| Parameter | Arti | Kenapa dirancang begini |
 |---|---|---|
-| **Code** | Nama teknis scorecard | `MOTOR_SCORECARD` |
-| **Bands** | Daftar ambang skor dan grade hasilnya, dibaca dari ambang tertinggi | min_score 720 berarti grade A, 650 grade B, 580 grade C, 520 grade D, sisanya E |
-| **Fallback** | Perilaku saat skor tidak tersedia di payload | Mengikuti pengaturan on_error node scorecard di strategy, umumnya diarahkan ke manual review dengan alasan SCORE_UNAVAILABLE |
+| **Code** | Nama teknis, misalnya `MOTOR_SCORECARD` | Dirujuk oleh node strategy, jadi stabil |
+| **Bands** | Daftar ambang skor dan grade hasilnya, dibaca dari ambang tertinggi | Bentuk band dipilih karena persis begitulah risk berpikir, yaitu kelas-kelas risiko, bukan angka kontinu. Dibaca dari atas supaya perilakunya sama dengan cabang rule, cocok pertama menang |
+| **Fallback** | Nasib alur saat skor tidak tersedia | Diatur lewat on_error pada node scorecard di strategy. Bawaannya diarahkan ke manual review beralasan SCORE_UNAVAILABLE, karena tanpa skor mesin kehilangan mata, dan kasus tanpa mata paling aman diserahkan ke manusia |
 
 Hasil pemetaan tersedia sebagai fitur `score.value` dan `score.risk_grade` yang bisa dibaca aturan berikutnya, dan keduanya terekam di trace.
 
-Dari mana skornya datang? Pada penyiapan saat ini skor dikirim LOS di payload pada bagian `model_outputs`, berisi `credit_score` dan `model_version`. Mesin tinggal memetakan dan mencatat.
-
 ## 5.3 Model Registry dan parameternya
 
-Letaknya di menu **Model Registry**. Ini katalog dokumentasi dan siklus hidup, bukan tempat menjalankan model.
+Letaknya di menu **Model Registry**.
 
-| Parameter | Arti | Contoh |
+| Parameter | Arti | Kenapa ada |
 |---|---|---|
-| **Code** | Identitas model | `MOTOR_SCORE` |
-| **Version label** | Versi yang didaftarkan | `V1` |
-| **Name** | Nama ramah | Motor Leaseback Credit Score |
-| **Provider** | Pembuatnya | INTERNAL atau nama vendor |
-| **Description** | Ringkasan model | Populasi pelatihan, definisi target |
-| **Metadata** | Catatan bebas terstruktur | Misalnya rentang skor atau AUC saat pengembangan |
-| **Active** | Status pemakaian | Retire saat versi baru menggantikan |
+| **Code** dan **Version label** | Identitas model dan versinya, misalnya `MOTOR_SCORE` `V2` | Pasangannya wajib unik, dan versi lama tidak dihapus saat versi baru datang, karena keputusan lama tetap menunjuk versi lama. Menghapusnya berarti memutus jejak audit |
+| **Name, Provider, Description** | Nama ramah, pembuat, ringkasan model | Dokumentasi untuk manusia, misalnya populasi pelatihan dan definisi target |
+| **Metadata** | Catatan terstruktur bebas | Tempat menaruh rentang skor atau AUC saat pengembangan, supaya konteks evaluasi tidak hilang bersama orangnya |
+| **Active** | Status pemakaian | Sekali lagi pensiun, bukan hapus |
 
-Kombinasi code dan version label harus unik. Mendaftarkan `MOTOR_SCORE` `V2` tidak menghapus `V1`, dan itu memang intinya, karena keputusan lama tetap menunjuk V1.
+## 5.4 Studi kasus, merilis model baru tanpa mengguncang kebijakan
 
-## 5.4 Studi kasus
+Data scientist selesai melatih model dengan daya pisah lebih baik.
 
-Data scientist selesai melatih model baru dengan daya pisah lebih baik.
-
-1. Dia mendaftarkan `MOTOR_SCORE` `V2` di Model Registry lengkap dengan deskripsi dan metadata evaluasinya.
-2. Bersama policy analyst dia meninjau band. Karena distribusi skor V2 bergeser, batas grade B perlu turun dari 650 menjadi 640. Analis membuat versi scorecard baru dengan band tersebut.
-3. Kebijakan di decision table tidak berubah sama sekali, karena tabel hanya mengenal grade.
-4. Perubahan diuji lewat simulasi massal untuk melihat pergeseran approval per grade, diajukan, disetujui manager, lalu aktif.
-5. LOS mulai mengirim `model_version` V2. Sejak itu setiap trace mencatat V2, sehingga performa V1 dan V2 bisa dibandingkan bersih di kemudian hari.
+1. Dia mendaftarkan `MOTOR_SCORE` `V2` di registry, lengkap dengan deskripsi dan metadata evaluasinya.
+2. Karena distribusi skor V2 bergeser, batas grade B perlu turun dari 650 ke 640. Bersama analis dia menuangkan band baru sebagai **versi scorecard baru**. Perhatikan pembagian kerjanya, model urusan data scientist, batas band urusan kebijakan.
+3. Decision table tidak berubah sehuruf pun, karena tabel hanya mengenal grade. Di sinilah nilai lapisan penerjemah terasa.
+4. Band baru diuji lewat simulasi massal untuk melihat pergeseran approval per grade, diajukan, disetujui manager, lalu aktif.
+5. LOS mulai mengirim `model_version` V2, dan sejak itu tiap trace mencatatnya. Kelak performa V1 dan V2 bisa dibandingkan bersih, kohor per kohor, karena batas pergantiannya terdokumentasi.
 
 ## 5.5 Siapa memakainya
 
-Data scientist adalah pemilik alaminya, dari mendaftarkan model sampai memantau band. Risk Policy Analyst mengurus versi scorecard karena batas band adalah kebijakan. Risk Manager menyetujui perubahan band seperti kebijakan lain. Auditor memakai registry untuk menjawab model versi apa yang dipakai keputusan tertentu.
+Data scientist adalah pemilik alaminya, dari mendaftarkan model sampai memantau band. Risk Policy Analyst mengurus versi scorecard karena batas band adalah kebijakan. Risk Manager menyetujuinya seperti kebijakan lain, dan auditor memakai registry untuk menjawab model versi apa yang berdiri di belakang sebuah keputusan.

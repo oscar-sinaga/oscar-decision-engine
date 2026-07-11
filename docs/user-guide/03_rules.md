@@ -1,78 +1,85 @@
 # Bab 03 — Rules, Menulis Aturan Kredit Tanpa Menyentuh Kode
 
-## 3.1 Kegunaannya
+## 3.1 Latar belakang, dari vonis tunggal menjadi aturan serbaguna
 
-Rule adalah kalimat kebijakan yang bisa dieksekusi mesin. Bentuk dasarnya "JIKA kondisi terpenuhi MAKA lakukan aksi". Di sinilah ambang DTI, batas umur kendaraan, larangan daftar hitam, dan semua kebijakan kredit dituliskan. Letaknya di menu **Rules**.
+Generasi pertama OSCAR hanya mengenal satu bentuk aturan, yaitu "JIKA kondisi terpenuhi MAKA keputusan plus kode alasan". Bentuk itu cukup untuk kebijakan yang memvonis, tetapi kaku untuk kebijakan dunia nyata yang sering **bertingkat** dan hasilnya **angka atau kategori**, bukan vonis. Papan tarif parkir tidak berbunyi boleh atau tidak boleh parkir, melainkan jam pertama sekian, jam berikutnya sekian.
+
+Setelah dibandingkan dengan decision engine kelas enterprise, kekurangannya jelas, yaitu rule di sana bisa **menghasilkan nilai** yang dipakai langkah berikutnya, sementara rule OSCAR selalu buru-buru mengetok palu. Phase 3 memperbaikinya. Rule kini bisa bercabang gaya CASE WHEN, menjalankan lebih dari satu aksi, dan menulis nilai ke output. Vonis akhir bisa diserahkan ke decision table yang membaca nilai-nilai itu, dan pola inilah yang membuat kebijakan jadi modular, yaitu tiap rule menilai satu hal, penggabungnya di satu tempat.
+
+Satu keputusan desain lain yang penting, yaitu semua ini dirakit lewat **builder visual**, bukan JSON atau kode. Alasannya, penulis kebijakan adalah analis risiko, bukan programmer, dan aturan yang tidak bisa dibaca pemiliknya adalah aturan yang salah tempat.
+
+Letaknya di menu **Rules**.
 
 ## 3.2 Empat jenis rule dan kapan memakainya
 
 | Jenis | Hasilnya | Kapan dipakai | Contoh |
 |---|---|---|---|
-| **POLICY_OUTCOME** | Keputusan plus kode alasan | Kebijakan yang langsung memvonis | DTI di atas 45% berarti REJECT dengan alasan HIGH_DTI |
-| **STATEMENT** | Nilai yang ditulis ke sebuah output | Menentukan angka bertingkat | Saldo tabungan menentukan band harga kendaraan |
-| **CLASSIFICATION** | Label yang ditulis ke sebuah output | Memberi kelas, bukan vonis | Umur kendaraan menjadi collateral_risk HIGH, MEDIUM, atau LOW |
-| **EXPRESSION** | Ditulis sebagai teks formula, khusus admin | Formula yang terlalu rumit untuk builder | Bab 10 membahasnya |
+| **POLICY_OUTCOME** | Keputusan plus kode alasan | Kebijakan yang memang memvonis langsung | DTI di atas 45% berarti REJECT |
+| **STATEMENT** | Angka yang ditulis ke output | Ketentuan bertingkat bergaya papan tarif | Saldo tabungan menentukan band harga kendaraan |
+| **CLASSIFICATION** | Label yang ditulis ke output | Memberi kelas tanpa memvonis | Umur kendaraan menjadi collateral_risk HIGH, MEDIUM, LOW |
+| **EXPRESSION** | Ditulis sebagai teks formula, khusus admin | Formula yang terlalu rumit untuk builder | Dibahas di bab 10 |
 
-Jenis STATEMENT dan CLASSIFICATION inilah yang memungkinkan pola modular, yaitu beberapa rule menulis penilaian masing-masing lalu sebuah decision table menggabungkannya menjadi keputusan akhir. Rule jadi tidak harus memvonis.
+Jenis ini sebetulnya label penggolong untuk memilah daftar, karena perilaku sesungguhnya ditentukan isi aturannya. Namun label yang jujur memudahkan orang lain membaca niat Anda.
 
-## 3.3 Anatomi sebuah rule di form pembuatan
+## 3.3 Merakit kondisi di builder
 
-**Bagian informasi umum.** Rule code sebagai nama teknis unik, misalnya `VEHICLE_PRICE_BAND`, lalu nama ramah, deskripsi, kategori dari katalog, jenis rule, dan catatan versi.
+Satu baris kondisi terdiri dari fitur, operator, dan nilai. Tiga-tiganya saling mengunci, dan penguncian itu disengaja.
 
-**Bagian kondisi, dibangun dengan builder.** Satu baris kondisi terdiri dari tiga bagian.
+**Fitur** dipilih dari katalog lewat kotak pencarian. Hanya fitur aktif yang muncul, jadi salah ketik mustahil sejak awal.
 
-| Bagian | Cara mengisi | Catatan |
+**Operator** menyesuaikan tipe fitur. Fitur NUMBER dan DATE menawarkan sama dengan, tidak sama, lebih besar, lebih kecil, beserta in, not in, exists, dan is null. Fitur STRING tidak menawarkan lebih besar atau lebih kecil, karena membandingkan besar kecil dua teks tidak punya makna bisnis yang jelas. Fitur BOOLEAN hanya sama dengan dan tidak sama. Pembatasan ini mencegah aturan yang secara teknis tersimpan tetapi secara logika omong kosong.
+
+**Nilai** diisi lewat kotak yang mengikuti tipe, yaitu kotak angka, pilihan benar salah, kalender tanggal, atau daftar nilai untuk in dan not in. Operator exists dan is null tidak butuh nilai. Dulu kolom nilai berupa teks bebas, dan bedanya `"MOTOR"` dengan `MOTOR` pernah jadi sumber kebingungan. Kotak bertipe menghapus kelas kesalahan itu.
+
+Baris-baris digabung dalam grup **ALL** yang berarti semua harus terpenuhi atau **ANY** yang berarti cukup salah satu, dan grup bisa **bersarang** lewat tombol Add Group. Syarat berkurung seperti "DTI tinggi DAN (motor tua ATAU LTV tinggi)" jadi bisa dirakit dengan klik. Ada juga NOT untuk membalik satu grup.
+
+## 3.4 Cabang WHEN THEN ELSE
+
+Sebuah rule boleh memuat banyak cabang WHEN, masing-masing dengan kondisi dan daftar aksinya sendiri, ditutup satu bagian ELSE opsional. Evaluasinya dari atas ke bawah dan **cabang pertama yang cocok itulah yang menang**.
+
+Kenapa cocok pertama, bukan semua yang cocok? Karena begitulah manusia membaca ketentuan bertingkat. Saat papan tarif berbunyi "di atas 50 juta dapat A, di atas 10 juta dapat B", saldo 60 juta jelas dimaksudkan dapat A saja, meskipun secara matematika ia juga di atas 10 juta. Aturan cocok pertama membuat niat penulis dan perilaku mesin selalu sejalan, dengan satu konsekuensi, yaitu **urutan cabang adalah bagian dari kebijakan**. Taruh yang paling spesifik di atas.
+
+## 3.5 Enam jenis aksi dan alasan masing-masing
+
+| Aksi | Parameter | Kegunaannya dan kenapa ada |
 |---|---|---|
-| **Fitur** | Ketik untuk mencari di katalog, misalnya ketik "saldo" | Hanya fitur aktif yang muncul, lengkap dengan tipe datanya |
-| **Operator** | Pilih dari dropdown yang menyesuaikan tipe fitur | Fitur NUMBER dan DATE menawarkan `=` `!=` `>` `>=` `<` `<=` `in` `not_in` `exists` `is_null`. Fitur STRING tidak menawarkan lebih besar atau lebih kecil. Fitur BOOLEAN hanya `=` `!=` `exists` `is_null` |
-| **Nilai** | Kotak input menyesuaikan tipe | Angka memunculkan kotak angka, boolean memunculkan pilihan benar salah, tanggal memunculkan kalender, sedangkan `in` dan `not_in` menerima daftar nilai. Operator `exists` dan `is_null` tidak butuh nilai |
+| **SET_OUTPUT** | target output writable, nilai yang tipenya cocok | Menulis angka atau label yang terbaca langkah berikutnya. Inilah jantung pola modular. Targetnya wajib terdaftar writable di katalog, alasannya di bab 02 |
+| **SET_DECISION** | keputusan, kode alasan opsional | Mengusulkan vonis. Disebut mengusulkan karena kalau beberapa rule bersuara, **yang terberat yang menang**, dengan urutan REJECT dan FRAUD_INVESTIGATION di atas MANUAL_REVIEW di atas APPROVE. Urutan ini konservatif dengan sengaja, sebab salah meloloskan lebih mahal daripada salah menahan |
+| **ADD_REASON_CODE** | kode alasan | Menandai tanpa memvonis. Berguna untuk rule yang sifatnya peringatan |
+| **ROUTE_MANUAL_REVIEW** | kode alasan opsional | Jalan pintas mengusulkan MANUAL_REVIEW, karena mengarahkan ke manusia adalah aksi paling sering dipakai |
+| **STOP_EXECUTION** | keputusan dan kode alasan opsional | Menghentikan seluruh alur seketika, untuk kondisi fatal seperti daftar hitam. Buat apa menghitung skor orang yang sudah pasti ditolak |
+| **CONTINUE** | kode alasan opsional | Menandai lalu jalan terus |
 
-Baris-baris kondisi digabung dalam grup ALL yang berarti semua harus terpenuhi, atau ANY yang berarti cukup salah satu. Grup bisa **bersarang** lewat tombol Add Group, sehingga syarat berkurung seperti "DTI tinggi DAN (motor tua ATAU LTV tinggi)" bisa dirakit tanpa mengetik apa pun. Ada pula tombol NOT untuk membalik sebuah grup.
+Kode alasan wajib berasal dari katalog reason code, bukan teks bebas. Alasannya, alasan yang baku bisa dihitung. Kalimat "penyebab penolakan terbanyak bulan ini adalah HIGH_DTI" hanya mungkin kalau semua orang memakai kode yang sama.
 
-**Bagian cabang, gaya CASE WHEN.** Sebuah rule boleh punya banyak cabang WHEN yang masing-masing membawa kondisi dan daftar aksinya sendiri, ditambah satu bagian ELSE opsional. Evaluasinya dari atas ke bawah dan **cabang pertama yang cocok itulah yang menang**, persis cara membaca papan tarif bertingkat. Cabang bisa diurut ulang, jadi taruh kondisi yang paling spesifik di atas.
+Satu cabang boleh menggabungkan beberapa aksi, misalnya menulis output sekaligus menambah penanda alasan.
 
-## 3.4 Enam jenis aksi dan parameternya
+## 3.6 Pratinjau dan alat bantu di panel kanan
 
-Setiap cabang membawa satu atau beberapa aksi yang dijalankan berurutan.
+Selagi merakit, panel kanan menampilkan pratinjau **manusiawi** berbentuk kalimat dan pratinjau **bergaya SQL** berbentuk CASE WHEN, lengkap dengan spanduk bahwa itu tampilan semata dan OSCAR tidak pernah mengeksekusi SQL. Kenapa repot-repot ada dua? Karena pembacanya dua macam. Analis membaca kalimat, sedangkan orang yang besar di dunia SQL membaca CASE WHEN lebih cepat daripada membuka cabang satu per satu. Tab Advanced tetap menyimpan JSON mentah untuk yang membutuhkan, tetapi tidak ada pekerjaan yang mewajibkannya.
 
-| Aksi | Parameter | Kegunaan |
-|---|---|---|
-| **SET_OUTPUT** | target berupa output writable dari katalog, dan value yang tipenya harus cocok | Menulis nilai atau label, misalnya `outputs.vehicle_price_band` diisi 15000. Nilai ini terbaca oleh rule dan tabel di langkah berikutnya |
-| **SET_DECISION** | decision dan reason code opsional | Mengusulkan keputusan. Kalau beberapa rule mengusulkan keputusan berbeda, yang paling berat yang menang, urutan beratnya REJECT dan FRAUD_INVESTIGATION di atas MANUAL_REVIEW di atas APPROVE |
-| **ADD_REASON_CODE** | reason code | Menambah alasan tanpa memvonis, cocok untuk sekadar menandai |
-| **ROUTE_MANUAL_REVIEW** | reason code opsional | Mengusulkan MANUAL_REVIEW, jalan pintas yang sering dipakai |
-| **STOP_EXECUTION** | decision dan reason code opsional | Menghentikan seluruh alur saat itu juga, untuk kondisi fatal seperti daftar hitam |
-| **CONTINUE** | reason code opsional | Menandai lalu lanjut, tanpa efek lain |
+## 3.7 Menguji sebelum mengajukan
 
-Satu cabang boleh menggabungkan beberapa aksi. Contohnya menulis `outputs.affordability_risk` menjadi HIGH sekaligus menambah alasan DTI_NEAR_THRESHOLD.
+Halaman detail rule menyediakan **form uji yang dibuat otomatis**. Sistem membaca fitur mana saja yang disebut rule lalu membuatkan kotak input bertipe untuk masing-masing. Isi nilai contoh, jalankan, dan hasilnya menunjukkan cabang yang cocok, evaluasi tiap kondisi berupa nilai ambang berhadapan dengan nilai uji, aksi yang akan berjalan, serta isi output sesudahnya. Dulu pengujian menuntut menulis JSON payload sendiri, dan itu pagar tak kasat mata yang membuat orang malas menguji. Form otomatis mencabut pagar itu. Biasakan menguji minimal satu kasus per cabang ditambah satu kasus ELSE.
 
-## 3.5 Panel kanan, yaitu pratinjau dan alat bantu
+Panel **Used by** menunjukkan rule set dan strategy mana yang memakai rule ini. Gunanya mengukur radius ledakan sebelum mengubah atau memensiunkan, karena satu rule bisa dipakai banyak alur.
 
-Selagi Anda merakit, panel kanan selalu menampilkan dua pratinjau. Pratinjau **manusiawi** berbentuk kalimat, misalnya "WHEN saldo lebih dari 50.000.000 THEN band harga = 20.000, ELSE 0". Pratinjau **bergaya SQL** menampilkan bentuk CASE WHEN yang familiar bagi yang terbiasa, dengan spanduk pengingat bahwa itu hanya tampilan dan OSCAR tidak pernah mengeksekusi SQL. Tab **Advanced** memuat JSON mentah untuk yang membutuhkannya, tetapi Anda tidak pernah diwajibkan menyentuhnya.
+## 3.8 Studi kasus, rule band harga dari nol
 
-## 3.6 Menguji rule sebelum diajukan
+Kebijakan yang diminta, yaitu band harga kendaraan ditentukan saldo tabungan. Di atas 50 juta band-nya 20.000, di atas 10 juta 15.000, di atas 5 juta 10.000, selain itu 0.
 
-Di halaman detail rule ada **form uji yang dibuat otomatis**. Sistem membaca fitur mana saja yang disebut rule, lalu membuatkan kotak input bertipe untuk masing-masing. Isi nilai contoh, tekan Run test, dan hasilnya menunjukkan cabang mana yang cocok, evaluasi tiap kondisi dengan nilai harapan versus nilai aktual, aksi apa saja yang akan berjalan, serta isi output setelahnya. Ujilah minimal satu kasus per cabang plus satu kasus ELSE sebelum mengajukan.
+1. Pastikan `outputs.vehicle_price_band` sudah writable di katalog, kalau belum ikuti bab 02.
+2. Buka Rules, tekan New rule, isi code `VEHICLE_PRICE_BAND`, kategori LIMIT, jenis STATEMENT.
+3. Rakit cabang pertama, kondisinya saldo lebih dari 50000000, aksinya SET_OUTPUT band 20000.
+4. Tambah cabang 10 juta dan 5 juta dengan pola sama. Ambang terbesar di atas, karena cocok pertama menang.
+5. Nyalakan ELSE dengan SET_OUTPUT 0, lirik pratinjau untuk memastikan bunyinya sesuai niat, simpan sebagai draft.
+6. Uji dengan saldo 12 juta, hasilnya harus cabang kedua dan output 15000. Uji juga saldo 3 juta untuk memastikan ELSE bekerja.
+7. Ajukan, minta manager menyetujui, dan setelah aktif rule ini siap dipasang ke rule set serta dibaca decision table.
 
-Panel **Used by** di halaman yang sama menunjukkan rule set dan strategy mana saja yang memakai rule ini, sehingga Anda tahu radius dampak sebelum mengubah atau memensiunkan.
+## 3.9 Rule set, mengelompokkan aturan
 
-## 3.7 Studi kasus, membuat rule band harga langkah demi langkah
+Rule tidak dieksekusi sendirian melainkan lewat **rule set**, yaitu kumpulan rule setema yang dipasang sebagai satu node di strategy, misalnya FRAUD_BASIC atau AFFORDABILITY_STANDARD. Kenapa perlu lapisan ini? Supaya strategy tetap terbaca. Alur berisi lima node bernama jelas lebih mudah dipahami daripada alur berisi empat puluh rule lepas. Anggota rule set berjalan berurutan, jadi rule yang menulis output lebih dulu terbaca oleh rule sesudahnya, dan strategy selalu menjalankan versi aktif tiap rule.
 
-Kebijakan yang diminta berbunyi begini. Band harga kendaraan yang layak ditentukan saldo tabungan, yaitu 20.000 kalau saldo di atas 50 juta, 15.000 kalau di atas 10 juta, 10.000 kalau di atas 5 juta, dan selain itu 0.
+## 3.10 Siapa memakainya
 
-1. Pastikan `outputs.vehicle_price_band` sudah writable di katalog. Kalau belum, ikuti bab 02.
-2. Buka Rules lalu New rule. Isi code `VEHICLE_PRICE_BAND`, kategori LIMIT, jenis STATEMENT.
-3. Cabang pertama. Kondisinya saldo lebih dari 50000000, aksinya SET_OUTPUT ke `outputs.vehicle_price_band` dengan nilai 20000.
-4. Tambah cabang kedua dan ketiga dengan pola yang sama untuk 10 juta dan 5 juta. Urutannya penting karena evaluasinya cocok pertama menang, jadi ambang terbesar di atas.
-5. Nyalakan ELSE, isikan SET_OUTPUT nilai 0.
-6. Lirik pratinjau kanan untuk memastikan bunyinya sesuai niat, lalu simpan sebagai draft.
-7. Di halaman detail, uji dengan saldo 12 juta. Hasilnya harus cabang kedua yang cocok dan output terisi 15000.
-8. Submit for approval, lalu minta risk manager menyetujui. Setelah aktif, rule ini bisa dimasukkan ke rule set dan hasil tulisannya bisa dibaca decision table.
-
-## 3.8 Rule set, mengelompokkan aturan
-
-Rule tidak dieksekusi sendirian, melainkan lewat **rule set**, yaitu kumpulan rule bertema yang dipasang sebagai satu node di strategy. Contoh bawaannya ELIGIBILITY_MOTOR, FRAUD_BASIC, dan AFFORDABILITY_STANDARD. Anggota rule set dieksekusi berurutan, dan rule yang menulis output lebih dulu bisa dibaca rule setelahnya. Kelola anggotanya dari halaman rule set, dan ingat bahwa strategy selalu menjalankan **versi aktif** tiap rule di dalamnya.
-
-## 3.9 Siapa memakainya
-
-Risk Policy Analyst hidup di layar ini setiap hari. Risk Manager menyentuhnya saat menyetujui versi. Fraud Analyst memakainya untuk menambah aturan penangkal pola penipuan baru. Data scientist sesekali ikut merancang rule CLASSIFICATION yang membungkus band model. Compliance cukup membaca, terutama pratinjau manusiawi dan riwayat versinya.
+Risk Policy Analyst hidup di layar ini. Risk Manager menyentuhnya saat menyetujui. Fraud Analyst memakainya menambah penangkal pola penipuan baru dalam hitungan jam. Data scientist ikut merancang rule CLASSIFICATION yang membungkus band model, dan compliance cukup membaca pratinjau serta riwayat versi.

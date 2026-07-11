@@ -1,53 +1,51 @@
 # Bab 07 — Simulations, Menguji Kebijakan Tanpa Menyentuh Produksi
 
-## 7.1 Kegunaannya
+## 7.1 Latar belakang, kenapa fitur ini nyaris wajib di dunia kredit
 
-Simulasi menjalankan mesin keputusan yang sama persis dengan produksi, tetapi tanpa efek samping apa pun. Tidak ada keputusan produksi yang tercipta, tidak ada kasus review yang lahir, dan tidak ada konfigurasi yang tersentuh. Kegunaannya dua. Pertama menguji kebijakan draft sebelum berlaku, kedua membandingkan kebijakan kandidat dengan yang sedang aktif memakai data yang sama.
+Kebijakan kredit punya sifat yang kejam, yaitu akibatnya baru terlihat lama sekali. Kredit yang salah diloloskan hari ini baru ketahuan macet enam sampai dua puluh empat bulan lagi. Artinya, kalau kebijakan baru langsung dilepas ke produksi tanpa uji, kesalahannya terlanjur menumpuk berbulan-bulan sebelum ada yang sadar. Di sisi lain, satu perubahan ambang saja bisa menggeser nasib ribuan pemohon dan miliaran rupiah.
 
-Letaknya di menu **Simulations**. Ada dua mode, yaitu simulasi satu kasus dan simulasi massal yang disebut policy impact analysis.
+Simulasi adalah jawabannya, yaitu menjalankan kebijakan kandidat terhadap data **masa lalu** untuk mencicipi masa depan. Dua keputusan desain membuatnya bisa dipercaya. Pertama, simulasi memakai **mesin yang sama persis** dengan produksi, bukan tiruan, sehingga hasil uji dan perilaku nyata tidak mungkin berbeda mesin. Kedua, simulasi **bebas efek samping sepenuhnya**, tidak melahirkan keputusan, tidak melahirkan kasus review, tidak menyentuh konfigurasi, dan hasilnya selalu bertanda SIMULATION supaya tidak pernah tertukar dengan bukti produksi.
+
+Letaknya di menu **Simulations**, dengan dua mode.
 
 ## 7.2 Simulasi satu kasus
 
-Cocok untuk pertanyaan "kalau pemohon seperti ini, keputusannya apa".
+Untuk pertanyaan "kalau pemohonnya seperti ini, keputusannya apa".
 
 | Parameter | Arti | Catatan |
 |---|---|---|
-| **Application payload** | Data aplikasi lengkap dalam bentuk JSON | Halaman ini menyediakan contoh payload lease-back motor yang tinggal diubah angkanya |
-| **Strategy version** | Versi strategy yang diuji | Kosongkan untuk memakai strategy aktif, atau pilih versi draft mana pun. Inilah cara menguji draft |
-| **Compare with active** | Centang untuk membandingkan | Payload yang sama dijalankan dua kali, sekali di versi target dan sekali di versi aktif |
+| **Application payload** | Data aplikasi lengkap dalam JSON | Halaman menyediakan contoh payload yang tinggal diubah angkanya |
+| **Strategy version** | Versi yang diuji | Kosongkan untuk strategy aktif, atau pilih **versi draft** mana pun. Kemampuan menguji draft inilah gunanya parameter ini ada, kebijakan bisa dicoba sebelum jadi apa-apa |
+| **Compare with active** | Jalankan juga di versi aktif | Payload yang sama dieksekusi dua kali supaya bedanya terlihat langsung |
 
-Hasilnya menampilkan keputusan versi target, keputusan versi aktif bila dibandingkan, daftar **differences** per bidang seperti keputusan, grade, limit, dan alasan, serta trace lengkap bergaya simulasi. Setiap hasil diberi tanda SIMULATION yang jelas supaya tidak pernah tertukar dengan bukti produksi.
+Hasilnya memuat keputusan versi target, keputusan versi aktif bila dibandingkan, daftar perbedaan per bidang, dan trace lengkap bergaya simulasi.
 
 ## 7.3 Simulasi massal, alias policy impact analysis
 
-Cocok untuk pertanyaan "kalau kebijakan ini berlaku, dampaknya ke seluruh populasi seperti apa". Buka lewat tautan policy impact di halaman simulasi.
+Untuk pertanyaan "kalau kebijakan ini berlaku, seluruh populasi bergeser bagaimana". Satu kasus tidak bisa menjawab itu, karena kebijakan yang bagus untuk satu orang bisa buruk untuk portofolio.
 
 | Parameter | Arti | Catatan |
 |---|---|---|
-| **Candidate strategy version** | Versi kandidat yang dievaluasi | Wajib dipilih |
-| **Application payloads** | Kumpulan payload dalam satu array JSON | Sampai lima ribu aplikasi sekali jalan, biasanya diambil dari data historis |
-| **Compare with active** | Bandingkan dengan strategy aktif per produk dan segmen | Nyalakan untuk melihat pergeseran |
+| **Candidate strategy version** | Versi kandidat | Wajib dipilih |
+| **Application payloads** | Kumpulan payload dalam satu array | Sampai lima ribu sekali jalan, lazimnya diambil dari aplikasi historis |
+| **Compare with active** | Bandingkan dengan strategy aktif | Nyalakan hampir selalu |
 
-Cara membaca hasilnya.
+Hasilnya dibaca bertingkat. Mulailah dari **agregat**, yaitu approval rate, reject rate, manual review rate, distribusi kode alasan, dan distribusi grade untuk kandidat berdampingan dengan aktif. Lalu turun ke **decision shifts**, matriks perpindahan nasib, misalnya "APPROVE menjadi REJECT sebanyak 214". Bagian ini yang paling berharga, karena untung rugi kebijakan tidak ditentukan berapa banyak yang bergeser melainkan **siapa** yang bergeser. Analisis inilah yang di dunia risk disebut swap set. Terakhir lihat **segment impact** per produk dan channel, untuk memastikan dampaknya merata dan bukan menghantam satu segmen diam-diam.
 
-1. **Agregat kandidat dan aktif**, berisi approval rate, reject rate, manual review rate, distribusi kode alasan, dan distribusi grade. Bandingkan dulu angka besarnya.
-2. **Decision shifts**, yaitu matriks perpindahan nasib dari keputusan versi aktif ke keputusan versi kandidat. Baris "APPROVE menjadi REJECT sebanyak 214" artinya ada 214 pemohon yang tadinya diterima akan tertolak. Inilah swap set, bagian paling penting untuk rapat, karena yang menentukan untung rugi bukan berapa banyak yang bergeser melainkan siapa.
-3. **Segment impact**, yaitu rincian per kombinasi produk dan channel, untuk melihat apakah dampaknya merata atau menghantam satu segmen saja.
+## 7.4 Kenapa simulasi menjadi syarat aktivasi
 
-## 7.4 Hubungannya dengan aktivasi strategy
-
-Hasil simulasi bukan sekadar alat analisis, melainkan **syarat**. Strategy tidak bisa diaktifkan tanpa lampiran simulasi versi tersebut, dan referensi simulasinya tercatat pada permintaan persetujuan sehingga penyetuju bisa membukanya. Anggaplah begini, simulasi adalah dokumen uji terowongan angin yang wajib menempel di proposal sebelum pesawat boleh terbang.
+Hasil simulasi bukan sekadar alat analisis. Saat mengajukan strategy, simulasi versi itu **wajib dilampirkan**, dan referensinya menempel di permintaan persetujuan sehingga penyetuju bisa membukanya. Latar belakang aturan ini sederhana, yaitu tanpa paksaan, uji dampak adalah langkah yang paling sering dilewati orang saat terburu-buru, padahal justru paling penting. Menjadikannya syarat memindahkan disiplin dari niat baik ke sistem.
 
 ## 7.5 Studi kasus
 
-Usulan kebijakan berbunyi menurunkan ambang DTI dari 0.45 menjadi 0.42.
+Usulannya menurunkan ambang DTI dari 0.45 menjadi 0.42.
 
-1. Analis membuat versi rule dan versi strategy draft yang memuat ambang baru.
-2. Dia menyiapkan seribu payload historis bulan lalu dalam satu array, lalu menjalankan simulasi massal dengan kandidat versi draft dan perbandingan menyala.
-3. Hasilnya, approval turun dari 44 persen ke 40 persen. Decision shifts menunjukkan mayoritas perpindahan adalah APPROVE menjadi MANUAL_REVIEW, bukan langsung REJECT, dan segment impact menunjukkan pergeseran terkonsentrasi di channel dealer.
-4. Rapat memutuskan lanjut karena kohor yang bergeser memang segmen bermasalah. Analis submit strategy dengan simulasi ini terlampir, manager membuka lampirannya, membaca angka yang sama, lalu menyetujui.
-5. Seminggu setelah aktif, dashboard menunjukkan approval rate turun mendekati angka simulasi. Kebijakan berperilaku seperti yang diramalkan, dan itulah gunanya menguji sebelum berlaku.
+1. Analis menyiapkan versi rule dan versi strategy draft yang memuat ambang baru.
+2. Seribu payload historis bulan lalu dijalankan lewat simulasi massal, kandidat versi draft, perbandingan menyala.
+3. Hasilnya, approval turun dari 44 persen ke 40 persen. Decision shifts menunjukkan mayoritas perpindahan menuju MANUAL_REVIEW dan bukan langsung REJECT, sedangkan segment impact menunjukkan pergeseran terkonsentrasi di channel dealer, persis segmen yang memang bermasalah.
+4. Rapat memutuskan lanjut, dengan bukti bukan firasat. Analis mengajukan strategy berlampiran simulasi ini, manager membuka lampiran, membaca angka yang sama, lalu menyetujui.
+5. Seminggu kemudian dashboard menunjukkan approval turun mendekati angka simulasi. Kebijakan berperilaku seperti ramalannya, dan begitulah seharusnya.
 
 ## 7.6 Siapa memakainya
 
-Risk Policy Analyst menjalankannya hampir setiap kali menyiapkan perubahan. Risk Manager membacanya saat menyetujui. Data scientist memakainya sebagai alat backtest untuk usulan cutoff dan band, karena pertanyaannya sama, yaitu siapa yang bertukar nasib kalau kebijakan berubah.
+Risk Policy Analyst menjalankannya hampir setiap menyiapkan perubahan. Risk Manager membacanya saat menyetujui. Data scientist memakainya sebagai backtest untuk usulan cutoff dan band, karena pertanyaannya memang sama, siapa yang bertukar nasib bila kebijakan berubah.

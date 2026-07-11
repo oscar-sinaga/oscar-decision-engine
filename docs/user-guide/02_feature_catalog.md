@@ -1,47 +1,44 @@
 # Bab 02 — Feature Catalog, Kamus Data Resmi
 
-## 2.1 Kegunaannya
+## 2.1 Latar belakang, masalah apa yang mau dicegah
 
-Feature Catalog adalah daftar resmi semua "variabel" yang boleh disebut oleh rule, tabel keputusan, dan kondisi alur. Fungsinya seperti kamus data. Selama sebuah fitur belum terdaftar dan aktif di katalog, tidak ada aturan yang bisa memakainya, dan salah ketik nama fitur akan ditolak saat aturan disimpan, bukan meledak di produksi.
+Bayangkan tiga analis menulis aturan tentang hal yang sama. Analis A menyebutnya `masa_kerja`, analis B menulis `lamaKerja`, analis C mengetik `employment_yrs`. Tiga nama untuk satu makna, dan decision table yang mau membacanya bingung memilih yang mana. Tambahkan satu masalah lagi, yaitu salah ketik. Aturan yang menyebut `aplicant.income` tidak akan pernah cocok dengan data siapa pun, dan kesalahannya baru ketahuan setelah ribuan keputusan aneh lolos ke produksi.
 
-Sejak Phase 3, katalog ini juga menjadi **katalog output**. Fitur yang ditandai writable adalah "kotak" yang boleh diisi nilai oleh rule, misalnya `outputs.collateral_risk`, dan nilainya bisa dibaca lagi oleh aturan atau tabel di langkah berikutnya.
+Feature Catalog lahir untuk menutup dua lubang itu. Ia adalah **kamus data resmi**, yaitu daftar tunggal semua variabel yang boleh disebut oleh rule, tabel keputusan, dan kondisi alur. Nama yang tidak ada di kamus ditolak saat aturan disimpan, jauh sebelum sempat menyakiti produksi. Satu nama, satu makna, satu tempat mendokumentasikannya.
 
-Letaknya di menu **Feature Catalog**. Halaman yang sama juga memuat kartu pengelolaan **kategori rule**.
+Sejak Phase 3 kamus ini merangkap peran kedua sebagai **katalog output**. Ceritanya begini. Rule kini boleh menulis nilai, misalnya band risiko agunan, yang dibaca aturan berikutnya. Kalau setiap rule bebas mengarang nama tampungannya sendiri, kekacauan tiga-nama-satu-makna tadi terulang di sisi output. Maka target tulisan rule pun diwajibkan terdaftar di kamus, ditandai lewat kolom writable.
 
-## 2.2 Parameter sebuah fitur
+Letaknya di menu **Feature Catalog**, dan halaman yang sama memuat kartu pengelolaan **kategori rule**.
 
-| Parameter | Arti | Contoh | Catatan pemakaian |
-|---|---|---|---|
-| **Path** | Nama teknis unik bertitik yang dipakai aturan | `applicant.monthly_income` | Huruf kecil, ada minimal satu titik. Setelah dibuat tidak bisa diganti, jadi pilih nama yang jelas |
-| **Label** | Nama ramah yang tampil di dropdown | Penghasilan Bulanan | Untuk pencarian di builder |
-| **Description** | Penjelasan artinya | Penghasilan bersih per bulan dari slip gaji | Sangat membantu analis lain, isilah dengan serius |
-| **Data type** | Tipe nilainya | NUMBER, STRING, BOOLEAN, DATE | Menentukan operator dan kotak input yang muncul di builder. Fitur NUMBER memunculkan operator lebih besar atau lebih kecil, fitur BOOLEAN hanya sama dengan atau tidak sama dengan |
-| **Source** | Asal nilainya | PAYLOAD, DERIVED, SCORE, RULE_OUTPUT | PAYLOAD berarti dikirim LOS di aplikasi. DERIVED berarti dihitung mesin, misalnya LTV. SCORE berasal dari scorecard. RULE_OUTPUT berarti hanya diisi oleh rule |
-| **Category** | Pengelompokan tampilan | LOAN, APPLICANT, OUTPUTS | Untuk memilah daftar panjang di picker |
-| **Writable** | Boleh ditulis rule atau tidak | true untuk `outputs.*` | Hanya boleh true kalau source-nya DERIVED atau RULE_OUTPUT. Fitur PAYLOAD tidak pernah boleh writable, karena data kiriman LOS tidak boleh ditimpa aturan |
-| **Allowed values** | Daftar nilai sah untuk fitur STRING tertentu | HIGH, MEDIUM, LOW | Opsional, sebagai pagar tata kelola |
-| **Active** | Masih boleh dipakai aturan baru atau tidak | true | Menonaktifkan fitur tidak merusak rule lama, hanya mencegah rule baru memakainya |
+## 2.2 Parameter sebuah fitur dan alasan desainnya
+
+| Parameter | Arti | Kenapa dirancang begini |
+|---|---|---|
+| **Path** | Nama teknis unik bertitik, misalnya `applicant.monthly_income` | Bertitik supaya terkelompok alami per bagian payload. Sekali dibuat tidak bisa diganti, karena path ini tertanam di rule aktif dan di trace keputusan lama. Mengganti nama berarti memutus jejak sejarah |
+| **Label** dan **Description** | Nama ramah dan penjelasan makna | Kamus tanpa definisi hanyalah daftar kata. Deskripsi yang serius mencegah dua analis memahami satu fitur secara berbeda, misalnya penghasilan kotor versus bersih |
+| **Data type** | NUMBER, STRING, BOOLEAN, atau DATE | Inilah yang membuat builder "sadar tipe". Fitur NUMBER memunculkan operator pembanding dan kotak angka, fitur BOOLEAN hanya menawarkan benar salah. Tanpa tipe, kesalahan konyol seperti membandingkan umur dengan teks baru ketahuan di produksi |
+| **Source** | PAYLOAD dari kiriman LOS, DERIVED dihitung mesin, SCORE dari scorecard, RULE_OUTPUT ditulis rule | Pembaca aturan perlu tahu dari mana angka berasal saat menelusuri masalah. Source juga menjadi dasar aturan writable di bawah |
+| **Writable** | Boleh menjadi target tulisan rule atau tidak | Hanya boleh menyala untuk source DERIVED atau RULE_OUTPUT. Fitur PAYLOAD tidak pernah boleh writable, karena data kiriman LOS adalah fakta tentang pemohon, dan fakta tidak boleh ditimpa aturan. Kalau aturan bisa menulis ulang penghasilan pemohon, seluruh trace kehilangan makna |
+| **Category** | Pengelompokan seperti LOAN, APPLICANT, OUTPUTS | Murni kenyamanan, supaya pemilih fitur yang panjang tetap bisa dijelajahi |
+| **Allowed values** | Daftar nilai sah untuk fitur STRING tertentu, misalnya HIGH, MEDIUM, LOW | Pagar tata kelola untuk label klasifikasi, supaya tidak ada rule yang menulis TINGGI sementara tabel menunggu HIGH |
+| **Active** | Masih boleh dipakai aturan baru atau tidak | Perhatikan, pilihannya menonaktifkan, bukan menghapus. Rule lama yang terlanjur memakai fitur itu harus tetap bisa dibaca dan direproduksi, jadi fitur tidak pernah benar-benar hilang, hanya ditutup untuk pemakaian baru |
 
 ## 2.3 Cara memakainya
 
-**Menambah fitur input baru.** Misalnya LOS mulai mengirim saldo tabungan. Klik New feature, isi path `applicant.saving_account_balance`, tipe NUMBER, source PAYLOAD, lalu simpan. Sejak detik itu builder rule bisa memilihnya.
+**Menambah fitur input.** Misalnya LOS mulai mengirim saldo tabungan. Tekan New feature, isi path `applicant.saving_account_balance`, tipe NUMBER, source PAYLOAD, lalu simpan. Sejak detik itu pemilih fitur di builder rule menampilkannya.
 
-**Menambah output baru.** Misalnya Anda ingin rule bisa menulis band risiko agunan. Buat fitur `outputs.collateral_risk`, tipe STRING, source RULE_OUTPUT, centang writable, dan isi allowed values HIGH, MEDIUM, LOW. Aksi SET_OUTPUT di rule kini bisa menargetkannya, dan tabel keputusan bisa membacanya sebagai kolom kondisi.
+**Menambah output.** Ingin rule bisa menulis band risiko agunan? Buat `outputs.collateral_risk`, tipe STRING, source RULE_OUTPUT, nyalakan writable, dan isi allowed values HIGH, MEDIUM, LOW. Aksi SET_OUTPUT kini bisa menargetkannya, dan tabel keputusan bisa membacanya sebagai kolom kondisi.
 
-**Menonaktifkan fitur.** Klik Deactivate pada barisnya. Rule yang sudah aktif tetap berjalan, tetapi rule baru atau revisi yang menyebut fitur itu akan ditolak.
+**Menonaktifkan fitur.** Tekan Deactivate pada barisnya. Aturan yang sudah aktif tetap berjalan, tetapi aturan baru yang menyebut fitur itu akan ditolak.
 
-**Mengelola kategori rule.** Di kartu kategori pada halaman yang sama Anda bisa menambah kategori baru, misalnya SYARIAH_COMPLIANCE, atau menonaktifkan kategori yang tidak terpakai. Kategori inilah yang muncul di form pembuatan rule.
+**Mengelola kategori rule.** Kartu kategori di halaman yang sama dipakai menambah kategori baru, misalnya SYARIAH_COMPLIANCE, atau menonaktifkan yang tak terpakai. Dulu daftar kategori tertanam di kode, dan setiap tambahan berarti menunggu rilis software. Sekarang cukup satu klik, karena daftar itu pun sudah menjadi data.
 
 ## 2.4 Studi kasus
 
-Tim risk ingin kebijakan baru berbasis lama bekerja pemohon, padahal fitur itu belum ada.
+Tim risk ingin kebijakan berbasis lama bekerja, padahal fiturnya belum ada.
 
-1. Analis meminta LOS mengirim field masa kerja di payload.
-2. Analis membuka Feature Catalog, membuat `applicant.employment_years`, tipe NUMBER, source PAYLOAD, kategori APPLICANT, deskripsi "lama bekerja di pemberi kerja saat ini, dalam tahun".
-3. Lima menit kemudian dia sudah bisa menulis rule "JIKA `applicant.employment_years` kurang dari 1 MAKA tandai untuk review" di builder, tanpa menunggu rilis software apa pun.
-
-Bandingkan dengan tanpa katalog. Analis A menulis `masa_kerja`, analis B menulis `lamaKerja`, dan tabel keputusan bingung membaca yang mana. Katalog memaksa satu nama untuk satu makna.
+Analis lebih dulu meminta LOS menyertakan masa kerja di payload. Sambil menunggu, dia membuka Feature Catalog dan mendaftarkan `applicant.employment_years`, tipe NUMBER, source PAYLOAD, dengan deskripsi "lama bekerja di pemberi kerja saat ini, dalam tahun". Lima menit kemudian rule "kurang dari satu tahun berarti tandai untuk review" sudah bisa dirakit di builder. Tidak ada tiket IT, tidak ada rilis, dan yang terpenting tidak akan pernah ada kembaran fitur bernama `lama_kerja` buatan orang lain, karena semua orang melihat kamus yang sama.
 
 ## 2.5 Siapa memakainya
 
-Risk Policy Analyst adalah pengguna utamanya, baik untuk mendaftarkan fitur input maupun mendefinisikan output. Data scientist ikut berkepentingan karena fitur yang terdaftar di sinilah yang nilainya terekam di trace setiap keputusan, dan rekaman itu kelak menjadi bahan analisis serta pelatihan model. Auditor cukup membaca untuk memahami arti tiap variabel yang muncul di trace.
+Risk Policy Analyst adalah pengguna utamanya, baik mendaftarkan input maupun mendefinisikan output. Data scientist ikut berkepentingan, sebab fitur yang terdaftar di sinilah yang nilainya terekam di trace tiap keputusan, dan rekaman itu kelak menjadi bahan analisis serta pelatihan model. Auditor cukup membaca, terutama kolom deskripsi, untuk memahami arti variabel yang muncul di trace.
