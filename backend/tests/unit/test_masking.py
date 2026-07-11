@@ -36,6 +36,17 @@ def test_snapshot_keeps_decision_relevant_fields() -> None:
     assert snapshot["applicant"]["nik"] == REDACTED
 
 
+def test_snapshot_masks_sensitive_dotted_output_keys() -> None:
+    snapshot = sanitize_snapshot(
+        {
+            "outputs.synthetic_phone": "+620000000000",
+            "outputs.eligible_limit": 12_500_000,
+        }
+    )
+    assert snapshot["outputs.synthetic_phone"] == REDACTED
+    assert snapshot["outputs.eligible_limit"] == 12_500_000
+
+
 def test_sensitive_key_matching() -> None:
     assert is_sensitive_key("X-Api-Key")
     assert is_sensitive_key("customer_phone_number")

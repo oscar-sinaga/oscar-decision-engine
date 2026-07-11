@@ -54,11 +54,11 @@ Vitest: `rule-format` JSON↔builder round-trip (legacy, v2 nested, branch+else,
 
 ## 7. Exit checklist (P3.8)
 
-- [ ] All suites green on rebuilt compose stack — backend/Vitest gates are green; Docker and browser runtime are workstation-pending.
+- [x] All suites green on rebuilt compose stack — final backend gate: Ruff/mypy clean and 213 pytest; frontend lint/check, 27 Vitest, production build, and 7 Playwright green.
 - [x] Golden reproducibility green.
 - [x] Expression fuzz list green.
-- [ ] PRD §6 journey recorded in Playwright and passing — all 3 new specs are recorded and discovered; browser execution is workstation-pending.
-- [ ] No JSON required anywhere in the §6 journey — implemented by the primary UI surfaces; final manual spot-check is workstation-pending.
+- [x] PRD §6 journey recorded in Playwright and passing — all 3 new specs plus the 4 existing scenarios passed on the workstation.
+- [x] No JSON required anywhere in the §6 journey — builder, grid, canvas, governance, decision, and trace surfaces were exercised without JSON editing.
 - [x] Docs sync (05/06/07/09/10 + Phase 3 statuses + ADRs) completed in the final Phase 3 commit.
 
-The unchecked items are environmental acceptance gates, not unfinished implementation. See `LOCAL_ENVIRONMENT_VALIDATION.md`.
+Workstation acceptance also preserved the pre-Phase-3 PostgreSQL volume, verified legacy `strategy_steps` backup evidence against the migrated 9-node/8-edge active graph, measured decision P95 at 318.00 ms (40 samples), and completed the PII trace/log/error spot-check. See `LOCAL_ENVIRONMENT_VALIDATION.md`.

@@ -4,7 +4,7 @@
 
 ## Overall
 
-- Status: **Implementation complete; workstation compose/browser validation pending**
+- Status: **Complete; workstation compose/browser acceptance passed**
 - Completed sub-phases: **P3.1–P3.8**
 - Latest Phase 3 commit: `docs: synchronize Phase 3 documentation and final report`
 - Environment note: `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md`
@@ -20,7 +20,7 @@
 | P3.5 | Visual flow canvas | Complete | `@xyflow/svelte` 1.6.2; 19 Vitest; trace/graph integrations green; ADR-013. |
 | P3.6 | Expression language + SQL preview | Complete | 104 unit + 106 integration + 24 Vitest; security fuzz and error paths; ADR-014. |
 | P3.7 | Decision-table grid editor | Complete | 105 unit + 106 integration + 27 Vitest; frontend full gate green. |
-| P3.8 | Hardening, E2E, docs sync | Complete with external validation note | Feature/category UI hardening; 3 new E2E specs (7 total) discovered; frontend lint/check/27 Vitest/build green; final backend rerun 105 unit + 106 integration; local PostgreSQL migration/seed and health/login/decision smoke green. Docker is unavailable; managed Chromium download/navigation restrictions require the workstation browser gate. |
+| P3.8 | Hardening, E2E, docs sync | Complete | Feature/category UI hardening; final workstation gate: 213 pytest, 27 Vitest, frontend build, and 7/7 Playwright green; preserved-volume migration evidence, manual acceptance, latency, and PII checks complete. |
 
 ## Decisions recorded during execution
 
@@ -32,13 +32,16 @@
 - Expressions use a whitelisted parsed AST, never raw SQL, `eval`, or `exec` (ADR-014).
 - P3.8 closed a specification gap in the Feature Catalog UI: writable/RULE_OUTPUT controls, outputs-only filtering, and rule-category management now match the backend delivered in P3.2.
 - Playwright configuration now defines a stable base URL and discovers all seven scenarios.
+- Workstation acceptance adds explicit loopback CORS origins used by the documented preview URL and serializes Playwright because the seven journeys mutate one shared acceptance database.
 
-## Validation limitations
+## Workstation acceptance
 
-- Docker/Compose is not installed in the implementation container.
-- The Playwright-managed Chromium binary was absent and its CDN download failed with DNS `EAI_AGAIN`. A system Chromium fallback launched, but the container enforces managed policy `URLBlocklist: ["*"]`, so navigation to the local workbench was blocked with `ERR_BLOCKED_BY_ADMINISTRATOR`.
-- The full browser suite is therefore defined and statically discovered, but its runtime result must be produced on the user's workstation.
-- A monolithic backend pytest process exceeded the execution-container limit; every backend test file was run in segmented groups and passed at the final backend-changing phase.
+- Docker 28.2.2 / Compose 2.37.1 rebuilt the stack without deleting `oscar-decision-engine_oscar_pgdata`.
+- Alembic heads/current/upgrade verified `f4b7c9d2e601`; legacy `strategy_steps` backup evidence maps to the preserved active 9-node/8-edge graph.
+- Final backend gate: Ruff/mypy green; **213 pytest** in one process.
+- Final frontend evidence: lint, Svelte check 0/0, **27 Vitest**, production build, and **7/7 Playwright**.
+- Latency: 40 decisions, P95 **318.00 ms** (<500 ms). PII trace/log/error spot-check passed.
+- The preserved policy has an intentionally retired `DOCUMENT_IDENTITY_MISMATCH` rule recorded before Phase 3; acceptance did not overwrite that user decision.
 
 ## Blockers
 

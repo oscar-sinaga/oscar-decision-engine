@@ -21,7 +21,7 @@ services:
       OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:oscar_dev_password@postgres:5432/oscar
       OSCAR_ENVIRONMENT: compose
       OSCAR_JWT_SECRET: compose-dev-secret-not-for-production
-      OSCAR_CORS_ORIGINS: '["http://localhost:5173","http://localhost:4173","http://localhost:3000"]'
+      OSCAR_CORS_ORIGINS: '["http://localhost:5173","http://127.0.0.1:5173","http://localhost:4173","http://127.0.0.1:4173","http://localhost:3000","http://127.0.0.1:3000"]'
     ports:
       - "8000:8000"
     depends_on:

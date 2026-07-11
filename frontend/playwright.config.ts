@@ -3,6 +3,8 @@ import { defineConfig } from '@playwright/test';
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
+	// E2E journeys mutate one shared acceptance database and must remain deterministic.
+	workers: 1,
 	use: {
 		baseURL: process.env.OSCAR_WEB_BASE_URL ?? 'http://127.0.0.1:4173',
 		launchOptions: chromiumExecutable

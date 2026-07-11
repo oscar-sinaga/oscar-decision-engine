@@ -36,7 +36,12 @@ class Settings(BaseSettings):
     log_json: bool = True
 
     # Browser origins allowed to call the API (workbench dev/preview servers).
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:4173"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+    ]
 
     # Decision runtime
     decision_default_product_segment: str = "DEFAULT"

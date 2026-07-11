@@ -19,6 +19,9 @@ frontend/build/
 frontend/test-results/
 frontend/playwright-report/
 
+# Local database backups
+backups/
+
 # OS / editor
 .DS_Store
 Thumbs.db

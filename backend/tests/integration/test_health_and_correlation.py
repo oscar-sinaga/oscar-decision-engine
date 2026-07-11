@@ -32,6 +32,19 @@ async def test_not_found_uses_structured_error_envelope(client: AsyncClient) -> 
     assert body["correlation_id"] == response.headers["x-correlation-id"]
 
 
+async def test_preview_loopback_origin_is_allowed(client: AsyncClient) -> None:
+    response = await client.options(
+        "/v1/auth/login",
+        headers={
+            "Origin": "http://127.0.0.1:4173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:4173"
+
+
 @pytest.fixture
 def crashing_app() -> FastAPI:
     app = create_app()

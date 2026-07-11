@@ -173,6 +173,12 @@ Phase 3 replaced the former roadmap with Generic Rule Authoring & Visual Decisio
 
 Docker is not installed in the implementation container. Playwright runtime was attempted twice: the managed Chromium download failed with DNS `EAI_AGAIN`, while `/usr/bin/chromium` launched but its mandatory `URLBlocklist: ["*"]` policy blocked local navigation with `ERR_BLOCKED_BY_ADMINISTRATOR`. Therefore, the repository does not claim a browser pass from this container. `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md` contains exact workstation commands and the remaining manual acceptance checklist. Integration and agent handoff are documented in `docs/phase3/LOCAL_REPOSITORY_INTEGRATION.md` and `docs/phase3/LOCAL_AGENT_CONTINUATION_PROMPT.md`.
 
+### Workstation acceptance (2026-07-11)
+
+The external limitations above were subsequently closed on the target Windows workstation. Docker Compose rebuilt successfully while preserving `oscar-decision-engine_oscar_pgdata`; the legacy backup contains `strategy_steps`, while the migrated active strategy remains connected as 9 nodes and 8 edges at Alembic head `f4b7c9d2e601`. Final evidence: Ruff/mypy green, 213 pytest, frontend lint/check with 27 Vitest and production build, and 7/7 Playwright. Manual builder/grid/canvas/governance/trace checks passed, including read-only active versions, overlap warnings, expression RBAC, and TRUE/FALSE trace routing. Forty decision samples measured P95 318.00 ms. Synthetic NIK/phone/email/address were redacted from trace responses, application logs, and validation errors.
+
+Acceptance found and fixed a local CORS mismatch between the documented `127.0.0.1:4173` preview URL and the allowlist, and made Playwright serial because its journeys share and mutate one acceptance database. It also confirmed that the preserved database intentionally differs from clean seed: `DOCUMENT_IDENTITY_MISMATCH` v1 had been retired through the workbench before Phase 3, with an audit event in the backup. That user policy decision was preserved rather than silently overwritten.
+
 ### Phase 3 commits
 
 - `58c6efb` — `feat(rules): rule model v2 with CASE WHEN branches and typed outputs`
@@ -186,4 +192,4 @@ Docker is not installed in the implementation container. Playwright runtime was 
 
 ### Production readiness note
 
-Phase 3 is implementation-complete for the repository scope. Before production deployment, complete the workstation compose/browser gate, organization-specific security and performance testing, secret management, backup/recovery verification, real adapter integration, UAT, and controlled environment promotion.
+Phase 3 is implementation- and workstation-acceptance-complete for the repository scope. Before production deployment, complete organization-specific security/performance testing, secret management, restore rehearsal, real adapter integration, policy-owner review of retired/active rules, UAT, and controlled environment promotion.
