@@ -48,7 +48,11 @@ class RuleVersion(Base):
     version: Mapped[int] = mapped_column(Integer)
     status: Mapped[ConfigStatus] = mapped_column(String(30), default=ConfigStatus.DRAFT, index=True)
     condition_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
-    action_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    action_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    rule_kind: Mapped[str] = mapped_column(
+        String(20), default="POLICY_OUTCOME", server_default="POLICY_OUTCOME"
+    )
+    expression_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     version_note: Mapped[str] = mapped_column(Text, default="")
     effective_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     effective_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

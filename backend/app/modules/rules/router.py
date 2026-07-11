@@ -1,7 +1,7 @@
 """Rule management API routes (docs/07 §5)."""
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.engine.dsl import RuleAction
 from app.engine.evaluator import evaluate_node
 from app.modules.auth.dependencies import require_permission
 from app.modules.auth.models import User
@@ -18,6 +19,7 @@ from app.modules.rules.models import Rule, RuleVersion
 from app.modules.rules.schemas import (
     RuleCreateRequest,
     RuleDetailResponse,
+    RuleKind,
     RuleResponse,
     RuleTestRequest,
     RuleTestResponse,
@@ -37,12 +39,18 @@ class LifecycleRequest(BaseModel):
 
 
 def _version_response(version: RuleVersion) -> RuleVersionResponse:
+    definition = service.normalize_stored_definition(version)
+    branched = definition.model_dump(mode="json", by_alias=True)
+    legacy = version.action_json is not None
     return RuleVersionResponse(
         id=str(version.id),
         version=version.version,
         status=version.status,
-        condition=version.condition_json,
+        rule_kind=cast(RuleKind, version.rule_kind),
+        condition=version.condition_json if legacy else None,
         action=version.action_json,
+        branches=branched["branches"],
+        default=branched.get("default"),
         version_note=version.version_note,
         created_at=version.created_at,
         effective_from=version.effective_from,
@@ -210,9 +218,34 @@ async def test_rule_version(
     definition = await service.validate_rule_definition(
         session, version.condition_json, version.action_json
     )
-    matched, details = evaluate_node(definition.condition, body.features)
+    matched_branch: int | str | None = None
+    details: list[dict[str, Any]] = []
+    actions: list[RuleAction] = []
+    for index, branch in enumerate(definition.branches):
+        matched, branch_details = evaluate_node(branch.when, body.features)
+        details.extend(branch_details)
+        if matched:
+            matched_branch = index
+            actions = branch.then
+            break
+    if matched_branch is None and definition.default is not None:
+        matched_branch = "default"
+        actions = definition.default
+    matched = matched_branch is not None
+    applied = [
+        action.model_dump(mode="json", exclude_none=True, exclude={"stop_execution"})
+        for action in actions
+    ]
+    outputs_after = {
+        action.target: action.value
+        for action in actions
+        if action.type.value == "SET_OUTPUT" and action.target is not None
+    }
     return RuleTestResponse(
         matched=matched,
         evaluated_conditions=details,
-        action=version.action_json if matched else {},
+        action=version.action_json if matched and version.action_json is not None else {},
+        matched_branch=cast(int | Literal["default"] | None, matched_branch),
+        actions_applied=applied,
+        outputs_after=outputs_after,
     )

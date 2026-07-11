@@ -22,7 +22,12 @@ from app.engine.decision_table import (
     DecisionTableConfig,
     evaluate_decision_table,
 )
-from app.engine.dsl import ActionType, RuleDefinition
+from app.engine.dsl import (
+    ActionType,
+    BranchedRuleDefinition,
+    RuleBranch,
+    RuleDefinition,
+)
 from app.engine.evaluator import evaluate_node
 from app.engine.features import build_base_features, compute_derived_feature
 from app.engine.scorecard import ScorecardConfig, resolve_score
@@ -45,7 +50,8 @@ class ResolvedRule(BaseModel):
 
     rule_code: str
     version: int
-    definition: RuleDefinition
+    rule_kind: str = "POLICY_OUTCOME"
+    definition: BranchedRuleDefinition | RuleDefinition
 
 
 class StepPlan(BaseModel):
@@ -220,18 +226,48 @@ def _run_rule_set_step(
     rule_results: list[dict[str, Any]] = []
     triggered = False
     for resolved in step.rules:
-        matched, details = evaluate_node(resolved.definition.condition, context.features)
-        action = resolved.definition.action
+        legacy = isinstance(resolved.definition, RuleDefinition)
+        if isinstance(resolved.definition, RuleDefinition):
+            branches = [
+                RuleBranch(
+                    when=resolved.definition.condition,
+                    then=[resolved.definition.action],
+                )
+            ]
+            default = None
+        else:
+            branches = resolved.definition.branches
+            default = resolved.definition.default
+        matched_branch: int | str | None = None
+        matched_actions: list[Any] = []
+        details: list[dict[str, Any]] = []
+        for branch_index, branch in enumerate(branches):
+            branch_matched, branch_details = evaluate_node(branch.when, context.features)
+            details.extend(branch_details)
+            if branch_matched:
+                matched_branch = branch_index
+                matched_actions = branch.then
+                break
+        if matched_branch is None and default is not None:
+            matched_branch = "default"
+            matched_actions = default
+        matched = matched_branch is not None
         record: dict[str, Any] = {
             "rule_code": resolved.rule_code,
             "version": resolved.version,
+            "rule_kind": resolved.rule_kind,
             "matched": matched,
             "status": StepStatus.TRIGGERED.value if matched else StepStatus.PASSED.value,
             "evaluated_conditions": details,
         }
         if matched:
             triggered = True
-            record["action_applied"] = _apply_action(action, context)
+            applied = [_apply_action(action, context) for action in matched_actions]
+            record["matched_branch"] = matched_branch
+            if legacy:
+                record["action_applied"] = applied[0]
+            else:
+                record["actions_applied"] = applied
         rule_results.append(record)
         if context.stop:
             break
@@ -249,11 +285,11 @@ def _apply_action(action: Any, context: _ExecutionContext) -> dict[str, Any]:
         applied["decision"] = DecisionType.MANUAL_REVIEW.value
     elif action.type is ActionType.ADD_REASON_CODE:
         context.add_reason(action.reason_code)
-    elif action.type is ActionType.SET_ATTRIBUTE:
-        if action.attribute:
-            context.features[action.attribute] = action.attribute_value
-            applied["attribute"] = action.attribute
-            applied["attribute_value"] = action.attribute_value
+    elif action.type is ActionType.SET_OUTPUT:
+        if action.target:
+            context.features[action.target] = action.value
+            applied["target"] = action.target
+            applied["value"] = action.value
         context.add_reason(action.reason_code)
     elif action.type is ActionType.STOP_EXECUTION:
         context.add_candidate(action.decision, action.reason_code)

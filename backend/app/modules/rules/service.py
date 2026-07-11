@@ -1,16 +1,28 @@
 """Rule management service: validation, versioning, lifecycle, audit."""
 
 import uuid
+from datetime import date
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.engine.dsl import RuleDefinition, collect_condition_fields, parse_rule_definition
+from app.engine.dsl import (
+    AllGroup,
+    AnyGroup,
+    BranchedRuleDefinition,
+    Condition,
+    ConditionNode,
+    NotGroup,
+    Operator,
+    RuleAction,
+    collect_condition_fields,
+    normalize_rule_definition,
+)
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
-from app.modules.features.service import active_feature_paths
+from app.modules.features.models import Feature
 from app.modules.governance.service import (
     ensure_maker_checker,
     open_approval_request,
@@ -19,7 +31,7 @@ from app.modules.governance.service import (
 from app.modules.reason_codes.models import ReasonCode
 from app.modules.rules.models import Rule, RuleVersion
 from app.modules.rules.schemas import RuleCreateRequest, RuleVersionUpdateRequest
-from app.shared.domain.enums import ApprovalStatus, ConfigStatus
+from app.shared.domain.enums import ApprovalStatus, ConfigStatus, FeatureDataType
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from app.shared.domain.version_lifecycle import (
     activate_version,
@@ -34,38 +46,157 @@ logger = get_logger("oscar.rules")
 
 
 async def validate_rule_definition(
-    session: AsyncSession, condition: dict[str, Any], action: dict[str, Any]
-) -> RuleDefinition:
+    session: AsyncSession, condition: dict[str, Any], action: dict[str, Any] | None
+) -> BranchedRuleDefinition:
     """Validate DSL shape, feature registry membership, and reason code existence."""
     try:
-        definition = parse_rule_definition(condition, action)
+        definition = normalize_rule_definition(condition, action)
     except ValueError as exc:
         raise ValidationFailedError(
             "Rule definition is invalid",
             details=[{"field": "condition/action", "issue": str(exc)}],
         ) from exc
 
-    known = await active_feature_paths(session)
-    unknown = sorted(
-        field for field in collect_condition_fields(definition.condition) if field not in known
-    )
+    features = {
+        feature.path: feature
+        for feature in (
+            await session.scalars(select(Feature).where(Feature.active.is_(True)))
+        ).all()
+    }
+    fields = set().union(*(collect_condition_fields(branch.when) for branch in definition.branches))
+    unknown = sorted(field for field in fields if field not in features)
     if unknown:
         raise ValidationFailedError(
             "Rule references unknown or inactive features",
             details=[{"field": field, "issue": "unknown feature"} for field in unknown],
         )
 
-    reason_code = definition.action.reason_code
-    if reason_code:
-        exists = await session.scalar(
-            select(func.count()).select_from(ReasonCode).where(ReasonCode.code == reason_code)
-        )
-        if not exists:
-            raise ValidationFailedError(
-                "Rule action references unknown reason code",
-                details=[{"field": "action.reason_code", "issue": f"unknown: {reason_code}"}],
+    details: list[dict[str, str]] = []
+    for branch_index, branch in enumerate(definition.branches):
+        _validate_condition_types(branch.when, features, details, f"branches[{branch_index}].when")
+
+    actions = [action for branch in definition.branches for action in branch.then]
+    actions.extend(definition.default or [])
+    for index, rule_action in enumerate(actions):
+        if rule_action.target and rule_action.target not in features:
+            details.append(
+                {"field": rule_action.target, "issue": "unknown or inactive SET_OUTPUT target"}
             )
+        await _validate_reason_code(session, rule_action, index, details)
+    if details:
+        raise ValidationFailedError("Rule definition is invalid", details=details)
     return definition
+
+
+_OPERATORS_BY_TYPE: dict[FeatureDataType, frozenset[Operator]] = {
+    FeatureDataType.NUMBER: frozenset(Operator),
+    FeatureDataType.STRING: frozenset(
+        {Operator.EQ, Operator.NEQ, Operator.IN, Operator.NOT_IN, Operator.EXISTS, Operator.IS_NULL}
+    ),
+    FeatureDataType.BOOLEAN: frozenset(
+        {Operator.EQ, Operator.NEQ, Operator.EXISTS, Operator.IS_NULL}
+    ),
+    FeatureDataType.DATE: frozenset(
+        {
+            Operator.EQ,
+            Operator.NEQ,
+            Operator.GT,
+            Operator.GTE,
+            Operator.LT,
+            Operator.LTE,
+            Operator.EXISTS,
+            Operator.IS_NULL,
+        }
+    ),
+}
+
+
+def _conditions(node: ConditionNode) -> list[Condition]:
+    if isinstance(node, Condition):
+        return [node]
+    children: list[ConditionNode]
+    if isinstance(node, AllGroup):
+        children = node.all
+    elif isinstance(node, AnyGroup):
+        children = node.any
+    elif isinstance(node, NotGroup):
+        children = [node.not_]
+    else:  # pragma: no cover - closed DSL union
+        return []
+    return [condition for child in children for condition in _conditions(child)]
+
+
+def _validate_condition_types(
+    node: ConditionNode,
+    features: dict[str, Feature],
+    details: list[dict[str, str]],
+    prefix: str,
+) -> None:
+    for index, condition in enumerate(_conditions(node)):
+        feature = features.get(condition.field)
+        if feature is None:
+            continue
+        data_type = FeatureDataType(feature.data_type)
+        field = f"{prefix}.conditions[{index}]"
+        if condition.operator not in _OPERATORS_BY_TYPE[data_type]:
+            details.append(
+                {
+                    "field": condition.field,
+                    "issue": (
+                        f"operator '{condition.operator.value}' not allowed for "
+                        f"{data_type.value} feature"
+                    ),
+                }
+            )
+            continue
+        issue = _value_type_issue(data_type, condition.operator, condition.value)
+        if issue:
+            details.append({"field": field, "issue": issue})
+
+
+def _value_type_issue(data_type: FeatureDataType, operator: Operator, value: Any) -> str | None:
+    if operator in {Operator.EXISTS, Operator.IS_NULL}:
+        return None
+    values = value if operator in {Operator.IN, Operator.NOT_IN} else [value]
+    if not isinstance(values, list):
+        return f"operator '{operator.value}' requires a list value"
+    for item in values:
+        valid = False
+        if data_type is FeatureDataType.NUMBER:
+            valid = isinstance(item, (int, float)) and not isinstance(item, bool)
+        elif data_type is FeatureDataType.STRING:
+            valid = isinstance(item, str)
+        elif data_type is FeatureDataType.BOOLEAN:
+            valid = isinstance(item, bool)
+        elif data_type is FeatureDataType.DATE and isinstance(item, str):
+            try:
+                date.fromisoformat(item)
+                valid = True
+            except ValueError:
+                valid = False
+        if not valid:
+            return f"value does not match {data_type.value} feature type"
+    return None
+
+
+async def _validate_reason_code(
+    session: AsyncSession,
+    action: RuleAction,
+    index: int,
+    details: list[dict[str, str]],
+) -> None:
+    if not action.reason_code:
+        return
+    exists = await session.scalar(
+        select(func.count()).select_from(ReasonCode).where(ReasonCode.code == action.reason_code)
+    )
+    if not exists:
+        details.append(
+            {
+                "field": f"actions[{index}].reason_code",
+                "issue": f"unknown: {action.reason_code}",
+            }
+        )
 
 
 async def get_rule(session: AsyncSession, rule_id: uuid.UUID) -> Rule:
@@ -84,8 +215,13 @@ def get_rule_version(rule: Rule, version_id: uuid.UUID) -> RuleVersion:
     raise NotFoundError(f"Rule version '{version_id}' not found for rule '{rule.rule_code}'")
 
 
+def normalize_stored_definition(version: RuleVersion) -> BranchedRuleDefinition:
+    return normalize_rule_definition(version.condition_json, version.action_json)
+
+
 async def create_rule(session: AsyncSession, request: RuleCreateRequest, actor: User) -> Rule:
-    await validate_rule_definition(session, request.condition, request.action)
+    condition, action = request.storage_body()
+    await validate_rule_definition(session, condition, action)
     duplicate = await session.scalar(select(Rule).where(Rule.rule_code == request.rule_code))
     if duplicate is not None:
         raise ConflictError(f"Rule code '{request.rule_code}' already exists")
@@ -104,8 +240,9 @@ async def create_rule(session: AsyncSession, request: RuleCreateRequest, actor: 
         rule_id=rule.id,
         version=1,
         status=ConfigStatus.DRAFT,
-        condition_json=request.condition,
-        action_json=request.action,
+        condition_json=condition,
+        action_json=action,
+        rule_kind=request.rule_kind,
         version_note=request.version_note,
         created_by=actor.id,
     )
@@ -123,8 +260,9 @@ async def create_rule(session: AsyncSession, request: RuleCreateRequest, actor: 
         after_value={
             "name": rule.name,
             "category": rule.category,
-            "condition": request.condition,
-            "action": request.action,
+            "condition": condition,
+            "action": action,
+            "rule_kind": request.rule_kind,
             "status": ConfigStatus.DRAFT,
         },
     )
@@ -136,7 +274,8 @@ async def create_rule(session: AsyncSession, request: RuleCreateRequest, actor: 
 async def create_rule_version(
     session: AsyncSession, rule: Rule, request: RuleVersionUpdateRequest, actor: User
 ) -> RuleVersion:
-    await validate_rule_definition(session, request.condition, request.action)
+    condition, action = request.storage_body()
+    await validate_rule_definition(session, condition, action)
     open_versions = [
         v for v in rule.versions if v.status in (ConfigStatus.DRAFT, ConfigStatus.PENDING_APPROVAL)
     ]
@@ -150,8 +289,9 @@ async def create_rule_version(
         rule_id=rule.id,
         version=next_version,
         status=ConfigStatus.DRAFT,
-        condition_json=request.condition,
-        action_json=request.action,
+        condition_json=condition,
+        action_json=action,
+        rule_kind=request.rule_kind,
         version_note=request.version_note,
         created_by=actor.id,
     )
@@ -165,7 +305,7 @@ async def create_rule_version(
         entity_version=str(next_version),
         action="CREATE_RULE_VERSION",
         actor=actor,
-        after_value={"condition": request.condition, "action": request.action},
+        after_value={"condition": condition, "action": action, "rule_kind": request.rule_kind},
     )
     await session.commit()
     return version
@@ -179,10 +319,16 @@ async def update_rule_version(
     actor: User,
 ) -> RuleVersion:
     ensure_editable(version)
-    await validate_rule_definition(session, request.condition, request.action)
-    before = {"condition": version.condition_json, "action": version.action_json}
-    version.condition_json = request.condition
-    version.action_json = request.action
+    condition, action = request.storage_body()
+    await validate_rule_definition(session, condition, action)
+    before = {
+        "condition": version.condition_json,
+        "action": version.action_json,
+        "rule_kind": version.rule_kind,
+    }
+    version.condition_json = condition
+    version.action_json = action
+    version.rule_kind = request.rule_kind
     version.version_note = request.version_note or version.version_note
     record_audit_event(
         session,
@@ -193,7 +339,7 @@ async def update_rule_version(
         action="UPDATE_RULE_VERSION",
         actor=actor,
         before_value=before,
-        after_value={"condition": request.condition, "action": request.action},
+        after_value={"condition": condition, "action": action, "rule_kind": request.rule_kind},
     )
     await session.commit()
     return version

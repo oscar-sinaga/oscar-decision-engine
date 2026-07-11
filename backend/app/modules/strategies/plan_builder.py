@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.engine.decision_table import DecisionTableConfig, parse_decision_table_config
-from app.engine.dsl import parse_rule_definition
+from app.engine.dsl import normalize_rule_definition
 from app.engine.executor import ExecutablePlan, ResolvedRule, StepPlan
 from app.engine.scorecard import ScorecardConfig, parse_scorecard_config
 from app.modules.rules.models import RuleSet, RuleSetMember, RuleVersion
@@ -123,11 +123,12 @@ async def _resolve_rule_set(session: AsyncSession, step: StrategyStep) -> list[R
             # A rule without an active version is skipped deliberately: rule
             # sets may contain drafts pending activation.
             continue
-        definition = parse_rule_definition(version.condition_json, version.action_json)
+        definition = normalize_rule_definition(version.condition_json, version.action_json)
         resolved.append(
             ResolvedRule(
                 rule_code=member.rule.rule_code,
                 version=version.version,
+                rule_kind=version.rule_kind,
                 definition=definition,
             )
         )

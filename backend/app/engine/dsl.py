@@ -8,7 +8,7 @@ evaluator against a flat feature mapping.
 from enum import StrEnum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.shared.domain.enums import DecisionType
 
@@ -44,8 +44,6 @@ class Condition(BaseModel):
         operator = info.data.get("operator")
         if operator in MEMBERSHIP_OPERATORS and not isinstance(value, list):
             raise ValueError(f"operator '{operator}' requires a list value")
-        if operator in COMPARISON_OPERATORS and not isinstance(value, (int, float)):
-            raise ValueError(f"operator '{operator}' requires a numeric value")
         return value
 
 
@@ -77,6 +75,7 @@ NotGroup.model_rebuild()
 class ActionType(StrEnum):
     SET_DECISION = "SET_DECISION"
     ADD_REASON_CODE = "ADD_REASON_CODE"
+    SET_OUTPUT = "SET_OUTPUT"
     SET_ATTRIBUTE = "SET_ATTRIBUTE"
     ROUTE_MANUAL_REVIEW = "ROUTE_MANUAL_REVIEW"
     STOP_EXECUTION = "STOP_EXECUTION"
@@ -95,9 +94,22 @@ class RuleAction(BaseModel):
     type: ActionType = ActionType.SET_DECISION
     decision: DecisionType | None = None
     reason_code: str | None = None
+    target: str | None = None
+    value: Any = None
     attribute: str | None = None
     attribute_value: Any = None
     stop_execution: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_set_attribute_alias(cls, value: Any) -> Any:
+        if not isinstance(value, dict) or value.get("type") != ActionType.SET_ATTRIBUTE:
+            return value
+        normalized = dict(value)
+        normalized["type"] = ActionType.SET_OUTPUT
+        normalized["target"] = normalized.pop("attribute", None)
+        normalized["value"] = normalized.pop("attribute_value", None)
+        return normalized
 
     @field_validator("decision", mode="before")
     @classmethod
@@ -114,10 +126,43 @@ class RuleDefinition(BaseModel):
     action: RuleAction
 
 
+class RuleBranch(BaseModel):
+    """One ordered CASE WHEN branch in a v2 rule definition."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    when: Annotated[ConditionNode, Field()]
+    then: list[RuleAction] = Field(min_length=1, max_length=10)
+
+
+class BranchedRuleDefinition(BaseModel):
+    """Normalized executable form shared by legacy and v2 rule documents."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    branches: list[RuleBranch] = Field(min_length=1, max_length=20)
+    default: list[RuleAction] | None = Field(default=None, min_length=1, max_length=10)
+
+
 def parse_rule_definition(
     condition_json: dict[str, Any], action_json: dict[str, Any]
 ) -> RuleDefinition:
     return RuleDefinition.model_validate({"condition": condition_json, "action": action_json})
+
+
+def normalize_rule_definition(
+    condition_json: dict[str, Any], action_json: dict[str, Any] | None
+) -> BranchedRuleDefinition:
+    """Parse a v2 body or normalize the permanent legacy condition/action form."""
+    if "branches" in condition_json:
+        if action_json is not None:
+            raise ValueError("branched rule definitions cannot include a legacy action")
+        return BranchedRuleDefinition.model_validate(condition_json)
+    if action_json is None:
+        raise ValueError("legacy rule definitions require an action")
+    return BranchedRuleDefinition.model_validate(
+        {"branches": [{"when": condition_json, "then": [action_json]}]}
+    )
 
 
 def collect_condition_fields(node: ConditionNode) -> set[str]:

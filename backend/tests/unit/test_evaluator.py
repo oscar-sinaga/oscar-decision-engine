@@ -97,8 +97,3 @@ def test_dsl_rejects_unknown_operator_and_malformed_values() -> None:
             {"all": [{"field": "a", "operator": "in", "value": "not-a-list"}]},
             {"decision": "REJECT", "reason_code": "X"},
         )
-    with pytest.raises(ValidationError):
-        parse_rule_definition(
-            {"all": [{"field": "a", "operator": ">", "value": "not-a-number"}]},
-            {"decision": "REJECT", "reason_code": "X"},
-        )

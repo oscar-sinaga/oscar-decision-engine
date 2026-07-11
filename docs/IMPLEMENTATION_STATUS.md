@@ -5,9 +5,16 @@
 ## Overall Status
 
 - Completion: **100% of MVP scope** + Phase 2 in progress
-- Current phase: Phase 2 complete; **Phase 3 specified** (docs/phase3/, ADR-012) — implementation not started
-- Latest local commit: (this commit) `feat(monitoring): add model registry and decision trend`
-- Last updated: 2026-07-05
+- Current phase: **Phase 3 in progress** — P3.1 complete; P3.2 next
+- Latest local commit: (this commit) `feat(rules): rule model v2 with CASE WHEN branches and typed outputs`
+- Last updated: 2026-07-11
+
+## Phase 3 Progress
+
+| Sub-phase | Status |
+|---|---|
+| P3.1 Rule Model v2 | **Complete** — CASE WHEN/ELSE branches, ordered multi-action execution, `SET_OUTPUT`, legacy normalization, typed catalog validation, `rule_kind`, migration `8f3c2a1b7d04`; 135 backend tests. |
+| P3.2–P3.8 | Pending — tracked in `docs/phase3/IMPLEMENTATION_STATUS.md`. |
 
 ## Phase 2 Progress (post-MVP, docs/05)
 
