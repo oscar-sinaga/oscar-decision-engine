@@ -6,8 +6,8 @@
 
 - Status: **In progress**
 - Baseline: MVP + Phase 2 complete — 114 backend tests, 12 Vitest, 4 Playwright, Alembic head `1864d7efc83f`
-- Current sub-phase: P3.7 — Decision-table grid editor
-- Latest Phase 3 commit: `feat(rules): safe expression language with SQL-style preview (admin-gated)`
+- Current sub-phase: P3.8 — Hardening, E2E, docs sync
+- Latest Phase 3 commit: `feat(ui): decision table grid editor`
 
 ## Sub-phase tracker
 
@@ -19,7 +19,7 @@
 | P3.4 | DAG execution engine | **Complete** | golden: 4 canonical cases green · 63 unit + 102 integration tests green in segmented runs · migration `f4b7c9d2e601` up/down/up green · ruff + mypy clean · commit: `feat(strategy): DAG decision-flow execution with graph migration` |
 | P3.5 | Visual flow canvas | **Complete** | `@xyflow/svelte` 1.6.2 pinned · frontend lint/check, 19 Vitest, build green · backend trace/graph integration 16 passed · ADR-013 · commit: `feat(ui): visual decision-flow canvas` |
 | P3.6 | Expression language + SQL preview | **Complete** | 104 unit + 106 integration tests green in segmented runs · 24 Vitest · frontend lint/check/build green · security fuzz + runtime error-path tests · ADR-014 · commit: `feat(rules): safe expression language with SQL-style preview (admin-gated)` |
-| P3.7 | Decision-table grid editor | Pending | playwright: — · commit: — |
+| P3.7 | Decision-table grid editor | **Complete** | typed grid + wildcard cells + row/column operations + FIRST_MATCH/PRIORITY + persisted overlap badges + lifecycle UI · risk-grade table output supported · 105 unit + 106 integration tests · frontend lint/check/build + 27 Vitest green · commit: `feat(ui): decision table grid editor` |
 | P3.8 | Hardening, E2E, docs sync | Pending | exit checklist: — · commit: — |
 
 ## Decisions recorded during execution

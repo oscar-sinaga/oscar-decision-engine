@@ -19,6 +19,8 @@ This file records checks that depend on Docker, browser services, or the user's 
 - [x] Backend integration tests, segmented: 102 passed at P3.4.
 - [x] P3.6 backend: Ruff + mypy clean, 104 unit and 106 integration tests passed in segmented runs.
 - [x] P3.6 frontend: lint, Svelte check (0 errors / 0 warnings), 24 Vitest, and production build passed.
+- [x] P3.7 backend: Ruff + mypy clean, 105 unit and 106 integration tests passed in segmented runs.
+- [x] P3.7 frontend: lint, Svelte check (0 errors / 0 warnings), 27 Vitest, and production build passed.
 - [x] P3.4 golden reproducibility: 4 canonical cases passed.
 - [x] Migration M2 `f4b7c9d2e601`: upgrade → seed → downgrade -1 → upgrade head passed on PostgreSQL port 5455.
 

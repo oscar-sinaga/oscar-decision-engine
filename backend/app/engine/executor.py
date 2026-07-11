@@ -321,7 +321,8 @@ def run_strategy(plan: ExecutablePlan, payload: dict[str, Any]) -> ExecutionResu
     return ExecutionResult(
         final_decision=final_decision,
         reason_codes=list(context.reason_codes),
-        risk_grade=(context.score_result or {}).get("risk_grade"),
+        risk_grade=context.table_output.get("risk_grade")
+        or (context.score_result or {}).get("risk_grade"),
         score=(context.score_result or {}).get("score"),
         approved_limit=limit_fields.get("approved_limit"),
         approved_tenor_months=limit_fields.get("approved_tenor_months"),
@@ -561,6 +562,7 @@ def _run_decision_table_step(
     context.add_candidate(decision, reason_code)
     context.table_output = {
         "decision": decision.value,
+        "risk_grade": output.risk_grade,
         "approved_limit": approved_limit,
         "approved_tenor_months": output.approved_tenor_months,
         "pricing_rate": output.pricing_rate,

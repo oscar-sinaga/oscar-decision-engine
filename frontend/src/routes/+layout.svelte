@@ -11,6 +11,7 @@
 		{ href: '/dashboard', label: 'Dashboard' },
 		{ href: '/decisions', label: 'Decisions' },
 		{ href: '/rules', label: 'Rules' },
+		{ href: '/decision-tables', label: 'Decision Tables' },
 		{ href: '/features', label: 'Feature Catalog' },
 		{ href: '/strategies', label: 'Strategies' },
 		{ href: '/simulations', label: 'Simulations' },

@@ -364,6 +364,13 @@ async def test_decision_table_management_with_overlap_warnings(db_client: AsyncC
     assert version.status_code == 200
     assert any(w["warning"] == "OVERLAPPING_ROWS" for w in version.json()["warnings"])
 
+    reopened = await db_client.get(f"/v1/decision-tables/{entity_id}", headers=analyst)
+    assert reopened.status_code == 200
+    assert any(
+        warning["warning"] == "OVERLAPPING_ROWS"
+        for warning in reopened.json()["versions"][0]["warnings"]
+    )
+
 
 async def test_scorecard_management(db_client: AsyncClient) -> None:
     analyst = await login(db_client, "riskanalyst")

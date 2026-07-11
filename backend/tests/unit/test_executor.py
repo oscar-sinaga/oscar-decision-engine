@@ -321,6 +321,37 @@ def test_conditional_approval_when_limit_below_requested() -> None:
     assert result.risk_grade == "B"
 
 
+def test_decision_table_can_override_risk_grade() -> None:
+    plan = _plan(
+        [
+            StepPlan(
+                order=1,
+                step_type=StepType.DECISION_TABLE,
+                name="Classification Table",
+                decision_table=parse_decision_table_config(
+                    {
+                        "rows": [
+                            {
+                                "conditions": [],
+                                "output": {
+                                    "decision": "MANUAL_REVIEW",
+                                    "risk_grade": "C2",
+                                },
+                            }
+                        ]
+                    }
+                ),
+            )
+        ]
+    )
+
+    result = run_strategy(plan, BASE_PAYLOAD)
+
+    assert result.final_decision is DecisionType.MANUAL_REVIEW
+    assert result.risk_grade == "C2"
+    assert result.step_results[0]["table_result"]["output"]["risk_grade"] == "C2"
+
+
 def test_deterministic_execution() -> None:
     plan = _plan(
         [

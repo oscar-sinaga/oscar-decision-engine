@@ -81,7 +81,7 @@ def _version_response(
     )
 
 
-def _config_response(entity: Any) -> ConfigResponse:
+def _config_response(kind: ConfigKind, entity: Any) -> ConfigResponse:
     active = next((v for v in entity.versions if v.status == ConfigStatus.ACTIVE), None)
     latest = max(entity.versions, key=lambda v: v.version)
     return ConfigResponse(
@@ -92,7 +92,10 @@ def _config_response(entity: Any) -> ConfigResponse:
         active_version=active.version if active else None,
         latest_version=latest.version,
         latest_status=latest.status,
-        versions=[_version_response(v) for v in sorted(entity.versions, key=lambda v: v.version)],
+        versions=[
+            _version_response(v, service.validate_config(kind, v.config_json))
+            for v in sorted(entity.versions, key=lambda v: v.version)
+        ],
     )
 
 
@@ -115,7 +118,7 @@ def build_config_router(kind: ConfigKind, prefix: str, tag: str) -> APIRouter:
             version_note=body.version_note,
             actor=user,
         )
-        return _config_response(entity)
+        return _config_response(kind, entity)
 
     @router.get("", response_model=list[ConfigResponse])
     async def list_all(
@@ -129,7 +132,7 @@ def build_config_router(kind: ConfigKind, prefix: str, tag: str) -> APIRouter:
                 .order_by(kind.identity_model.code)
             )
         ).all()
-        return [_config_response(e) for e in entities if e.versions]
+        return [_config_response(kind, e) for e in entities if e.versions]
 
     @router.get("/{entity_id}", response_model=ConfigResponse)
     async def get_one(
@@ -138,7 +141,7 @@ def build_config_router(kind: ConfigKind, prefix: str, tag: str) -> APIRouter:
         user: User = require_permission(Permissions.RULE_VIEW),
     ) -> ConfigResponse:
         entity = await service.get_identity(kind, session, entity_id)
-        return _config_response(entity)
+        return _config_response(kind, entity)
 
     @router.post("/{entity_id}/versions", response_model=ConfigVersionResponse, status_code=201)
     async def create_version(

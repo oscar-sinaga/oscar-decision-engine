@@ -165,6 +165,12 @@ export interface RuleSet {
 	rule_codes: string[];
 }
 
+export interface DecisionTableWarning {
+	warning: string;
+	rows?: number[];
+	detail?: string;
+}
+
 export interface ConfigVersion {
 	id: string;
 	version: number;
@@ -172,7 +178,7 @@ export interface ConfigVersion {
 	config: Record<string, unknown>;
 	version_note: string;
 	created_at: string | null;
-	warnings: Record<string, unknown>[];
+	warnings: DecisionTableWarning[];
 }
 
 export interface ConfigEntity {

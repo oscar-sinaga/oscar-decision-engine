@@ -33,6 +33,7 @@ class TableOutput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     decision: DecisionType
+    risk_grade: str | None = Field(default=None, min_length=1, max_length=5)
     reason_code: str | None = None
     approved_limit: float | None = None
     approved_limit_pct_of: LimitFromField | None = None
