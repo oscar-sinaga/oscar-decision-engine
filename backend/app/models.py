@@ -16,7 +16,7 @@ from app.modules.manual_review.models import (
 )
 from app.modules.model_registry.models import RegisteredModel
 from app.modules.reason_codes.models import ReasonCode
-from app.modules.rules.models import Rule, RuleSet, RuleSetMember, RuleVersion
+from app.modules.rules.models import Rule, RuleCategory, RuleSet, RuleSetMember, RuleVersion
 from app.modules.scorecards.models import (
     DecisionTable,
     DecisionTableVersion,
@@ -43,6 +43,7 @@ __all__ = [
     "RegisteredModel",
     "Role",
     "Rule",
+    "RuleCategory",
     "RuleSet",
     "RuleSetMember",
     "RuleVersion",

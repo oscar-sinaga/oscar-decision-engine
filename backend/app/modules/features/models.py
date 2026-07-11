@@ -31,4 +31,5 @@ class Feature(Base):
     # Optional allowed values for enumerable string features (governance aid).
     allowed_values: Mapped[list[Any] | None] = mapped_column(JSONB, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    writable: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

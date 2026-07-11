@@ -13,6 +13,7 @@ from app.modules.manual_review.router import router as manual_review_router
 from app.modules.model_registry.router import router as model_registry_router
 from app.modules.monitoring.router import router as monitoring_router
 from app.modules.reason_codes.router import router as reason_codes_router
+from app.modules.rules.categories_router import router as rule_categories_router
 from app.modules.rules.router import router as rules_router
 from app.modules.rules.rule_sets_router import router as rule_sets_router
 from app.modules.scorecards.router import decision_tables_router, scorecards_router
@@ -23,6 +24,7 @@ api_router = APIRouter(prefix="/v1")
 api_router.include_router(auth_router)
 api_router.include_router(decisions_router)
 api_router.include_router(rules_router)
+api_router.include_router(rule_categories_router)
 api_router.include_router(rule_sets_router)
 api_router.include_router(features_router)
 api_router.include_router(decision_tables_router)

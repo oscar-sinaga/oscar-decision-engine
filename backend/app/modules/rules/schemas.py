@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.shared.domain.enums import ConfigStatus, RuleCategory
+from app.shared.domain.enums import ConfigStatus
 
 RuleKind = Literal["POLICY_OUTCOME", "STATEMENT", "CLASSIFICATION", "EXPRESSION"]
 
@@ -46,7 +46,7 @@ class RuleCreateRequest(_RuleBody):
     rule_code: str = Field(min_length=3, max_length=100, pattern=r"^[A-Z][A-Z0-9_]*$")
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
-    category: RuleCategory
+    category: str = Field(min_length=2, max_length=50, pattern=r"^[A-Z][A-Z0-9_]*$")
     owner_team: str = "RISK"
 
 
@@ -74,7 +74,7 @@ class RuleResponse(BaseModel):
     rule_code: str
     name: str
     description: str
-    category: RuleCategory
+    category: str
     owner_team: str
     active_version: int | None
     latest_version: int
@@ -101,3 +101,22 @@ class RuleTestResponse(BaseModel):
     matched_branch: int | Literal["default"] | None = None
     actions_applied: list[dict[str, Any]] = Field(default_factory=list)
     outputs_after: dict[str, Any] = Field(default_factory=dict)
+
+
+class RuleSetUsageItem(BaseModel):
+    id: str
+    code: str
+    name: str
+
+
+class StrategyUsageItem(BaseModel):
+    id: str
+    strategy_code: str
+    versions_using: list[int]
+    active_version_uses: bool
+
+
+class RuleUsageResponse(BaseModel):
+    rule_code: str
+    rule_sets: list[RuleSetUsageItem]
+    strategies: list[StrategyUsageItem]

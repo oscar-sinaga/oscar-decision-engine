@@ -23,11 +23,12 @@ from app.modules.rules.schemas import (
     RuleResponse,
     RuleTestRequest,
     RuleTestResponse,
+    RuleUsageResponse,
     RuleVersionResponse,
     RuleVersionUpdateRequest,
 )
 from app.shared.database import get_session
-from app.shared.domain.enums import ConfigStatus, RuleCategory
+from app.shared.domain.enums import ConfigStatus
 
 router = APIRouter(prefix="/rules", tags=["rules"])
 
@@ -96,7 +97,7 @@ async def create_rule(
 @router.get("", response_model=list[RuleResponse])
 async def list_rules(
     session: Session,
-    category: Annotated[RuleCategory | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
     status: Annotated[ConfigStatus | None, Query()] = None,
     owner_team: Annotated[str | None, Query()] = None,
     user: User = require_permission(Permissions.RULE_VIEW),
@@ -120,6 +121,16 @@ async def get_rule(
 ) -> RuleDetailResponse:
     rule = await service.get_rule(session, rule_id)
     return _rule_detail(rule)
+
+
+@router.get("/{rule_id}/usage", response_model=RuleUsageResponse)
+async def get_rule_usage(
+    rule_id: uuid.UUID,
+    session: Session,
+    user: User = require_permission(Permissions.RULE_VIEW),
+) -> RuleUsageResponse:
+    rule = await service.get_rule(session, rule_id)
+    return RuleUsageResponse.model_validate(await service.get_rule_usage(session, rule))
 
 
 @router.post("/{rule_id}/versions", response_model=RuleVersionResponse, status_code=201)

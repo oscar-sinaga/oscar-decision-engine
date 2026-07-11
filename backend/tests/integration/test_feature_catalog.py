@@ -32,11 +32,23 @@ async def test_catalog_seeded_and_listable(db_client: AsyncClient) -> None:
     assert dti["source"] == "DERIVED"
     assert dti["data_type"] == "NUMBER"
     assert dti["category"] == "AFFORDABILITY"
+    assert dti["writable"] is False
+    output = next(f for f in features if f["path"] == "outputs.collateral_risk")
+    assert output["source"] == "RULE_OUTPUT"
+    assert output["writable"] is True
 
     derived_only = (
         await db_client.get("/v1/features", params={"source": "DERIVED"}, headers=analyst)
     ).json()
     assert all(f["source"] == "DERIVED" for f in derived_only)
+
+    outputs = (
+        await db_client.get("/v1/features", params={"writable": True}, headers=analyst)
+    ).json()
+    assert {feature["path"] for feature in outputs} >= {
+        "outputs.collateral_risk",
+        "outputs.vehicle_price_band",
+    }
 
 
 async def test_meta_reflects_catalog(db_client: AsyncClient) -> None:
@@ -50,6 +62,26 @@ async def test_meta_reflects_catalog(db_client: AsyncClient) -> None:
         ).json()
     }
     assert meta_paths == catalog_paths
+    assert meta["operators_by_type"]["STRING"] == [
+        "=",
+        "!=",
+        "in",
+        "not_in",
+        "exists",
+        "is_null",
+    ]
+    assert meta["rule_kinds"] == [
+        "POLICY_OUTCOME",
+        "STATEMENT",
+        "CLASSIFICATION",
+        "EXPRESSION",
+    ]
+    assert "CONDITION" in meta["node_types"]
+    assert {item["path"] for item in meta["writable_outputs"]} >= {
+        "outputs.collateral_risk",
+        "outputs.eligible_limit",
+    }
+    assert "AFFORDABILITY" in {item["code"] for item in meta["rule_categories"]}
 
 
 async def test_new_catalog_feature_enables_rule(db_client: AsyncClient) -> None:
@@ -138,3 +170,21 @@ async def test_feature_management_requires_permission(db_client: AsyncClient) ->
     auditor = await login(db_client, "auditor")
     # Auditor can view the catalog (rule.view) but not create.
     assert (await db_client.get("/v1/features", headers=auditor)).status_code == 200
+
+
+async def test_payload_feature_cannot_be_writable(db_client: AsyncClient) -> None:
+    analyst = await login(db_client, "riskanalyst")
+    response = await db_client.post(
+        "/v1/features",
+        json={
+            "path": f"applicant.overwrite_{uuid.uuid4().hex[:6]}",
+            "label": "Unsafe writable payload",
+            "data_type": "NUMBER",
+            "source": "PAYLOAD",
+            "writable": True,
+        },
+        headers=analyst,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["details"][0]["field"] == "writable"

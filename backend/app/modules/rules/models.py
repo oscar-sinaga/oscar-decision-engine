@@ -17,7 +17,8 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.database.base import Base
-from app.shared.domain.enums import ConfigStatus, RuleCategory
+from app.shared.domain.enums import ConfigStatus
+from app.shared.domain.enums import RuleCategory as LegacyRuleCategory
 
 
 class Rule(Base):
@@ -27,7 +28,7 @@ class Rule(Base):
     rule_code: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text, default="")
-    category: Mapped[RuleCategory] = mapped_column(String(30))
+    category: Mapped[LegacyRuleCategory] = mapped_column(String(30))
     owner_team: Mapped[str] = mapped_column(String(100), default="RISK")
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
@@ -94,3 +95,15 @@ class RuleSetMember(Base):
 
     rule_set: Mapped[RuleSet] = relationship(back_populates="members")
     rule: Mapped[Rule] = relationship()
+
+
+class RuleCategory(Base):
+    """Managed category vocabulary referenced by ``rules.category`` by code."""
+
+    __tablename__ = "rule_categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code: Mapped[str] = mapped_column(String(50), unique=True)
+    label: Mapped[str] = mapped_column(String(100))
+    active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

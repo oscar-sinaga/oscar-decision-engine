@@ -17,10 +17,16 @@ def _branch_payload(**overrides: Any) -> dict[str, Any]:
         "branches": [
             {
                 "when": {"all": [{"field": "vehicle.age_years", "operator": ">", "value": 10}]},
-                "then": [{"type": "SET_OUTPUT", "target": "loan.ltv", "value": 0.95}],
+                "then": [
+                    {
+                        "type": "SET_OUTPUT",
+                        "target": "outputs.vehicle_price_band",
+                        "value": 20_000,
+                    }
+                ],
             }
         ],
-        "default": [{"type": "SET_OUTPUT", "target": "loan.ltv", "value": 0.8}],
+        "default": [{"type": "SET_OUTPUT", "target": "outputs.vehicle_price_band", "value": 0}],
     }
     body.update(overrides)
     return body
@@ -37,7 +43,7 @@ async def test_create_v2_rule_persists_normalized_body(db_client: AsyncClient) -
     assert version["condition"] is None
     assert version["action"] is None
     assert version["branches"][0]["then"][0]["type"] == "SET_OUTPUT"
-    assert version["default"][0]["value"] == 0.8
+    assert version["default"][0]["value"] == 0
 
 
 async def test_create_legacy_rule_still_returns_normalized_branch(db_client: AsyncClient) -> None:
@@ -122,4 +128,42 @@ async def test_v2_dry_run_returns_branch_actions_and_outputs(db_client: AsyncCli
     assert result["matched"] is True
     assert result["matched_branch"] == 0
     assert result["actions_applied"][0]["type"] == "SET_OUTPUT"
-    assert result["outputs_after"] == {"loan.ltv": 0.95}
+    assert result["outputs_after"] == {"outputs.vehicle_price_band": 20_000}
+
+
+async def test_set_output_rejects_non_writable_and_wrong_literal_type(
+    db_client: AsyncClient,
+) -> None:
+    analyst = await login(db_client, "riskanalyst")
+    non_writable = _branch_payload()
+    non_writable["branches"][0]["then"][0]["target"] = "loan.ltv"
+    wrong_type = _branch_payload()
+    wrong_type["branches"][0]["then"][0]["value"] = "twenty thousand"
+
+    blocked = await db_client.post("/v1/rules", json=non_writable, headers=analyst)
+    mismatch = await db_client.post("/v1/rules", json=wrong_type, headers=analyst)
+
+    assert blocked.status_code == 422
+    assert blocked.json()["error"]["details"][0]["issue"] == ("SET_OUTPUT target is not writable")
+    assert mismatch.status_code == 422
+    assert mismatch.json()["error"]["details"][0]["issue"] == (
+        "value does not match NUMBER feature type"
+    )
+
+
+async def test_rule_usage_lists_rule_sets_and_active_strategy(db_client: AsyncClient) -> None:
+    analyst = await login(db_client, "riskanalyst")
+    rules = (await db_client.get("/v1/rules", headers=analyst)).json()
+    dti = next(rule for rule in rules if rule["rule_code"] == "DTI_MAX_STANDARD")
+
+    response = await db_client.get(f"/v1/rules/{dti['id']}/usage", headers=analyst)
+
+    assert response.status_code == 200, response.text
+    usage = response.json()
+    assert usage["rule_code"] == "DTI_MAX_STANDARD"
+    assert {item["code"] for item in usage["rule_sets"]} == {"AFFORDABILITY_STANDARD"}
+    strategy = next(
+        item for item in usage["strategies"] if item["strategy_code"] == "LEASEBACK_MOTOR"
+    )
+    assert 1 in strategy["versions_using"]
+    assert strategy["active_version_uses"] is True

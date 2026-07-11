@@ -55,6 +55,15 @@ def catalog_seed_rows() -> list[dict[str, object]]:
         rows.append(_row(path, description, FeatureSource.DERIVED))
     for path, description in SCORE_FEATURES.items():
         rows.append(_row(path, description, FeatureSource.SCORE))
+    rows.extend(
+        [
+            _output_row("outputs.collateral_risk", FeatureDataType.STRING),
+            _output_row("outputs.affordability_risk", FeatureDataType.STRING),
+            _output_row("outputs.vehicle_price_band", FeatureDataType.NUMBER),
+            _output_row("outputs.eligible_limit", FeatureDataType.NUMBER),
+            _output_row("outputs.fraud_flag", FeatureDataType.BOOLEAN),
+        ]
+    )
     return rows
 
 
@@ -66,6 +75,18 @@ def _row(path: str, description: str, source: FeatureSource) -> dict[str, object
         "data_type": _data_type_for(path),
         "source": source,
         "category": _category_for(path),
+    }
+
+
+def _output_row(path: str, data_type: FeatureDataType) -> dict[str, object]:
+    return {
+        "path": path,
+        "label": path.split(".")[-1].replace("_", " ").title(),
+        "description": "Governed rule output",
+        "data_type": data_type,
+        "source": FeatureSource.RULE_OUTPUT,
+        "category": "OUTPUTS",
+        "writable": True,
     }
 
 

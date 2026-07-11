@@ -5,8 +5,8 @@
 ## Overall Status
 
 - Completion: **100% of MVP scope** + Phase 2 in progress
-- Current phase: **Phase 3 in progress** — P3.1 complete; P3.2 next
-- Latest local commit: (this commit) `feat(rules): rule model v2 with CASE WHEN branches and typed outputs`
+- Current phase: **Phase 3 in progress** — P3.1–P3.2 complete; P3.3 next
+- Latest local commit: (this commit) `feat(catalog): output catalog, rule categories, typed metadata`
 - Last updated: 2026-07-11
 
 ## Phase 3 Progress
@@ -14,7 +14,8 @@
 | Sub-phase | Status |
 |---|---|
 | P3.1 Rule Model v2 | **Complete** — CASE WHEN/ELSE branches, ordered multi-action execution, `SET_OUTPUT`, legacy normalization, typed catalog validation, `rule_kind`, migration `8f3c2a1b7d04`; 135 backend tests. |
-| P3.2–P3.8 | Pending — tracked in `docs/phase3/IMPLEMENTATION_STATUS.md`. |
+| P3.2 Catalogs & metadata | **Complete** — writable output catalog + `RULE_OUTPUT` seeds, managed/audited rule categories, typed `/v1/meta`, rule usage endpoint, admin-only `rule.author_expression`; 141 backend tests and frontend gates green. |
+| P3.3–P3.8 | Pending — tracked in `docs/phase3/IMPLEMENTATION_STATUS.md`. |
 
 ## Phase 2 Progress (post-MVP, docs/05)
 

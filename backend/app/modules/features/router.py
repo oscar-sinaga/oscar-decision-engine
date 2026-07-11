@@ -21,7 +21,7 @@ from app.modules.auth.permissions import Permissions
 from app.modules.features.models import Feature
 from app.shared.database import get_session
 from app.shared.domain.enums import FeatureDataType, FeatureSource
-from app.shared.domain.errors import ConflictError, NotFoundError
+from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 
 router = APIRouter(prefix="/features", tags=["features"])
 
@@ -40,6 +40,7 @@ class FeatureCreateRequest(BaseModel):
     source: FeatureSource
     category: str = Field(default="GENERAL", max_length=50)
     allowed_values: list[Any] | None = None
+    writable: bool = False
 
 
 class FeatureUpdateRequest(BaseModel):
@@ -51,6 +52,7 @@ class FeatureUpdateRequest(BaseModel):
     category: str | None = None
     allowed_values: list[Any] | None = None
     active: bool | None = None
+    writable: bool | None = None
 
 
 class FeatureResponse(BaseModel):
@@ -63,6 +65,7 @@ class FeatureResponse(BaseModel):
     category: str
     allowed_values: list[Any] | None
     active: bool
+    writable: bool
     created_at: datetime | None
 
 
@@ -77,6 +80,7 @@ def _response(feature: Feature) -> FeatureResponse:
         category=feature.category,
         allowed_values=feature.allowed_values,
         active=feature.active,
+        writable=feature.writable,
         created_at=feature.created_at,
     )
 
@@ -87,6 +91,7 @@ async def list_features(
     source: Annotated[FeatureSource | None, Query()] = None,
     category: Annotated[str | None, Query()] = None,
     active: Annotated[bool | None, Query()] = None,
+    writable: Annotated[bool | None, Query()] = None,
     user: User = require_permission(Permissions.RULE_VIEW),
 ) -> list[FeatureResponse]:
     query = select(Feature).order_by(Feature.path)
@@ -96,6 +101,8 @@ async def list_features(
         query = query.where(Feature.category == category)
     if active is not None:
         query = query.where(Feature.active.is_(active))
+    if writable is not None:
+        query = query.where(Feature.writable.is_(writable))
     rows = (await session.scalars(query)).all()
     return [_response(f) for f in rows]
 
@@ -106,6 +113,11 @@ async def create_feature(
     session: Session,
     user: User = require_permission(Permissions.RULE_CREATE),
 ) -> FeatureResponse:
+    if body.writable and body.source is FeatureSource.PAYLOAD:
+        raise ValidationFailedError(
+            "Payload features cannot be writable",
+            details=[{"field": "writable", "issue": "PAYLOAD source cannot be overwritten"}],
+        )
     duplicate = await session.scalar(select(Feature).where(Feature.path == body.path))
     if duplicate is not None:
         raise ConflictError(f"Feature '{body.path}' already exists")
@@ -138,6 +150,11 @@ async def update_feature(
     changes = dict(body.model_dump(exclude_unset=True).items())
     if not changes:
         return _response(feature)
+    if changes.get("writable") is True and feature.source == FeatureSource.PAYLOAD:
+        raise ValidationFailedError(
+            "Payload features cannot be writable",
+            details=[{"field": "writable", "issue": "PAYLOAD source cannot be overwritten"}],
+        )
     before = {key: getattr(feature, key) for key in changes}
     for key, value in changes.items():
         setattr(feature, key, value)

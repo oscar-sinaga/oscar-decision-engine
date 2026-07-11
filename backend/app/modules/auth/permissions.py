@@ -12,6 +12,7 @@ class Permissions:
     RULE_VIEW = "rule.view"
     RULE_CREATE = "rule.create"
     RULE_APPROVE = "rule.approve"
+    RULE_AUTHOR_EXPRESSION = "rule.author_expression"
     STRATEGY_VIEW = "strategy.view"
     STRATEGY_CREATE = "strategy.create"
     STRATEGY_ACTIVATE = "strategy.activate"
@@ -38,6 +39,7 @@ ALL_PERMISSIONS: dict[str, str] = {
     Permissions.RULE_VIEW: "View rules, decision tables, and scorecards",
     Permissions.RULE_CREATE: "Create and edit draft rules/decision tables/scorecards",
     Permissions.RULE_APPROVE: "Approve and activate rule versions",
+    Permissions.RULE_AUTHOR_EXPRESSION: "Author and validate safe expression rules",
     Permissions.STRATEGY_VIEW: "View strategies",
     Permissions.STRATEGY_CREATE: "Create and edit draft strategy versions",
     Permissions.STRATEGY_ACTIVATE: "Activate or roll back strategy versions",

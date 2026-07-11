@@ -164,6 +164,7 @@ class FeatureSource(StrEnum):
     PAYLOAD = "PAYLOAD"  # supplied on the application payload
     DERIVED = "DERIVED"  # computed by a CALCULATION step
     SCORE = "SCORE"  # produced by a SCORECARD step
+    RULE_OUTPUT = "RULE_OUTPUT"  # produced by a governed SET_OUTPUT action
 
 
 class DocumentStatus(StrEnum):

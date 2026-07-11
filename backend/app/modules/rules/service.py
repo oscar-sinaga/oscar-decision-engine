@@ -29,8 +29,9 @@ from app.modules.governance.service import (
     resolve_approval_request,
 )
 from app.modules.reason_codes.models import ReasonCode
-from app.modules.rules.models import Rule, RuleVersion
+from app.modules.rules.models import Rule, RuleCategory, RuleSet, RuleSetMember, RuleVersion
 from app.modules.rules.schemas import RuleCreateRequest, RuleVersionUpdateRequest
+from app.modules.strategies.models import Strategy, StrategyStep, StrategyVersion
 from app.shared.domain.enums import ApprovalStatus, ConfigStatus, FeatureDataType
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from app.shared.domain.version_lifecycle import (
@@ -78,10 +79,22 @@ async def validate_rule_definition(
     actions = [action for branch in definition.branches for action in branch.then]
     actions.extend(definition.default or [])
     for index, rule_action in enumerate(actions):
-        if rule_action.target and rule_action.target not in features:
-            details.append(
-                {"field": rule_action.target, "issue": "unknown or inactive SET_OUTPUT target"}
-            )
+        if rule_action.target:
+            target = features.get(rule_action.target)
+            if target is None:
+                details.append(
+                    {"field": rule_action.target, "issue": "unknown or inactive SET_OUTPUT target"}
+                )
+            elif not target.writable:
+                details.append(
+                    {"field": rule_action.target, "issue": "SET_OUTPUT target is not writable"}
+                )
+            else:
+                issue = _value_type_issue(
+                    FeatureDataType(target.data_type), Operator.EQ, rule_action.value
+                )
+                if issue:
+                    details.append({"field": rule_action.target, "issue": issue})
         await _validate_reason_code(session, rule_action, index, details)
     if details:
         raise ValidationFailedError("Rule definition is invalid", details=details)
@@ -219,9 +232,67 @@ def normalize_stored_definition(version: RuleVersion) -> BranchedRuleDefinition:
     return normalize_rule_definition(version.condition_json, version.action_json)
 
 
+async def get_rule_usage(session: AsyncSession, rule: Rule) -> dict[str, Any]:
+    rule_sets = (
+        await session.scalars(
+            select(RuleSet)
+            .join(RuleSetMember, RuleSetMember.rule_set_id == RuleSet.id)
+            .where(RuleSetMember.rule_id == rule.id)
+            .order_by(RuleSet.code)
+        )
+    ).all()
+    codes = [rule_set.code for rule_set in rule_sets]
+    strategies: dict[uuid.UUID, dict[str, Any]] = {}
+    if codes:
+        rows = (
+            await session.execute(
+                select(Strategy, StrategyVersion)
+                .join(StrategyVersion, StrategyVersion.strategy_id == Strategy.id)
+                .join(StrategyStep, StrategyStep.strategy_version_id == StrategyVersion.id)
+                .where(
+                    StrategyStep.step_type == "RULE_SET",
+                    StrategyStep.reference_code.in_(codes),
+                )
+                .order_by(Strategy.strategy_code, StrategyVersion.version)
+            )
+        ).all()
+        for strategy, version in rows:
+            item = strategies.setdefault(
+                strategy.id,
+                {
+                    "id": str(strategy.id),
+                    "strategy_code": strategy.strategy_code,
+                    "versions_using": [],
+                    "active_version_uses": False,
+                },
+            )
+            if version.version not in item["versions_using"]:
+                item["versions_using"].append(version.version)
+            if version.status == ConfigStatus.ACTIVE:
+                item["active_version_uses"] = True
+    return {
+        "rule_code": rule.rule_code,
+        "rule_sets": [
+            {"id": str(rule_set.id), "code": rule_set.code, "name": rule_set.name}
+            for rule_set in rule_sets
+        ],
+        "strategies": list(strategies.values()),
+    }
+
+
 async def create_rule(session: AsyncSession, request: RuleCreateRequest, actor: User) -> Rule:
     condition, action = request.storage_body()
     await validate_rule_definition(session, condition, action)
+    category = await session.scalar(
+        select(RuleCategory).where(
+            RuleCategory.code == request.category, RuleCategory.active.is_(True)
+        )
+    )
+    if category is None:
+        raise ValidationFailedError(
+            "Rule category is unknown or inactive",
+            details=[{"field": "category", "issue": f"unknown or inactive: {request.category}"}],
+        )
     duplicate = await session.scalar(select(Rule).where(Rule.rule_code == request.rule_code))
     if duplicate is not None:
         raise ConflictError(f"Rule code '{request.rule_code}' already exists")

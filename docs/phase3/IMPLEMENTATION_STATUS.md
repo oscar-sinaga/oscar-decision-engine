@@ -6,15 +6,15 @@
 
 - Status: **In progress**
 - Baseline: MVP + Phase 2 complete — 114 backend tests, 12 Vitest, 4 Playwright, Alembic head `1864d7efc83f`
-- Current sub-phase: P3.2 — Catalogs & metadata
-- Latest Phase 3 commit: `feat(rules): rule model v2 with CASE WHEN branches and typed outputs`
+- Current sub-phase: P3.3 — Rule authoring UX overhaul
+- Latest Phase 3 commit: `feat(catalog): output catalog, rule categories, typed metadata`
 
 ## Sub-phase tracker
 
 | Sub-phase | Title | Status | Evidence (fill on completion) |
 |---|---|---|---|
 | P3.1 | Rule Model v2 (engine) | **Complete** | tests: 135 passed; ruff + mypy strict clean · migration: `8f3c2a1b7d04`, up/down/up green · commit: `feat(rules): rule model v2 with CASE WHEN branches and typed outputs` |
-| P3.2 | Catalogs & metadata | Pending | tests: — · commit: — |
+| P3.2 | Catalogs & metadata | **Complete** | tests: 141 backend passed; ruff + mypy clean; frontend lint/check, 12 Vitest, build green · commit: `feat(catalog): output catalog, rule categories, typed metadata` |
 | P3.3 | Rule authoring UX overhaul | Pending | vitest: — · commit: — |
 | P3.4 | DAG execution engine | Pending | golden: — · migration M2: — · commit: — |
 | P3.5 | Visual flow canvas | Pending | playwright: — · commit: — |
