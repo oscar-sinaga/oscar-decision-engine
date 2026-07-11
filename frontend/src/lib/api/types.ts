@@ -112,8 +112,11 @@ export interface RuleVersion {
 	id: string;
 	version: number;
 	status: string;
-	condition: Record<string, unknown>;
-	action: Record<string, unknown>;
+	rule_kind: string;
+	condition: Record<string, unknown> | null;
+	action: Record<string, unknown> | null;
+	branches: { when: Record<string, unknown>; then: Record<string, unknown>[] }[];
+	default: Record<string, unknown>[] | null;
 	version_note: string;
 	created_at: string | null;
 	effective_from: string | null;
@@ -374,6 +377,7 @@ export interface Feature {
 	category: string;
 	allowed_values: unknown[] | null;
 	active: boolean;
+	writable: boolean;
 	created_at: string | null;
 }
 
@@ -401,11 +405,25 @@ export interface DecisionTrend {
 }
 
 export interface Meta {
-	features: { path: string; description: string; derived: boolean }[];
+	features: {
+		path: string;
+		label: string;
+		description: string;
+		derived: boolean;
+		data_type: string;
+		writable: boolean;
+		category: string;
+	}[];
 	operators: string[];
+	operators_by_type: Record<string, string[]>;
 	decisions: string[];
 	product_types: string[];
-	rule_categories: string[];
+	rule_categories: { code: string; label: string }[];
+	rule_kinds: string[];
+	action_types: string[];
+	node_types: string[];
+	edge_labels: string[];
+	writable_outputs: { path: string; data_type: string; label: string }[];
 	config_statuses: string[];
 	step_types: string[];
 	step_on_error: string[];
@@ -413,4 +431,15 @@ export interface Meta {
 	case_priorities: string[];
 	reason_categories: string[];
 	reason_severities: string[];
+}
+
+export interface RuleUsage {
+	rule_code: string;
+	rule_sets: { id: string; code: string; name: string }[];
+	strategies: {
+		id: string;
+		strategy_code: string;
+		versions_using: number[];
+		active_version_uses: boolean;
+	}[];
 }
