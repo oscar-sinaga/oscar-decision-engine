@@ -1,21 +1,35 @@
 <script lang="ts">
+	import { Check, Plus, Power, PowerOff } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
 	import type { Feature, RuleCategoryCatalog } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
-	import Badge from '$lib/components/Badge.svelte';
-	import Card from '$lib/components/Card.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Sheet from '$lib/components/ui/sheet';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
+	import DataTable, { type Column } from '$lib/ui/DataTable.svelte';
+	import FilterBar from '$lib/ui/FilterBar.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import RelativeTime from '$lib/ui/RelativeTime.svelte';
+	import StatusBadge from '$lib/ui/StatusBadge.svelte';
 
+	type FeatureRow = Feature & Record<string, unknown> & { status: string; actions: string };
 	let features = $state<Feature[] | null>(null);
 	let categories = $state<RuleCategoryCatalog[]>([]);
 	let error = $state<unknown>(null);
 	let actionError = $state<unknown>(null);
 	let sourceFilter = $state('');
+	let typeFilter = $state('');
+	let categoryFilter = $state('');
 	let outputsOnly = $state(false);
 	let showCreate = $state(false);
+	let loading = $state(true);
 	let categoryCode = $state('');
 	let categoryLabel = $state('');
-
 	let form = $state({
 		path: '',
 		label: '',
@@ -25,9 +39,25 @@
 		category: 'APPLICANT',
 		writable: false
 	});
+	const canManage = $derived(auth.hasPermission('rule.create'));
+	const rows = $derived.by(
+		() =>
+			(features ?? [])
+				.filter((feature) => !typeFilter || feature.data_type === typeFilter)
+				.filter((feature) => !categoryFilter || feature.category === categoryFilter)
+				.map((feature) => ({
+					...feature,
+					status: feature.active ? 'ACTIVE' : 'RETIRED',
+					actions: ''
+				})) as FeatureRow[]
+	);
+	const featureCategories = $derived(
+		[...new Set((features ?? []).map((feature) => feature.category))].sort()
+	);
 
-	async function load() {
+	async function load(): Promise<void> {
 		error = null;
+		loading = true;
 		try {
 			[features, categories] = await Promise.all([
 				api<Feature[]>('/v1/features', {
@@ -37,14 +67,15 @@
 			]);
 		} catch (err) {
 			error = err;
+		} finally {
+			loading = false;
 		}
 	}
-
 	$effect(() => {
 		load();
 	});
 
-	async function createFeature(event: SubmitEvent) {
+	async function createFeature(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 		actionError = null;
 		try {
@@ -64,8 +95,7 @@
 			actionError = err;
 		}
 	}
-
-	async function toggleActive(feature: Feature) {
+	async function toggleActive(feature: Feature): Promise<void> {
 		actionError = null;
 		try {
 			await api(`/v1/features/${feature.id}`, {
@@ -77,8 +107,7 @@
 			actionError = err;
 		}
 	}
-
-	async function toggleWritable(feature: Feature) {
+	async function toggleWritable(feature: Feature): Promise<void> {
 		actionError = null;
 		try {
 			await api(`/v1/features/${feature.id}`, {
@@ -90,8 +119,7 @@
 			actionError = err;
 		}
 	}
-
-	async function createCategory(event: SubmitEvent) {
+	async function createCategory(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 		actionError = null;
 		try {
@@ -105,8 +133,7 @@
 			actionError = err;
 		}
 	}
-
-	async function toggleCategory(category: RuleCategoryCatalog) {
+	async function toggleCategory(category: RuleCategoryCatalog): Promise<void> {
 		actionError = null;
 		try {
 			await api(`/v1/rule-categories/${category.id}`, {
@@ -118,214 +145,233 @@
 			actionError = err;
 		}
 	}
-
-	const canManage = $derived(auth.hasPermission('rule.create'));
+	function resetFilters(): void {
+		sourceFilter = '';
+		typeFilter = '';
+		categoryFilter = '';
+		outputsOnly = false;
+		load();
+	}
 </script>
 
-<div class="mb-4 flex items-center justify-between">
-	<div>
-		<h1 class="text-xl font-bold text-slate-800">Feature Catalog</h1>
-		<p class="text-sm text-slate-500">
-			Governed data dictionary — the vocabulary rules and strategies may reference.
-		</p>
-	</div>
+{#snippet pathCell(row: FeatureRow)}<span class="font-mono text-xs font-medium">{row.path}</span
+	>{/snippet}
+{#snippet writableCell(row: FeatureRow)}{#if row.writable}<Check
+			size={15}
+			class="text-success"
+			aria-label="Writable"
+		/>{:else}<span class="text-text-faint">—</span>{/if}{/snippet}
+{#snippet statusCell(row: FeatureRow)}<StatusBadge value={row.status} />{/snippet}
+{#snippet updatedCell(row: FeatureRow)}{#if row.created_at}<RelativeTime
+			value={row.created_at}
+		/>{:else}—{/if}{/snippet}
+{#snippet actionsCell(row: FeatureRow)}
 	{#if canManage}
-		<button
-			class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-			onclick={() => (showCreate = !showCreate)}
-		>
-			{showCreate ? 'Cancel' : 'New feature'}
-		</button>
-	{/if}
-</div>
-
-{#if showCreate}
-	<div class="mb-4">
-		<Card title="New feature">
-			<form
-				class="grid grid-cols-2 gap-3 text-xs font-semibold text-slate-600"
-				onsubmit={createFeature}
+		<div class="flex justify-end gap-1">
+			<Button
+				variant="ghost"
+				size="xs"
+				disabled={row.source === 'PAYLOAD'}
+				onclick={(event) => {
+					event.stopPropagation();
+					toggleWritable(row);
+				}}>{row.writable ? 'Read-only' : 'Writable'}</Button
 			>
-				<label
-					>Path (dotted)
-					<input
-						class="mt-1 w-full rounded border-slate-300 font-mono text-sm"
+			<Button
+				variant="ghost"
+				size="icon-xs"
+				onclick={(event) => {
+					event.stopPropagation();
+					toggleActive(row);
+				}}
+				aria-label={row.active ? 'Deactivate feature' : 'Activate feature'}
+				title={row.active ? 'Deactivate' : 'Activate'}
+			>
+				{#if row.active}<PowerOff size={13} />{:else}<Power size={13} />{/if}
+			</Button>
+		</div>
+	{/if}
+{/snippet}
+
+{#if true}
+	{@const columns: Column<FeatureRow>[] = [
+		{ key: 'path', header: 'Path', sortable: true, cell: pathCell },
+		{ key: 'label', header: 'Label', sortable: true },
+		{ key: 'data_type', header: 'Type', sortable: true },
+		{ key: 'source', header: 'Source', sortable: true },
+		{ key: 'category', header: 'Category', sortable: true },
+		{ key: 'writable', header: 'Writable', cell: writableCell },
+		{ key: 'status', header: 'Status', cell: statusCell },
+		{ key: 'created_at', header: 'Updated', cell: updatedCell },
+		{ key: 'actions', header: '', align: 'right', cell: actionsCell }
+	]}
+	{#snippet actions()}{#if canManage}<Button size="sm" onclick={() => (showCreate = true)}
+				><Plus size={15} /> New feature</Button
+			>{/if}{/snippet}
+	<PageHeader
+		title="Feature Catalog"
+		description="Governed vocabulary available to rules, tables, and decision flows."
+		{actions}
+	/>
+	<FilterBar onReset={resetFilters}>
+		<label class="min-w-40 text-xs font-medium text-text-muted"
+			>Source<select
+				class="mt-1 block h-9 w-full rounded-control border-border text-sm"
+				bind:value={sourceFilter}
+				onchange={load}
+				><option value="">All</option><option>PAYLOAD</option><option>DERIVED</option><option
+					>SCORE</option
+				><option>RULE_OUTPUT</option></select
+			></label
+		>
+		<label class="min-w-36 text-xs font-medium text-text-muted"
+			>Type<select
+				class="mt-1 block h-9 w-full rounded-control border-border text-sm"
+				bind:value={typeFilter}
+				><option value="">All</option><option>NUMBER</option><option>STRING</option><option
+					>BOOLEAN</option
+				><option>DATE</option></select
+			></label
+		>
+		<label class="min-w-44 text-xs font-medium text-text-muted"
+			>Category<select
+				class="mt-1 block h-9 w-full rounded-control border-border text-sm"
+				bind:value={categoryFilter}
+				><option value="">All</option>{#each featureCategories as category (category)}<option
+						>{category}</option
+					>{/each}</select
+			></label
+		>
+		<label class="flex items-center gap-2 self-end pb-2 text-xs font-medium text-text-muted"
+			><Checkbox bind:checked={outputsOnly} onchange={load} /> Outputs only</label
+		>
+	</FilterBar>
+	{#if actionError}<div class="mb-4"><ErrorNote error={actionError} /></div>{/if}
+	{#if error}<ErrorNote {error} />{:else}<DataTable
+			{columns}
+			{rows}
+			{loading}
+			rowKey="id"
+			testId="features-table"
+			empty={{ title: 'No features', hint: 'No catalog entries match the selected filters.' }}
+		/>{/if}
+
+	<Card.Root class="mt-6">
+		<Card.Header
+			><Card.Title>Rule categories</Card.Title><Card.Description
+				>Managed categories shown in the rule authoring experience.</Card.Description
+			></Card.Header
+		>
+		<Card.Content>
+			{#if canManage}
+				<form class="mb-4 flex flex-wrap items-end gap-2" onsubmit={createCategory}>
+					<div class="space-y-1.5">
+						<Label for="category-code">Code</Label><Input
+							id="category-code"
+							bind:value={categoryCode}
+							required
+							minlength={2}
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="category-label">Label</Label><Input
+							id="category-label"
+							bind:value={categoryLabel}
+							required
+						/>
+					</div>
+					<Button size="sm" type="submit">Add category</Button>
+				</form>
+			{/if}
+			<div class="flex flex-wrap gap-2" data-testid="rule-categories">
+				{#each categories as category (category.id)}
+					<div
+						class="flex items-center gap-2 rounded-control border border-border bg-surface-muted px-2.5 py-1.5 text-xs"
+					>
+						<span class:line-through={!category.active}
+							><strong class="font-mono">{category.code}</strong> · {category.label}</span
+						>
+						{#if canManage}<Button
+								variant="ghost"
+								size="xs"
+								onclick={() => toggleCategory(category)}
+								>{category.active ? 'Deactivate' : 'Activate'}</Button
+							>{/if}
+					</div>
+				{/each}
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Sheet.Root bind:open={showCreate}>
+		<Sheet.Content class="overflow-y-auto sm:max-w-lg">
+			<Sheet.Header
+				><Sheet.Title>New feature</Sheet.Title><Sheet.Description
+					>Add a governed input, derived value, score, or writable rule output.</Sheet.Description
+				></Sheet.Header
+			>
+			<form class="space-y-4 px-4 pb-6" onsubmit={createFeature}>
+				<div class="space-y-1.5">
+					<Label for="feature-path">Path (dotted)</Label><Input
+						id="feature-path"
+						class="font-mono"
 						placeholder="applicant.custom_score"
 						bind:value={form.path}
 						required
-					/></label
-				>
-				<label
-					>Label
-					<input
-						class="mt-1 w-full rounded border-slate-300 text-sm"
+					/>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="feature-label">Label</Label><Input
+						id="feature-label"
 						bind:value={form.label}
 						required
-					/></label
-				>
-				<label
-					>Data type
-					<select class="mt-1 w-full rounded border-slate-300 text-sm" bind:value={form.data_type}>
-						<option>NUMBER</option><option>STRING</option><option>BOOLEAN</option><option
-							>DATE</option
+					/>
+				</div>
+				<div class="grid grid-cols-2 gap-3">
+					<div class="space-y-1.5">
+						<Label for="feature-type">Data type</Label><select
+							id="feature-type"
+							class="block h-9 w-full rounded-control border-border text-sm"
+							bind:value={form.data_type}
+							><option>NUMBER</option><option>STRING</option><option>BOOLEAN</option><option
+								>DATE</option
+							></select
 						>
-					</select></label
-				>
-				<label
-					>Source
-					<select class="mt-1 w-full rounded border-slate-300 text-sm" bind:value={form.source}>
-						<option>PAYLOAD</option><option>DERIVED</option><option>SCORE</option><option
-							>RULE_OUTPUT</option
+					</div>
+					<div class="space-y-1.5">
+						<Label for="feature-source">Source</Label><select
+							id="feature-source"
+							class="block h-9 w-full rounded-control border-border text-sm"
+							bind:value={form.source}
+							><option>PAYLOAD</option><option>DERIVED</option><option>SCORE</option><option
+								>RULE_OUTPUT</option
+							></select
 						>
-					</select></label
-				>
-				<label
-					>Category
-					<input
-						class="mt-1 w-full rounded border-slate-300 text-sm"
+					</div>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="feature-category">Category</Label><Input
+						id="feature-category"
 						bind:value={form.category}
-					/></label
-				>
-				<label class="flex items-center gap-2 self-end pb-2">
-					<input type="checkbox" bind:checked={form.writable} /> Writable output
-				</label>
-				<label class="col-span-2"
-					>Description
-					<input
-						class="mt-1 w-full rounded border-slate-300 text-sm"
+					/>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="feature-description">Description</Label><Textarea
+						id="feature-description"
+						rows={3}
 						bind:value={form.description}
-					/></label
+					/>
+				</div>
+				<label class="flex items-center gap-2 text-sm"
+					><Checkbox bind:checked={form.writable} /> Writable output</label
 				>
-				<div class="col-span-2">
-					<button
-						class="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-						type="submit">Create feature</button
+				{#if actionError}<ErrorNote error={actionError} />{/if}
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" onclick={() => (showCreate = false)}>Cancel</Button><Button
+						type="submit">Create feature</Button
 					>
 				</div>
 			</form>
-			{#if actionError}
-				<div class="mt-3"><ErrorNote error={actionError} /></div>
-			{/if}
-		</Card>
-	</div>
+		</Sheet.Content>
+	</Sheet.Root>
 {/if}
-
-<div class="mb-4 flex items-end gap-3 text-xs font-semibold text-slate-600">
-	<label>
-		Source
-		<select
-			class="mt-1 block rounded border-slate-300 text-sm"
-			bind:value={sourceFilter}
-			onchange={load}
-		>
-			<option value="">All</option>
-			<option value="PAYLOAD">PAYLOAD</option>
-			<option value="DERIVED">DERIVED</option>
-			<option value="SCORE">SCORE</option>
-			<option value="RULE_OUTPUT">RULE_OUTPUT</option>
-		</select>
-	</label>
-	<label class="flex items-center gap-2 pb-2">
-		<input type="checkbox" bind:checked={outputsOnly} onchange={load} /> Outputs only
-	</label>
-</div>
-
-{#if actionError}<div class="mb-4"><ErrorNote error={actionError} /></div>{/if}
-
-{#if error}
-	<ErrorNote {error} />
-{:else if features}
-	<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-		<table class="min-w-full text-sm" data-testid="features-table">
-			<thead class="bg-slate-50 text-left text-xs text-slate-500 uppercase">
-				<tr>
-					<th class="px-3 py-2">Path</th>
-					<th class="px-3 py-2">Label</th>
-					<th class="px-3 py-2">Type</th>
-					<th class="px-3 py-2">Source</th>
-					<th class="px-3 py-2">Category</th>
-					<th class="px-3 py-2">Writable</th>
-					<th class="px-3 py-2">Active</th>
-					{#if canManage}<th class="px-3 py-2"></th>{/if}
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each features as feature (feature.id)}
-					<tr class="hover:bg-slate-50">
-						<td class="px-3 py-2 font-mono text-xs">{feature.path}</td>
-						<td class="px-3 py-2">{feature.label}</td>
-						<td class="px-3 py-2 text-xs">{feature.data_type}</td>
-						<td class="px-3 py-2"><Badge value={feature.source} /></td>
-						<td class="px-3 py-2 text-xs">{feature.category}</td>
-						<td class="px-3 py-2 text-xs">{feature.writable ? 'yes' : 'no'}</td>
-						<td class="px-3 py-2 text-xs">{feature.active ? 'yes' : 'no'}</td>
-						{#if canManage}
-							<td class="px-3 py-2 text-right">
-								<button
-									class="mr-2 text-xs text-blue-700 underline"
-									disabled={feature.source === 'PAYLOAD'}
-									onclick={() => toggleWritable(feature)}
-								>
-									{feature.writable ? 'Make read-only' : 'Make writable'}
-								</button>
-								<button
-									class="text-xs text-blue-700 underline"
-									onclick={() => toggleActive(feature)}
-								>
-									{feature.active ? 'Deactivate' : 'Activate'}
-								</button>
-							</td>
-						{/if}
-					</tr>
-				{:else}
-					<tr><td class="px-3 py-6 text-center text-slate-400" colspan="8">No features</td></tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{:else}
-	<p class="text-sm text-slate-500">Loading…</p>
-{/if}
-
-<div class="mt-6">
-	<Card title="Rule categories">
-		{#if canManage}
-			<form class="mb-3 flex flex-wrap items-end gap-2" onsubmit={createCategory}>
-				<label class="text-xs font-semibold text-slate-600"
-					>Code
-					<input
-						class="mt-1 block rounded border-slate-300 text-sm"
-						bind:value={categoryCode}
-						required
-						minlength="2"
-					/>
-				</label>
-				<label class="text-xs font-semibold text-slate-600"
-					>Label
-					<input
-						class="mt-1 block rounded border-slate-300 text-sm"
-						bind:value={categoryLabel}
-						required
-					/>
-				</label>
-				<button class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
-					>Add category</button
-				>
-			</form>
-		{/if}
-		<div class="flex flex-wrap gap-2" data-testid="rule-categories">
-			{#each categories as category (category.id)}
-				<div class="flex items-center gap-2 rounded border border-slate-200 px-2 py-1 text-xs">
-					<span class:line-through={!category.active}
-						><strong>{category.code}</strong> · {category.label}</span
-					>
-					{#if canManage}<button
-							class="text-blue-700 underline"
-							onclick={() => toggleCategory(category)}
-							>{category.active ? 'Deactivate' : 'Activate'}</button
-						>{/if}
-				</div>
-			{/each}
-		</div>
-	</Card>
-</div>

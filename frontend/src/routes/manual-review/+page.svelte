@@ -1,129 +1,116 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { AlarmClock, Search } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
 	import type { ManualReviewCase, Meta, Page } from '$lib/api/types';
-	import Badge from '$lib/components/Badge.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
-	import { formatDateTime } from '$lib/format';
+	import DataTable, { type Column } from '$lib/ui/DataTable.svelte';
+	import FilterBar from '$lib/ui/FilterBar.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import RelativeTime from '$lib/ui/RelativeTime.svelte';
+	import StatusBadge from '$lib/ui/StatusBadge.svelte';
 
+	type CaseRow = ManualReviewCase & Record<string, unknown>;
 	let result = $state<Page<ManualReviewCase> | null>(null);
 	let meta = $state<Meta | null>(null);
 	let error = $state<unknown>(null);
 	let filters = $state({ status: '', priority: '' });
 	let page = $state(1);
-
-	async function load() {
+	let loading = $state(true);
+	const rows = $derived((result?.items ?? []) as CaseRow[]);
+	async function load(): Promise<void> {
 		error = null;
+		loading = true;
 		try {
 			result = await api<Page<ManualReviewCase>>('/v1/manual-review/cases', {
 				query: { ...filters, page, page_size: 25 }
 			});
 		} catch (err) {
 			error = err;
+		} finally {
+			loading = false;
 		}
 	}
-
 	$effect(() => {
 		load();
 		api<Meta>('/v1/meta')
 			.then((m) => (meta = m))
 			.catch(() => {});
 	});
+	function apply(): void {
+		page = 1;
+		load();
+	}
 </script>
 
-<h1 class="mb-4 text-xl font-bold text-slate-800">Manual Review Queue</h1>
-
-<div class="mb-4 flex items-end gap-3 text-xs font-semibold text-slate-600">
-	<label>
-		Status
-		<select class="mt-1 block rounded border-slate-300 text-sm" bind:value={filters.status}>
-			<option value="">All</option>
-			{#each meta?.case_statuses ?? [] as status (status)}
-				<option value={status}>{status}</option>
-			{/each}
-		</select>
-	</label>
-	<label>
-		Priority
-		<select class="mt-1 block rounded border-slate-300 text-sm" bind:value={filters.priority}>
-			<option value="">All</option>
-			{#each meta?.case_priorities ?? [] as priority (priority)}
-				<option value={priority}>{priority}</option>
-			{/each}
-		</select>
-	</label>
-	<button
-		class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-		onclick={() => {
-			page = 1;
-			load();
-		}}>Filter</button
+{#snippet caseCell(row: CaseRow)}<span class="font-mono text-xs font-medium">{row.case_id}</span
+	>{/snippet}
+{#snippet priorityCell(row: CaseRow)}<StatusBadge
+		value={row.priority === 'CRITICAL' ? 'ESCALATED' : row.priority}
+	/>{/snippet}
+{#snippet statusCell(row: CaseRow)}<StatusBadge value={row.status} />{/snippet}
+{#snippet slaCell(row: CaseRow)}
+	{#if row.sla_breached}<span class="inline-flex items-center gap-1 font-semibold text-danger"
+			><AlarmClock size={14} /> breached</span
+		>{:else if row.sla_due_at}<RelativeTime value={row.sla_due_at} />{:else}—{/if}
+{/snippet}
+{#if true}
+	{@const columns: Column<CaseRow>[] = [
+		{ key: 'case_id', header: 'Case', sortable: true, cell: caseCell },
+		{ key: 'application_id', header: 'Application', sortable: true },
+		{ key: 'priority', header: 'Priority', sortable: true, cell: priorityCell },
+		{ key: 'status', header: 'Status', sortable: true, cell: statusCell },
+		{ key: 'sla_due_at', header: 'SLA deadline', sortable: true, cell: slaCell },
+		{ key: 'assigned_to', header: 'Assigned to', sortable: true }
+	]}
+	<PageHeader title="Manual Review" description="Triage cases by priority, SLA, and assignment." />
+	<FilterBar
+		onReset={() => {
+			filters = { status: '', priority: '' };
+			apply();
+		}}
 	>
-</div>
-
-{#if error}
-	<ErrorNote {error} />
-{:else if result}
-	<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-		<table class="min-w-full text-sm" data-testid="case-table">
-			<thead class="bg-slate-50 text-left text-xs text-slate-500 uppercase">
-				<tr>
-					<th class="px-3 py-2">Case ID</th>
-					<th class="px-3 py-2">Application</th>
-					<th class="px-3 py-2">Product</th>
-					<th class="px-3 py-2">System decision</th>
-					<th class="px-3 py-2">Reasons</th>
-					<th class="px-3 py-2">Priority</th>
-					<th class="px-3 py-2">SLA</th>
-					<th class="px-3 py-2">Assigned to</th>
-					<th class="px-3 py-2">Status</th>
-					<th class="px-3 py-2">Created</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each result.items as item (item.case_id)}
-					<tr class="hover:bg-slate-50">
-						<td class="px-3 py-2">
-							<a
-								class="font-mono text-xs text-blue-700 underline"
-								href="/manual-review/{item.case_id}"
-							>
-								{item.case_id}
-							</a>
-						</td>
-						<td class="px-3 py-2 font-mono text-xs">{item.application_id}</td>
-						<td class="px-3 py-2 text-xs">{item.product_type}</td>
-						<td class="px-3 py-2"><Badge value={item.system_decision} kind="decision" /></td>
-						<td class="px-3 py-2 font-mono text-[11px]">{item.system_reason_codes.join(', ')}</td>
-						<td class="px-3 py-2 text-xs">{item.priority}</td>
-						<td class="px-3 py-2 text-xs">
-							{#if item.sla_breached}
-								<span class="font-semibold text-red-700">breached</span>
-							{:else if item.sla_due_at}
-								<span class="text-slate-500">{formatDateTime(item.sla_due_at)}</span>
-							{:else}—{/if}
-						</td>
-						<td class="px-3 py-2 text-xs">{item.assigned_to ?? '—'}</td>
-						<td class="px-3 py-2"><Badge value={item.status} /></td>
-						<td class="px-3 py-2 text-xs whitespace-nowrap">{formatDateTime(item.created_at)}</td>
-					</tr>
-				{:else}
-					<tr><td class="px-3 py-6 text-center text-slate-400" colspan="10">Queue is empty</td></tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-	<div class="mt-3">
-		<Pagination
-			{page}
-			pageSize={result.page_size}
-			total={result.total}
-			onchange={(next) => {
-				page = next;
-				load();
-			}}
-		/>
-	</div>
-{:else}
-	<p class="text-sm text-slate-500">Loading…</p>
+		<label class="min-w-44 text-xs font-medium text-text-muted"
+			>Status<select
+				class="mt-1 block h-9 w-full rounded-control border-border text-sm"
+				bind:value={filters.status}
+				><option value="">All</option>{#each meta?.case_statuses ?? [] as status (status)}<option
+						value={status}>{status}</option
+					>{/each}</select
+			></label
+		>
+		<label class="min-w-44 text-xs font-medium text-text-muted"
+			>Priority<select
+				class="mt-1 block h-9 w-full rounded-control border-border text-sm"
+				bind:value={filters.priority}
+				><option value="">All</option
+				>{#each meta?.case_priorities ?? [] as priority (priority)}<option value={priority}
+						>{priority}</option
+					>{/each}</select
+			></label
+		>
+		<Button size="sm" onclick={apply}><Search size={15} /> Filter</Button>
+	</FilterBar>
+	{#if error}<ErrorNote {error} />{:else}<DataTable
+			{columns}
+			{rows}
+			{loading}
+			rowKey="case_id"
+			testId="case-table"
+			onRowClick={(row) => goto(`/manual-review/${row.case_id}`)}
+			empty={{ title: 'Queue is empty', hint: 'There are no review cases matching these filters.' }}
+		/>{/if}
+	{#if result && result.total > 0}<div class="mt-3">
+			<Pagination
+				{page}
+				pageSize={result.page_size}
+				total={result.total}
+				onchange={(next) => {
+					page = next;
+					load();
+				}}
+			/>
+		</div>{/if}
 {/if}

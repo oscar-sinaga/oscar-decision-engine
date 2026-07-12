@@ -5,6 +5,8 @@
 	import Card from '$lib/components/Card.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
 	import JsonBlock from '$lib/components/JsonBlock.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	const SAMPLE_PAYLOAD = {
 		application_id: 'APP-SIM-0001',
@@ -84,13 +86,24 @@
 	}
 </script>
 
-<div class="mb-1 flex items-center gap-3">
-	<h1 class="text-xl font-bold text-slate-800">Single Application Simulator</h1>
-	<a class="text-xs text-blue-700 underline" href="/simulations/batch">policy impact (batch) →</a>
+{#snippet actions()}<Button href="/simulations/batch" variant="outline" size="sm"
+		>Batch simulation</Button
+	>{/snippet}
+<PageHeader
+	title="Simulations"
+	description="Run the decision engine without creating production decisions."
+	{actions}
+/>
+<div class="mb-4 inline-flex rounded-control border border-border bg-surface p-1">
+	<a
+		class="rounded-control bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700"
+		href="/simulations">Single</a
+	>
+	<a
+		class="rounded-control px-3 py-1.5 text-xs font-medium text-text-muted hover:bg-surface-sunken"
+		href="/simulations/batch">Batch</a
+	>
 </div>
-<p class="mb-4 text-sm text-slate-500">
-	Runs the decision engine without creating any production decision (mode SIMULATION).
-</p>
 
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
 	<div class="space-y-4">
