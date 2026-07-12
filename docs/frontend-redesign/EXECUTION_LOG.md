@@ -18,3 +18,7 @@
 
 - FR4.5 manual-review workspace — done; evidence/work two-column layout, SLA and escalation chips, system-vs-analyst verdict, inline override guardrail, document checklist, comments timeline, assignment/escalation/document actions, and all existing controls/testids preserved.
 - FR4.6 simulations — done; unified Single/Batch navigation, payload and setup workspaces, target-vs-active outcome cards, shift/segment tables, empty states, and mutation feedback added without changing request contracts or testids. Gates: svelte-check 0/0, Vitest 41/41, Prettier/ESLint clean, production build green; Playwright intentionally deferred.
+
+- FR5.1 audit governance — done; audit rows open a Sheet with correlation metadata, copy feedback, field-level `DiffView`, and raw metadata while retaining filters, pagination, and `audit-table`.
+- FR5.2 approvals/admin — done; Admin now uses Approvals/Users/Roles tabs, maker-checker cards with reason-required approve/reject dialogs, simulation evidence links, role-edit dialog with confirmation, and a permission matrix. Backend contracts are resolved through existing entity-specific lifecycle endpoints; self-approval/API failures surface inline and by toast.
+- FR5.3 governance e2e — added `e2e/governance-ui.e2e.ts` for audit diff drawer and reason-required governance/user-role dialogs, bringing Playwright definitions above ten. Static gates: svelte-check 0/0, Vitest 41/41, Prettier/ESLint clean, production build green; browser execution deferred by contract.

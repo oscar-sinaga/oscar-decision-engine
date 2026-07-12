@@ -7,6 +7,8 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
 	import JsonBlock from '$lib/components/JsonBlock.svelte';
+	import DiffView from '$lib/ui/DiffView.svelte';
+	import { toast } from 'svelte-sonner';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import DataTable, { type Column } from '$lib/ui/DataTable.svelte';
 	import FilterBar from '$lib/ui/FilterBar.svelte';
@@ -51,8 +53,10 @@
 		apply();
 	}
 	async function copyCorrelation(): Promise<void> {
-		if (selected?.correlation_id && navigator.clipboard)
+		if (selected?.correlation_id && navigator.clipboard) {
 			await navigator.clipboard.writeText(selected.correlation_id);
+			toast.success('Correlation ID copied');
+		}
 	}
 </script>
 
@@ -148,12 +152,8 @@
 						<p class="mt-2 text-text-muted">{selected.reason ?? 'No reason recorded.'}</p>
 					</div>
 					<div>
-						<h3 class="mb-1 text-xs font-semibold text-text-muted uppercase">Before</h3>
-						<JsonBlock value={selected.before_value} maxHeight="14rem" />
-					</div>
-					<div>
-						<h3 class="mb-1 text-xs font-semibold text-text-muted uppercase">After</h3>
-						<JsonBlock value={selected.after_value} maxHeight="14rem" />
+						<h3 class="mb-2 text-xs font-semibold text-text-muted uppercase">Field changes</h3>
+						<DiffView before={selected.before_value} after={selected.after_value} />
 					</div>
 					<div>
 						<h3 class="mb-1 text-xs font-semibold text-text-muted uppercase">Metadata</h3>
