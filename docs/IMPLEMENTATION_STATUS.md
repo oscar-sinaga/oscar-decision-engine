@@ -47,7 +47,7 @@
 | FR1 App shell               | Complete | Grouped responsive navigation, topbar, breadcrumbs, account menu, redesigned login, and shell e2e definition; static gates green. |
 | FR2 List pages              | Complete | All list surfaces use PageHeader, FilterBar, DataTable, StatusBadge, skeleton and empty-state patterns; list-pattern e2e definition added. |
 | FR3 Dashboard               | Complete | KPI cards, decision mix, reason codes, volume trend, SLA snapshot, score distribution, and recent decisions implemented with existing APIs. |
-| FR4 Editors & details       | Pending  | Not started.                                                                                                                                                                           |
+| FR4 Editors & details       | In progress | Decision detail/trace and rules authoring screens redesigned; grid, canvas, manual-review, and simulations remain. |
 | FR5 Governance              | Pending  | Not started.                                                                                                                                                                           |
 | FR6 Feedback/a11y/stability | Pending  | Not started.                                                                                                                                                                           |
 
