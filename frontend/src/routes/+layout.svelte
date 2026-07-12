@@ -4,6 +4,8 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/auth.svelte';
+	import { Toaster } from '$lib/components/ui/sonner';
+	import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
 
 	let { children } = $props();
 
@@ -76,3 +78,6 @@
 		</main>
 	</div>
 {/if}
+
+<Toaster />
+<ConfirmDialog />
