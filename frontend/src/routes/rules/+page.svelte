@@ -1,21 +1,41 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { Plus, Search } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
 	import type { Meta, Rule } from '$lib/api/types';
-	import Badge from '$lib/components/Badge.svelte';
-	import ErrorNote from '$lib/components/ErrorNote.svelte';
 	import { auth } from '$lib/auth.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import ErrorNote from '$lib/components/ErrorNote.svelte';
+	import DataTable, { type Column } from '$lib/ui/DataTable.svelte';
+	import FilterBar from '$lib/ui/FilterBar.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import StatusBadge from '$lib/ui/StatusBadge.svelte';
 
+	type RuleRow = Rule & Record<string, unknown>;
 	let rules = $state<Rule[] | null>(null);
 	let meta = $state<Meta | null>(null);
 	let error = $state<unknown>(null);
 	let category = $state('');
+	let search = $state('');
+	let loading = $state(true);
 
-	async function load() {
+	const rows = $derived.by(() => {
+		const query = search.trim().toLowerCase();
+		return (rules ?? []).filter(
+			(rule) => !query || `${rule.rule_code} ${rule.name}`.toLowerCase().includes(query)
+		) as RuleRow[];
+	});
+
+	async function load(): Promise<void> {
 		error = null;
+		loading = true;
 		try {
 			rules = await api<Rule[]>('/v1/rules', { query: { category: category || undefined } });
 		} catch (err) {
 			error = err;
+		} finally {
+			loading = false;
 		}
 	}
 
@@ -27,70 +47,84 @@
 	});
 </script>
 
-<div class="mb-4 flex items-center justify-between">
-	<h1 class="text-xl font-bold text-slate-800">Rules</h1>
-	{#if auth.hasPermission('rule.create')}
-		<a
-			class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-			href="/rules/new">New rule</a
-		>
-	{/if}
-</div>
-
-<div class="mb-4 flex items-end gap-3 text-xs font-semibold text-slate-600">
-	<label>
-		Category
-		<select class="mt-1 block rounded border-slate-300 text-sm" bind:value={category}>
-			<option value="">All</option>
-			{#each meta?.rule_categories ?? [] as item (item)}
-				<option value={item}>{item}</option>
-			{/each}
-		</select>
-	</label>
-	<button
-		class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-		onclick={load}>Filter</button
-	>
-</div>
-
-{#if error}
-	<ErrorNote {error} />
-{:else if rules}
-	<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-		<table class="min-w-full text-sm" data-testid="rules-table">
-			<thead class="bg-slate-50 text-left text-xs text-slate-500 uppercase">
-				<tr>
-					<th class="px-3 py-2">Rule code</th>
-					<th class="px-3 py-2">Name</th>
-					<th class="px-3 py-2">Category</th>
-					<th class="px-3 py-2">Owner</th>
-					<th class="px-3 py-2">Active version</th>
-					<th class="px-3 py-2">Latest</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each rules as rule (rule.id)}
-					<tr class="hover:bg-slate-50">
-						<td class="px-3 py-2">
-							<a class="font-mono text-xs text-blue-700 underline" href="/rules/{rule.id}">
-								{rule.rule_code}
-							</a>
-						</td>
-						<td class="px-3 py-2">{rule.name}</td>
-						<td class="px-3 py-2 text-xs">{rule.category}</td>
-						<td class="px-3 py-2 text-xs">{rule.owner_team}</td>
-						<td class="px-3 py-2">{rule.active_version ? `v${rule.active_version}` : '—'}</td>
-						<td class="px-3 py-2">
-							v{rule.latest_version}
-							<Badge value={rule.latest_status} />
-						</td>
-					</tr>
-				{:else}
-					<tr><td class="px-3 py-6 text-center text-slate-400" colspan="6">No rules</td></tr>
-				{/each}
-			</tbody>
-		</table>
+{#snippet codeCell(row: RuleRow)}<span class="font-mono text-xs font-medium">{row.rule_code}</span
+	>{/snippet}
+{#snippet versionCell(row: RuleRow)}
+	<div class="flex items-center gap-2">
+		<span class="font-mono">v{row.latest_version}</span><StatusBadge value={row.latest_status} />
 	</div>
-{:else}
-	<p class="text-sm text-slate-500">Loading…</p>
+{/snippet}
+
+{#if true}
+	{@const columns: Column<RuleRow>[] = [
+	{ key: 'rule_code', header: 'Code', sortable: true, cell: codeCell },
+	{ key: 'name', header: 'Name', sortable: true },
+	{ key: 'category', header: 'Category', sortable: true },
+	{ key: 'owner_team', header: 'Owner' },
+	{ key: 'active_version', header: 'Active version', align: 'right' },
+	{ key: 'latest_version', header: 'Latest', cell: versionCell }
+]}
+
+	{#snippet actions()}
+		{#if auth.hasPermission('rule.create')}
+			<Button href="/rules/new" size="sm"><Plus size={15} /> New rule</Button>
+		{/if}
+	{/snippet}
+
+	<PageHeader
+		title="Rules"
+		description="Author reusable policy, classification, statement, and expression rules."
+		{actions}
+	/>
+
+	<FilterBar
+		onReset={() => {
+			category = '';
+			search = '';
+			load();
+		}}
+	>
+		<label class="min-w-56 text-xs font-medium text-text-muted">
+			Search
+			<div class="relative mt-1">
+				<Search class="absolute top-2.5 left-2.5 text-text-faint" size={14} /><Input
+					class="pl-8"
+					bind:value={search}
+					placeholder="Code or name"
+				/>
+			</div>
+		</label>
+		<label class="min-w-44 text-xs font-medium text-text-muted">
+			Category
+			<select
+				class="mt-1 block h-9 w-full rounded-control border-border text-sm"
+				bind:value={category}
+				onchange={load}
+			>
+				<option value="">All</option>
+				{#each meta?.rule_categories ?? [] as item (item.code)}<option value={item.code}
+						>{item.label}</option
+					>{/each}
+			</select>
+		</label>
+	</FilterBar>
+
+	{#if error}
+		<ErrorNote {error} />
+	{:else}
+		<DataTable
+			{columns}
+			{rows}
+			{loading}
+			rowKey="id"
+			testId="rules-table"
+			onRowClick={(row) => goto(`/rules/${row.id}`)}
+			empty={{
+				title: 'No rules found',
+				hint: 'Adjust the filters or create a new governed rule.',
+				actionLabel: auth.hasPermission('rule.create') ? 'New rule' : undefined,
+				onAction: auth.hasPermission('rule.create') ? () => goto('/rules/new') : undefined
+			}}
+		/>
+	{/if}
 {/if}

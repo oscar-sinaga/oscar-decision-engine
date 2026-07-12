@@ -7,3 +7,4 @@
 - FR1.1 shell components — done; grouped responsive sidebar, persisted collapse state, route/entity breadcrumbs, DEMO badge, and account menu added while preserving all navigation labels and `data-testid="main-nav"`.
 - FR1.2 login redesign — done; labels and `Sign in` contract preserved, with accessible card layout and collapsible demo-account hint.
 - FR1.3 shell e2e — written as `e2e/shell.e2e.ts`; browser execution intentionally deferred per `CONTEXT_FOR_CHATGPT.md`.
+- FR2.A core list pages — done; decisions, rules, decision tables, and strategies now use PageHeader/FilterBar/DataTable/StatusBadge/EmptyState patterns with preserved routes, query behavior, row targets, pagination, and existing table testids. Gates: svelte-check 0/0, Vitest 41/41, Prettier/ESLint clean, production build green; Playwright deferred by environment contract.

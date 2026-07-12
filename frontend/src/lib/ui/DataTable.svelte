@@ -32,7 +32,8 @@
 		empty,
 		onRowClick,
 		rowKey,
-		class: className = ''
+		class: className = '',
+		testId
 	}: {
 		columns: Column<T>[];
 		rows: T[];
@@ -41,6 +42,7 @@
 		onRowClick?: (row: T) => void;
 		rowKey: keyof T & string;
 		class?: string;
+		testId?: string;
 	} = $props();
 
 	const skeletonRows = Array.from({ length: 8 }, (_, index) => index);
@@ -63,7 +65,7 @@
 	class={cn('overflow-hidden rounded-card border border-border bg-surface shadow-card', className)}
 >
 	<div class="max-w-full overflow-auto">
-		<table class="w-full border-collapse text-[12.5px]">
+		<table class="w-full border-collapse text-[12.5px]" data-testid={testId}>
 			<thead class="sticky top-0 z-10 bg-surface-sunken">
 				<tr>
 					{#each columns as column (column.key)}

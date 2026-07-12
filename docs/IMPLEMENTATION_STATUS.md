@@ -45,7 +45,7 @@
 | --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FR0 Foundation              | Complete | Official shadcn-svelte registry primitives vendored; OSCAR tokens/fonts and app component kit implemented; Svelte check 0/0, 41 Vitest, Prettier/ESLint clean, production build green. |
 | FR1 App shell               | Complete | Grouped responsive navigation, topbar, breadcrumbs, account menu, redesigned login, and shell e2e definition; static gates green. |
-| FR2 List pages              | Pending  | Not started.                                                                                                                                                                           |
+| FR2 List pages              | In progress | Core list pages (decisions, rules, decision tables, strategies) converted to the shared data-table pattern; remaining list routes pending FR2.B. |
 | FR3 Dashboard               | Pending  | Not started.                                                                                                                                                                           |
 | FR4 Editors & details       | Pending  | Not started.                                                                                                                                                                           |
 | FR5 Governance              | Pending  | Not started.                                                                                                                                                                           |

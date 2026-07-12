@@ -1,34 +1,53 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { Plus } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
 	import type { ConfigEntity } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
-	import Badge from '$lib/components/Badge.svelte';
-	import Card from '$lib/components/Card.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
+	import DataTable, { type Column } from '$lib/ui/DataTable.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import StatusBadge from '$lib/ui/StatusBadge.svelte';
 
+	type TableRow = ConfigEntity &
+		Record<string, unknown> & { hit_policy: string; row_count: number };
 	let tables = $state<ConfigEntity[] | null>(null);
 	let error = $state<unknown>(null);
 	let creating = $state(false);
 	let submitting = $state(false);
+	let loading = $state(true);
 	let code = $state('');
 	let name = $state('');
 	let description = $state('');
 
-	async function load() {
+	const rows = $derived(
+		(tables ?? []).map((table) => ({
+			...table,
+			hit_policy: String(table.versions.at(-1)?.config.hit_policy ?? 'FIRST_MATCH'),
+			row_count: Array.isArray(table.versions.at(-1)?.config.rows)
+				? (table.versions.at(-1)?.config.rows as unknown[]).length
+				: 0
+		})) as TableRow[]
+	);
+
+	async function load(): Promise<void> {
 		error = null;
+		loading = true;
 		try {
 			tables = await api<ConfigEntity[]>('/v1/decision-tables');
 		} catch (err) {
 			error = err;
+		} finally {
+			loading = false;
 		}
 	}
 
-	function latestRowCount(table: ConfigEntity): number {
-		const rows = table.versions.at(-1)?.config.rows;
-		return Array.isArray(rows) ? rows.length : 0;
-	}
-
-	async function createTable() {
+	async function createTable(): Promise<void> {
 		submitting = true;
 		error = null;
 		try {
@@ -45,7 +64,7 @@
 					version_note: 'Initial grid draft'
 				}
 			});
-			window.location.href = `/decision-tables/${created.id}`;
+			goto(`/decision-tables/${created.id}`);
 		} catch (err) {
 			error = err;
 		} finally {
@@ -58,107 +77,89 @@
 	});
 </script>
 
-<div class="mb-4 flex items-center justify-between">
-	<div>
-		<h1 class="text-xl font-bold text-slate-800">Decision Tables</h1>
-		<p class="text-sm text-slate-500">Author ordered policy matrices without editing JSON.</p>
-	</div>
-	{#if auth.hasPermission('rule.create')}
-		<button
-			class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-			onclick={() => (creating = !creating)}
-		>
-			{creating ? 'Close' : 'New decision table'}
-		</button>
-	{/if}
-</div>
+{#snippet codeCell(row: TableRow)}<span class="font-mono text-xs font-medium">{row.code}</span
+	>{/snippet}
+{#snippet statusCell(row: TableRow)}<div class="flex items-center gap-2">
+		<span class="font-mono">v{row.latest_version}</span><StatusBadge value={row.latest_status} />
+	</div>{/snippet}
+{#if true}
+	{@const columns: Column<TableRow>[] = [
+	{ key: 'code', header: 'Code', sortable: true, cell: codeCell },
+	{ key: 'name', header: 'Name', sortable: true },
+	{ key: 'hit_policy', header: 'Hit policy' },
+	{ key: 'active_version', header: 'Active version', align: 'right' },
+	{ key: 'latest_version', header: 'Latest', cell: statusCell },
+	{ key: 'row_count', header: 'Rows', align: 'right' }
+]}
 
-{#if error}<div class="mb-4"><ErrorNote {error} /></div>{/if}
+	{#snippet actions()}
+		{#if auth.hasPermission('rule.create')}
+			<Button size="sm" onclick={() => (creating = !creating)}><Plus size={15} /> New table</Button>
+		{/if}
+	{/snippet}
+	<PageHeader
+		title="Decision Tables"
+		description="Author typed policy matrices without editing JSON."
+		{actions}
+	/>
 
-{#if creating}
-	<div class="mb-4">
-		<Card title="Create decision table">
-			<form
-				class="grid gap-3 md:grid-cols-2"
-				onsubmit={(event) => {
-					event.preventDefault();
-					createTable();
-				}}
+	{#if error}<div class="mb-4"><ErrorNote {error} /></div>{/if}
+
+	{#if creating}
+		<Card.Root class="mb-4">
+			<Card.Header
+				><Card.Title>Create decision table</Card.Title><Card.Description
+					>Start with a governed FIRST_MATCH draft.</Card.Description
+				></Card.Header
 			>
-				<label class="text-xs font-semibold text-slate-600">
-					Code
-					<input
-						class="mt-1 block w-full rounded border-slate-300 text-sm"
-						bind:value={code}
-						required
-						minlength="3"
-					/>
-				</label>
-				<label class="text-xs font-semibold text-slate-600">
-					Name
-					<input
-						class="mt-1 block w-full rounded border-slate-300 text-sm"
-						bind:value={name}
-						required
-					/>
-				</label>
-				<label class="text-xs font-semibold text-slate-600 md:col-span-2">
-					Description
-					<textarea
-						class="mt-1 block w-full rounded border-slate-300 text-sm"
-						rows="2"
-						bind:value={description}></textarea>
-				</label>
-				<div class="md:col-span-2">
-					<button
-						class="rounded bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-						disabled={submitting}
-					>
-						{submitting ? 'Creating…' : 'Create and open grid'}
-					</button>
-				</div>
-			</form>
-		</Card>
-	</div>
-{/if}
+			<Card.Content>
+				<form
+					class="grid gap-3 md:grid-cols-2"
+					onsubmit={(event) => {
+						event.preventDefault();
+						createTable();
+					}}
+				>
+					<div class="space-y-1.5">
+						<Label for="table-code">Code</Label><Input
+							id="table-code"
+							bind:value={code}
+							required
+							minlength={3}
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="table-name">Name</Label><Input id="table-name" bind:value={name} required />
+					</div>
+					<div class="space-y-1.5 md:col-span-2">
+						<Label for="table-description">Description</Label><Textarea
+							id="table-description"
+							rows={2}
+							bind:value={description}
+						/>
+					</div>
+					<div class="flex gap-2 md:col-span-2">
+						<Button type="submit" disabled={submitting}
+							>{submitting ? 'Creating…' : 'Create and open grid'}</Button
+						><Button variant="outline" onclick={() => (creating = false)}>Cancel</Button>
+					</div>
+				</form>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
-{#if tables}
-	<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-		<table class="min-w-full text-sm" data-testid="decision-tables-table">
-			<thead class="bg-slate-50 text-left text-xs text-slate-500 uppercase">
-				<tr>
-					<th class="px-3 py-2">Code</th>
-					<th class="px-3 py-2">Name</th>
-					<th class="px-3 py-2">Active version</th>
-					<th class="px-3 py-2">Latest</th>
-					<th class="px-3 py-2">Rows</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each tables as table (table.id)}
-					<tr class="hover:bg-slate-50">
-						<td class="px-3 py-2">
-							<a
-								class="font-mono text-xs text-blue-700 underline"
-								href="/decision-tables/{table.id}">{table.code}</a
-							>
-						</td>
-						<td class="px-3 py-2">{table.name}</td>
-						<td class="px-3 py-2">{table.active_version ? `v${table.active_version}` : '—'}</td>
-						<td class="px-3 py-2">v{table.latest_version} <Badge value={table.latest_status} /></td>
-						<td class="px-3 py-2 text-xs text-slate-500">
-							{latestRowCount(table)}
-						</td>
-					</tr>
-				{:else}
-					<tr
-						><td class="px-3 py-6 text-center text-slate-400" colspan="5">No decision tables</td
-						></tr
-					>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{:else if !error}
-	<p class="text-sm text-slate-500">Loading…</p>
+	<DataTable
+		{columns}
+		{rows}
+		{loading}
+		rowKey="id"
+		testId="decision-tables-table"
+		onRowClick={(row) => goto(`/decision-tables/${row.id}`)}
+		empty={{
+			title: 'No decision tables',
+			hint: 'Create a table to translate rule outputs into final decisions.',
+			actionLabel: auth.hasPermission('rule.create') ? 'New table' : undefined,
+			onAction: auth.hasPermission('rule.create') ? () => (creating = true) : undefined
+		}}
+	/>
 {/if}
