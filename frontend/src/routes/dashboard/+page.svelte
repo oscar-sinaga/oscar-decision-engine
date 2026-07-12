@@ -219,9 +219,9 @@
 					</div>{:else if summary?.top_reason_codes.length}
 					<ul class="space-y-3">
 						{#each summary.top_reason_codes.slice(0, 5) as item (item.code)}<li>
-								<div class="mb-1 flex justify-between text-xs">
-									<span class="font-mono">{item.code}</span><span class="font-semibold tabular-nums"
-										>{item.count}</span
+								<div class="mb-1 flex justify-between gap-2 text-xs">
+									<span class="min-w-0 font-mono break-all">{item.code}</span><span
+										class="shrink-0 font-semibold tabular-nums">{item.count}</span
 									>
 								</div>
 								<div class="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
@@ -248,7 +248,8 @@
 				{#if trendError}<ErrorNote error={trendError} />{:else if loadingTrend}<Skeleton
 						class="h-40 w-full"
 					/>{:else if trend?.buckets.length}
-					<div class="flex h-40 items-end gap-2" data-testid="trend-chart">
+					<!-- Columns must stretch to the fixed height so the bars' percentage heights resolve. -->
+					<div class="flex h-40 items-stretch gap-2" data-testid="trend-chart">
 						{#each trend.buckets as bucket (bucket.date)}<div
 								class="flex min-w-0 flex-1 flex-col items-center justify-end"
 							>
@@ -322,7 +323,8 @@
 					</div>{:else}<p class="text-sm text-text-muted">No score grades available.</p>{/if}
 			</Card.Content>
 		</Card.Root>
-		<div class="xl:col-span-2">
+		<!-- min-w-0 stops the table's intrinsic width from widening the grid column. -->
+		<div class="min-w-0 xl:col-span-2">
 			<div class="mb-2 flex items-center justify-between">
 				<h2 class="text-sm font-semibold">Recent decisions</h2>
 				<Button variant="ghost" size="sm" href="/decisions"
