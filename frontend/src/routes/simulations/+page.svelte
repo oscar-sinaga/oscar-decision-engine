@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { api, ApiError } from '$lib/api/client';
 	import type { SimulationResponse, Strategy, StrategyVersion } from '$lib/api/types';
-	import Badge from '$lib/components/Badge.svelte';
-	import Card from '$lib/components/Card.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
 	import JsonBlock from '$lib/components/JsonBlock.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import StatusBadge from '$lib/ui/StatusBadge.svelte';
+	import EmptyState from '$lib/ui/EmptyState.svelte';
+	import { toast } from 'svelte-sonner';
+	import { Button } from '$lib/components/ui/button';
 
 	const SAMPLE_PAYLOAD = {
 		application_id: 'APP-SIM-0001',
@@ -76,128 +79,162 @@
 					compare_with_active: compare
 				}
 			});
+			toast.success('Simulation completed');
 		} catch (err) {
 			error = err instanceof ApiError ? err : new Error('Invalid JSON payload');
+			toast.error(err instanceof ApiError ? err.message : 'Simulation failed');
 		} finally {
 			running = false;
 		}
 	}
 </script>
 
-<div class="mb-1 flex items-center gap-3">
-	<h1 class="text-xl font-bold text-slate-800">Single Application Simulator</h1>
-	<a class="text-xs text-blue-700 underline" href="/simulations/batch">policy impact (batch) →</a>
-</div>
-<p class="mb-4 text-sm text-slate-500">
-	Runs the decision engine without creating any production decision (mode SIMULATION).
-</p>
+{#snippet actions()}<Button href="/simulations/batch" variant="outline" size="sm"
+		>Batch simulation</Button
+	>{/snippet}
+<PageHeader
+	title="Simulations"
+	description="Run the decision engine without creating production decisions."
+	{actions}
+/>
+<nav
+	class="mb-4 inline-flex rounded-control border border-border bg-surface p-1"
+	aria-label="Simulation type"
+>
+	<a
+		class="rounded-control bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700"
+		href="/simulations">Single</a
+	><a
+		class="rounded-control px-3 py-1.5 text-xs font-medium text-text-muted hover:bg-surface-sunken"
+		href="/simulations/batch">Batch</a
+	>
+</nav>
 
-<div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+<div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
 	<div class="space-y-4">
-		<Card title="Application payload">
+		<section class="rounded-card border border-border bg-surface p-4 shadow-card">
+			<div class="mb-2 flex items-center justify-between">
+				<h2 class="text-sm font-semibold text-text">Application payload</h2>
+				<span class="font-mono text-[10px] text-text-faint">JSON</span>
+			</div>
 			<textarea
-				class="h-96 w-full rounded border-slate-300 font-mono text-xs"
+				class="h-[30rem] w-full rounded-control border border-border bg-surface-sunken p-3 font-mono text-xs text-text focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
 				bind:value={payloadText}
 				data-testid="sim-payload"></textarea>
-		</Card>
-
-		<Card title="Run configuration">
-			<div class="space-y-3 text-xs font-semibold text-slate-600">
-				<label class="block">
-					Simulation name
-					<input class="mt-1 w-full rounded border-slate-300 text-sm" bind:value={simulationName} />
-				</label>
-				<label class="block">
-					Strategy version (empty = active strategy)
-					<select
-						class="mt-1 w-full rounded border-slate-300 text-sm"
+			<p class="mt-2 text-[11px] text-text-muted">
+				Payload is validated by the same engine schema used by production decisions.
+			</p>
+		</section>
+		<section class="rounded-card border border-border bg-surface p-4 shadow-card">
+			<h2 class="mb-3 text-sm font-semibold text-text">Run configuration</h2>
+			<div class="space-y-3">
+				<label class="block text-xs font-medium text-text-muted"
+					>Simulation name<input
+						class="mt-1 h-9 w-full rounded-control border border-border bg-surface px-3 text-sm text-text"
+						bind:value={simulationName}
+					/></label
+				><label class="block text-xs font-medium text-text-muted"
+					>Strategy version<select
+						class="mt-1 h-9 w-full rounded-control border border-border bg-surface px-3 text-sm text-text"
 						bind:value={strategyVersionId}
-					>
-						<option value="">Active strategy for payload product/segment</option>
-						{#each versions as version (version.id)}
-							<option value={version.id}>{version.label}</option>
-						{/each}
-					</select>
-				</label>
-				<label class="flex items-center gap-2">
-					<input type="checkbox" class="rounded border-slate-300" bind:checked={compare} />
-					Compare with active strategy
-				</label>
-				<button
-					class="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+						><option value="">Active strategy for payload product/segment</option
+						>{#each versions as version (version.id)}<option value={version.id}
+								>{version.label}</option
+							>{/each}</select
+					></label
+				><label class="flex items-center gap-2 text-xs font-medium text-text-muted"
+					><input type="checkbox" bind:checked={compare} />Compare with active strategy</label
+				><button
+					class="rounded-control bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
 					onclick={run}
 					disabled={running}
-					data-testid="run-simulation"
+					data-testid="run-simulation">{running ? 'Running…' : 'Run simulation'}</button
 				>
-					{running ? 'Running…' : 'Run simulation'}
-				</button>
 			</div>
-			{#if error}
-				<div class="mt-3"><ErrorNote {error} /></div>
-			{/if}
-		</Card>
+			{#if error}<div class="mt-3"><ErrorNote {error} /></div>{/if}
+		</section>
 	</div>
-
 	<div class="space-y-4">
 		{#if result}
-			<Card title="Result — {result.simulation_id}">
-				{#snippet actions()}<Badge value={result?.mode ?? 'SIMULATION'} />{/snippet}
-				<div class="grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="sim-result">
-					<div class="rounded border border-slate-200 p-3">
-						<h3 class="mb-1 text-xs font-semibold text-slate-500 uppercase">
-							Target ({result.draft_result.strategy_version})
-						</h3>
-						<Badge value={result.draft_result.decision} kind="decision" />
-						<p class="mt-2 font-mono text-[11px] text-slate-500">
-							{result.draft_result.reason_codes.join(', ') || 'no reason codes'}
-						</p>
+			<section
+				class="rounded-card border border-border bg-surface p-5 shadow-card"
+				data-testid="sim-result"
+			>
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<p class="font-mono text-[11px] text-text-muted">{result.simulation_id}</p>
+						<h2 class="mt-1 text-sm font-semibold text-text">Simulation outcome</h2>
 					</div>
-					{#if result.active_result}
-						<div class="rounded border border-slate-200 p-3">
-							<h3 class="mb-1 text-xs font-semibold text-slate-500 uppercase">
-								Active ({result.active_result.strategy_version})
-							</h3>
-							<Badge value={result.active_result.decision} kind="decision" />
-							<p class="mt-2 font-mono text-[11px] text-slate-500">
-								{result.active_result.reason_codes.join(', ') || 'no reason codes'}
-							</p>
-						</div>
-					{/if}
+					<StatusBadge value={result.mode} />
 				</div>
-
-				{#if result.differences.length > 0}
-					<h3 class="mt-4 mb-1 text-xs font-semibold text-slate-500 uppercase">Differences</h3>
-					<table class="w-full text-xs">
-						<thead class="text-left text-slate-400">
-							<tr
-								><th class="py-1">Field</th><th class="py-1">Active</th><th class="py-1">Draft</th
-								></tr
+				<div class="mt-5 grid gap-3 md:grid-cols-2">
+					<article class="rounded-card border border-primary-500/20 bg-primary-50/50 p-4">
+						<p class="text-xs font-semibold uppercase tracking-wide text-text-muted">
+							Target · {result.draft_result.strategy_version}
+						</p>
+						<div class="mt-3">
+							<StatusBadge value={result.draft_result.decision} />
+						</div>
+						<div class="mt-3 flex flex-wrap gap-1">
+							{#each result.draft_result.reason_codes as code (code)}<span
+									class="rounded-control bg-surface px-2 py-1 font-mono text-[10px] text-text"
+									>{code}</span
+								>{:else}<span class="text-xs text-text-muted">No reason codes.</span>{/each}
+						</div>
+					</article>
+					{#if result.active_result}<article
+							class="rounded-card border border-border bg-surface-muted p-4"
+						>
+							<p class="text-xs font-semibold uppercase tracking-wide text-text-muted">
+								Active · {result.active_result.strategy_version}
+							</p>
+							<div class="mt-3">
+								<StatusBadge value={result.active_result.decision} />
+							</div>
+							<div class="mt-3 flex flex-wrap gap-1">
+								{#each result.active_result.reason_codes as code (code)}<span
+										class="rounded-control bg-surface px-2 py-1 font-mono text-[10px] text-text"
+										>{code}</span
+									>{:else}<span class="text-xs text-text-muted">No reason codes.</span>{/each}
+							</div>
+						</article>{/if}
+				</div>
+				{#if result.differences.length}<div
+						class="mt-5 overflow-hidden rounded-card border border-border"
+					>
+						<table class="w-full text-xs">
+							<thead class="bg-surface-sunken text-left text-text-muted"
+								><tr
+									><th scope="col" class="px-3 py-2">Field</th><th scope="col" class="px-3 py-2"
+										>Active</th
+									><th scope="col" class="px-3 py-2">Target</th></tr
+								></thead
+							><tbody
+								>{#each result.differences as diff (diff.field)}<tr class="border-t border-border"
+										><td class="px-3 py-2 font-semibold text-text">{diff.field}</td><td
+											class="px-3 py-2 font-mono text-[11px] text-text-muted"
+											>{JSON.stringify(diff.active)}</td
+										><td class="px-3 py-2 font-mono text-[11px] text-text"
+											>{JSON.stringify(diff.draft)}</td
+										></tr
+									>{/each}</tbody
 							>
-						</thead>
-						<tbody>
-							{#each result.differences as diff (diff.field)}
-								<tr class="border-t border-slate-100">
-									<td class="py-1 font-semibold">{diff.field}</td>
-									<td class="py-1 font-mono">{JSON.stringify(diff.active)}</td>
-									<td class="py-1 font-mono">{JSON.stringify(diff.draft)}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				{:else if result.active_result}
-					<p class="mt-3 text-xs text-slate-500">
+						</table>
+					</div>{:else if result.active_result}<p
+						class="mt-4 rounded-control bg-success-bg p-3 text-xs text-success"
+					>
 						No differences between active and target version.
-					</p>
-				{/if}
-			</Card>
-
-			<Card title="Full outcome">
+					</p>{/if}
+			</section>
+			<section class="rounded-card border border-border bg-surface p-4 shadow-card">
+				<h2 class="mb-3 text-sm font-semibold text-text">Full outcome</h2>
 				<JsonBlock value={result} maxHeight="24rem" />
-			</Card>
-		{:else}
-			<Card title="Result">
-				<p class="text-sm text-slate-500">Run a simulation to see the outcome and rule hits.</p>
-			</Card>
-		{/if}
+			</section>
+		{:else}<section class="rounded-card border border-border bg-surface p-8 shadow-card">
+				<EmptyState
+					title="No simulation result"
+					hint="Configure the payload and run a simulation to inspect the outcome."
+				/>
+			</section>{/if}
 	</div>
 </div>

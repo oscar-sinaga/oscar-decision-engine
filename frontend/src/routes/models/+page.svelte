@@ -1,15 +1,27 @@
 <script lang="ts">
-	import { api } from '$lib/api/client';
+	import { Plus } from '@lucide/svelte';
+	import { api, ApiError } from '$lib/api/client';
 	import type { RegisteredModel } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
-	import Card from '$lib/components/Card.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
-	import { formatDateTime } from '$lib/format';
+	import DataTable, { type Column } from '$lib/ui/DataTable.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import RelativeTime from '$lib/ui/RelativeTime.svelte';
+	import StatusBadge from '$lib/ui/StatusBadge.svelte';
+	import { confirmAction } from '$lib/ui/confirm';
+	import { toast } from 'svelte-sonner';
 
+	type ModelRow = RegisteredModel &
+		Record<string, unknown> & { status: string; actions: string; owner: string };
 	let models = $state<RegisteredModel[] | null>(null);
 	let error = $state<unknown>(null);
 	let actionError = $state<unknown>(null);
 	let showCreate = $state(false);
+	let loading = $state(true);
 	let form = $state({
 		code: '',
 		version_label: '',
@@ -17,21 +29,30 @@
 		provider: 'INTERNAL',
 		description: ''
 	});
-
-	async function load() {
+	const canManage = $derived(auth.hasPermission('model.manage'));
+	const rows = $derived(
+		(models ?? []).map((model) => ({
+			...model,
+			status: model.active ? 'ACTIVE' : 'RETIRED',
+			actions: '',
+			owner: model.provider
+		})) as ModelRow[]
+	);
+	async function load(): Promise<void> {
 		error = null;
+		loading = true;
 		try {
 			models = await api<RegisteredModel[]>('/v1/models');
 		} catch (err) {
 			error = err;
+		} finally {
+			loading = false;
 		}
 	}
-
 	$effect(() => {
 		load();
 	});
-
-	async function create(event: SubmitEvent) {
+	async function create(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 		actionError = null;
 		try {
@@ -39,141 +60,123 @@
 			showCreate = false;
 			form = { code: '', version_label: '', name: '', provider: 'INTERNAL', description: '' };
 			await load();
+			toast.success('Model version registered');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not register model version');
 		}
 	}
-
-	async function toggle(model: RegisteredModel) {
+	async function toggle(model: RegisteredModel): Promise<void> {
+		const confirmation = await confirmAction({
+			title: model.active ? 'Retire model version?' : 'Reactivate model version?',
+			body: `${model.code} ${model.version_label}`,
+			confirmLabel: model.active ? 'Retire' : 'Reactivate',
+			tone: model.active ? 'danger' : 'default',
+			requireReason: true
+		});
+		if (!confirmation.ok) return;
 		actionError = null;
 		try {
 			await api(`/v1/models/${model.id}`, { method: 'PATCH', body: { active: !model.active } });
 			await load();
+			toast.success(model.active ? 'Model version retired' : 'Model version reactivated');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not update model status');
 		}
 	}
-
-	const canManage = $derived(auth.hasPermission('model.manage'));
 </script>
 
-<div class="mb-4 flex items-center justify-between">
-	<div>
-		<h1 class="text-xl font-bold text-slate-800">Model Registry</h1>
-		<p class="text-sm text-slate-500">
-			Scoring-model versions consumed by scorecards (documentation and lifecycle only).
-		</p>
-	</div>
-	{#if canManage}
-		<button
-			class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-			onclick={() => (showCreate = !showCreate)}
+{#snippet nameCell(row: ModelRow)}<div>
+		<div class="font-mono text-xs font-medium">{row.code}</div>
+		<div class="text-[11px] text-text-muted">{row.name}</div>
+	</div>{/snippet}
+{#snippet statusCell(row: ModelRow)}<StatusBadge value={row.status} />{/snippet}
+{#snippet dateCell(row: ModelRow)}{#if row.created_at}<RelativeTime
+			value={row.created_at}
+		/>{:else}—{/if}{/snippet}
+{#snippet actionsCell(row: ModelRow)}{#if canManage}<Button
+			variant="ghost"
+			size="xs"
+			onclick={() => toggle(row)}>{row.active ? 'Retire' : 'Reactivate'}</Button
+		>{/if}{/snippet}
+{#if true}
+	{@const columns: Column<ModelRow>[] = [
+		{ key: 'code', header: 'Name', sortable: true, cell: nameCell },
+		{ key: 'version_label', header: 'Version', sortable: true },
+		{ key: 'status', header: 'Status', cell: statusCell },
+		{ key: 'owner', header: 'Owner', sortable: true },
+		{ key: 'created_at', header: 'Registered', sortable: true, cell: dateCell },
+		{ key: 'actions', header: '', align: 'right', cell: actionsCell }
+	]}
+	{#snippet actions()}{#if canManage}<Button size="sm" onclick={() => (showCreate = !showCreate)}
+				><Plus size={15} /> Register model</Button
+			>{/if}{/snippet}
+	<PageHeader
+		title="Model Registry"
+		description="Scoring-model versions referenced by governed scorecards."
+		{actions}
+	/>
+	{#if showCreate}
+		<Card.Root class="mb-4"
+			><Card.Header><Card.Title>Register model version</Card.Title></Card.Header><Card.Content>
+				<form class="grid gap-3 md:grid-cols-2" onsubmit={create}>
+					<div class="space-y-1.5">
+						<Label for="model-code">Code</Label><Input
+							id="model-code"
+							class="font-mono"
+							placeholder="MOTOR_SCORE"
+							bind:value={form.code}
+							required
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="model-version">Version label</Label><Input
+							id="model-version"
+							placeholder="V2"
+							bind:value={form.version_label}
+							required
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="model-name">Name</Label><Input
+							id="model-name"
+							bind:value={form.name}
+							required
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="model-provider">Provider</Label><Input
+							id="model-provider"
+							bind:value={form.provider}
+						/>
+					</div>
+					<div class="space-y-1.5 md:col-span-2">
+						<Label for="model-description">Description</Label><Input
+							id="model-description"
+							bind:value={form.description}
+						/>
+					</div>
+					<div class="md:col-span-2 flex gap-2">
+						<Button type="submit">Register</Button><Button
+							variant="outline"
+							onclick={() => (showCreate = false)}>Cancel</Button
+						>
+					</div>
+				</form>
+				{#if actionError}<div class="mt-3"><ErrorNote error={actionError} /></div>{/if}
+			</Card.Content></Card.Root
 		>
-			{showCreate ? 'Cancel' : 'Register model'}
-		</button>
 	{/if}
-</div>
-
-{#if showCreate}
-	<div class="mb-4">
-		<Card title="Register model version">
-			<form class="grid grid-cols-2 gap-3 text-xs font-semibold text-slate-600" onsubmit={create}>
-				<label
-					>Code
-					<input
-						class="mt-1 w-full rounded border-slate-300 font-mono text-sm"
-						placeholder="MOTOR_SCORE"
-						bind:value={form.code}
-						required
-					/></label
-				>
-				<label
-					>Version label
-					<input
-						class="mt-1 w-full rounded border-slate-300 text-sm"
-						placeholder="V2"
-						bind:value={form.version_label}
-						required
-					/></label
-				>
-				<label
-					>Name
-					<input
-						class="mt-1 w-full rounded border-slate-300 text-sm"
-						bind:value={form.name}
-						required
-					/></label
-				>
-				<label
-					>Provider
-					<input
-						class="mt-1 w-full rounded border-slate-300 text-sm"
-						bind:value={form.provider}
-					/></label
-				>
-				<label class="col-span-2"
-					>Description
-					<input
-						class="mt-1 w-full rounded border-slate-300 text-sm"
-						bind:value={form.description}
-					/></label
-				>
-				<div class="col-span-2">
-					<button
-						class="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-						type="submit">Register</button
-					>
-				</div>
-			</form>
-			{#if actionError}
-				<div class="mt-3"><ErrorNote error={actionError} /></div>
-			{/if}
-		</Card>
-	</div>
-{/if}
-
-{#if error}
-	<ErrorNote {error} />
-{:else if models}
-	<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-		<table class="min-w-full text-sm" data-testid="models-table">
-			<thead class="bg-slate-50 text-left text-xs text-slate-500 uppercase">
-				<tr>
-					<th class="px-3 py-2">Code</th>
-					<th class="px-3 py-2">Version</th>
-					<th class="px-3 py-2">Name</th>
-					<th class="px-3 py-2">Provider</th>
-					<th class="px-3 py-2">Active</th>
-					<th class="px-3 py-2">Registered</th>
-					{#if canManage}<th class="px-3 py-2"></th>{/if}
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-100">
-				{#each models as model (model.id)}
-					<tr class="hover:bg-slate-50">
-						<td class="px-3 py-2 font-mono text-xs">{model.code}</td>
-						<td class="px-3 py-2 text-xs">{model.version_label}</td>
-						<td class="px-3 py-2">{model.name}</td>
-						<td class="px-3 py-2 text-xs">{model.provider}</td>
-						<td class="px-3 py-2 text-xs">{model.active ? 'yes' : 'no'}</td>
-						<td class="px-3 py-2 text-xs whitespace-nowrap">{formatDateTime(model.created_at)}</td>
-						{#if canManage}
-							<td class="px-3 py-2 text-right">
-								<button class="text-xs text-blue-700 underline" onclick={() => toggle(model)}>
-									{model.active ? 'Retire' : 'Reactivate'}
-								</button>
-							</td>
-						{/if}
-					</tr>
-				{:else}
-					<tr
-						><td class="px-3 py-6 text-center text-slate-400" colspan="7">No models registered</td
-						></tr
-					>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{:else}
-	<p class="text-sm text-slate-500">Loading…</p>
+	{#if error}<ErrorNote {error} />{:else}<DataTable
+			{columns}
+			{rows}
+			{loading}
+			rowKey="id"
+			testId="models-table"
+			empty={{
+				title: 'No models registered',
+				hint: 'Register a model version to document scorecard dependencies.'
+			}}
+		/>{/if}
 {/if}

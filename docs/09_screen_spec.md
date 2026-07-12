@@ -290,3 +290,34 @@ Raw technical logs remain restricted to engineering/operations tooling and must 
 - `/decision-tables` lists versioned tables; `/decision-tables/{id}` provides typed condition columns and output cells.
 - Users can add/copy/delete/reorder rows, reorder/remove columns, use wildcard `*`, select FIRST_MATCH or PRIORITY, and see overlap warnings inline.
 - Lifecycle actions remain maker-checker controlled; Advanced JSON is available only as a secondary escape hatch.
+
+## 15. Frontend Redesign As-Built Addendum (2026-07-12)
+
+### Shared shell and visual language
+
+- All authenticated routes render inside a grouped, responsive SaaS shell: **Monitor**, **Author**, **Operate**, and **Govern**. Existing URLs and navigation labels are unchanged.
+- The top bar provides route/entity breadcrumbs, a DEMO environment badge, and the authenticated-user menu. Sidebar collapse state persists locally and becomes a drawer on narrow screens.
+- OSCAR semantic design tokens drive surfaces, text, status, shape, and elevation. Inter is the UI font; JetBrains Mono is reserved for codes, identifiers, figures, JSON, and trace data.
+- Official shadcn-svelte registry primitives are vendored under `frontend/src/lib/components/ui`; OSCAR-specific patterns live under `frontend/src/lib/ui`.
+
+### Standard page patterns
+
+- List routes use `PageHeader`, optional `FilterBar`, sortable/sticky `DataTable`, skeleton loading, `EmptyState`, `StatusBadge`, humanized timestamps, and preserved pagination/filter behavior.
+- Dashboard uses KPI cards, decision-mix and distribution bars, recent decisions, reason-code ranking, volume trend, and manual-review SLA summary from existing monitoring APIs.
+- Every persisted mutation gives a Sonner success/error toast. Destructive or governance-sensitive actions use the controlled `ConfirmDialog`; reason-required actions remain blocked until a reason is entered.
+
+### Editors and operational workspaces
+
+- Rule authoring uses Builder, SQL Preview, Advanced JSON, and Test tabs with a sticky version/action rail; domain-builder behavior and API payloads are unchanged.
+- Decision-table detail uses a frozen grid header/first column, explicit wildcard cells, overlap warnings, row/column controls, lifecycle toolbar, and preserved `decision-table-grid` behavior.
+- Strategy detail uses a full-height visual canvas with collapsible palette and inspector, sticky lifecycle actions, semantic node types, controlled edge replacement/deletion, inline validation issues, and read-only active/retired flows.
+- Decision detail uses summary cards and an expandable trace timeline while preserving `decision-summary`, `trace-steps`, and the executed-flow link.
+- Manual review is a two-column evidence/action workspace with SLA, documents, comments, escalation, decision guardrails, and system-vs-analyst verdict context.
+- Simulations provide consistent Single/Batch navigation, payload/setup workspaces, target-vs-active comparisons, shift tables, and segment impact.
+
+### Governance and accessibility
+
+- Audit rows open a drawer with correlation metadata and field-level before/after diff, with raw metadata retained as evidence.
+- Admin provides Approvals, Users, and Roles tabs, including maker-checker reason dialogs, simulation evidence, user-role editing, and a role-permission matrix.
+- Interactive elements receive visible keyboard focus; sortable headers expose `aria-sort`; clickable table rows support Enter/Space; table headings use column scope; icon-only buttons have accessible labels; dialogs inherit focus trapping from bits-ui.
+- Existing routes, query parameters, permissions, API calls, and test identifiers are preserved.

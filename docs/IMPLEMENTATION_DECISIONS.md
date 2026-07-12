@@ -32,7 +32,7 @@
 
 - **Date:** 2026-07-04
 - **Status:** Accepted
-- **Context:** `docs/15` lists `python-jose[cryptography]` and `passlib[bcrypt]` as *optional* suggestions for later. JWT + password hashing are needed for RBAC.
+- **Context:** `docs/15` lists `python-jose[cryptography]` and `passlib[bcrypt]` as _optional_ suggestions for later. JWT + password hashing are needed for RBAC.
 - **Options considered:** (a) python-jose + passlib as suggested, (b) PyJWT + bcrypt directly.
 - **Decision:** `pyjwt>=2,<3` and `bcrypt>=4,<6`. Also added `pydantic-settings>=2,<3` for typed env configuration (the pydantic-v2 companion package).
 - **Reasoning:** passlib is unmaintained and incompatible with modern bcrypt releases; python-jose has a history of CVEs and slow maintenance. PyJWT and bcrypt are the actively maintained, minimal equivalents. The docs marked their suggestions optional, so this is an allowed deliberate choice, documented per the dependency policy.
@@ -55,7 +55,7 @@
 - **Status:** Accepted
 - **Context:** `docs/18` requires structured sanitized logs, request/correlation IDs on every response, and safe error envelopes. `docs/15`/`docs/16` prefer the standard library over new observability dependencies.
 - **Options considered:** (a) `structlog`, (b) stdlib `logging` with a JSON formatter and `contextvars`.
-- **Decision:** Stdlib logging with a custom `JsonLogFormatter` that redacts sensitive keys, plus a pure-ASGI `CorrelationMiddleware` that generates/propagates IDs, times requests, emits one structured log per request, and converts unhandled exceptions into the documented error envelope (exception *type* only — never stack traces or messages) before they can leak.
+- **Decision:** Stdlib logging with a custom `JsonLogFormatter` that redacts sensitive keys, plus a pure-ASGI `CorrelationMiddleware` that generates/propagates IDs, times requests, emits one structured log per request, and converts unhandled exceptions into the documented error envelope (exception _type_ only — never stack traces or messages) before they can leak.
 - **Reasoning:** Meets every docs/18 requirement with zero added dependencies; pure ASGI avoids `BaseHTTPMiddleware` streaming pitfalls; redaction at the formatter guarantees no code path can log prohibited values unredacted.
 - **Consequences:** All structured log fields pass through `app/shared/utils/masking.redact`; masking is deny-list based on key names and intentionally over-redacts (e.g. a `documents` key is masked entirely).
 - **Related documents/files:** `backend/app/shared/logging/`, `backend/app/shared/utils/masking.py`, `docs/18_observability_and_audit_logging.md`.
@@ -68,7 +68,7 @@
 - **Options considered:** (a) last action wins, (b) explicit priority per rule, (c) fixed severity ordering over candidate decisions.
 - **Decision:** Every triggered action contributes a candidate decision; the most severe candidate wins (ERROR > FRAUD_INVESTIGATION > REJECT > MANUAL_REVIEW > REQUEST_ADDITIONAL_DOCUMENT > APPROVE_WITH_CONDITION > APPROVE). If a strategy produces no candidate at all, the engine returns MANUAL_REVIEW with reason `NO_DECISION_PRODUCED`. Approval outputs (limit/tenor/pricing) attach only when the final decision is approve-like.
 - **Reasoning:** Deterministic, explainable, order-independent within a step, and conservative: a fraud hit can never be silently out-voted by a downstream approval row. The fallback is engine mechanics, not credit policy — it only fires on misconfigured strategies.
-- **Consequences:** Rules express *escalations*; a decision table (or rule) must still produce the approve path explicitly.
+- **Consequences:** Rules express _escalations_; a decision table (or rule) must still produce the approve path explicitly.
 - **Related documents/files:** `backend/app/engine/executor.py`, `docs/10_rule_engine_design.md`.
 
 ### ADR-006 — Missing-required-field handling: structured 422, application recorded, no decision row
@@ -96,7 +96,7 @@
 
 - **Date:** 2026-07-04
 - **Status:** Accepted
-- **Context:** docs/13 requires override reasons when the analyst decision differs from the system decision, and docs/14 grants `manual_review.override` to senior roles — but for a case created from a MANUAL_REVIEW system decision, *any* analyst resolution differs from the system decision, which would make ordinary case work impossible for underwriters if override permission were always required.
+- **Context:** docs/13 requires override reasons when the analyst decision differs from the system decision, and docs/14 grants `manual_review.override` to senior roles — but for a case created from a MANUAL_REVIEW system decision, _any_ analyst resolution differs from the system decision, which would make ordinary case work impossible for underwriters if override permission were always required.
 - **Options considered:** (a) require `manual_review.override` for every differing decision, (b) treat resolving a MANUAL_REVIEW case as normal `manual_review.decide` work with a mandatory override reason, reserving `manual_review.override` for contradicting definitive system routing.
 - **Decision:** (b): `manual_review.decide` resolves cases; whenever the analyst decision differs from the system decision an override reason is mandatory and a `MANUAL_REVIEW_OVERRIDDEN` audit event records before/after; approving a case whose system decision is FRAUD_INVESTIGATION additionally requires `manual_review.override`. Rejects always require a reason code.
 - **Reasoning:** Preserves the documented separation of decide vs override permissions while keeping the underwriter queue workable; fraud contradiction is the genuinely high-risk override in MVP scope.
@@ -119,10 +119,10 @@
 - **Date:** 2026-07-05
 - **Status:** Accepted
 - **Context:** MVP validated rule/strategy feature references against a static in-code registry (`app/engine/features.py`). Phase 2 (docs/05) calls for a Feature Catalog / Data Dictionary so risk users can govern the variable vocabulary without code changes.
-- **Options considered:** (a) keep the static registry, (b) move everything (including derived-feature computation) into config, (c) DB-backed catalog for the *vocabulary* while derived-feature *computation* stays in code.
+- **Options considered:** (a) keep the static registry, (b) move everything (including derived-feature computation) into config, (c) DB-backed catalog for the _vocabulary_ while derived-feature _computation_ stays in code.
 - **Decision:** (c). A `features` table governs which feature paths are valid plus their data type/source/description; rule and strategy (required-field) validation and `/v1/meta` query the active catalog. Derived-feature arithmetic (`compute_derived_feature`) remains engine mechanics in code, and CALCULATION steps still validate against `DERIVED_FEATURES` (the engine can only compute what it implements). The catalog is seeded to mirror the engine registry so existing seeded policy keeps validating.
 - **Reasoning:** Keeps credit-policy vocabulary configurable and auditable (create/update emit audit events) without letting business users define arbitrary executable computation — consistent with the "no hardcoded policy, but engine mechanics in code" principle.
-- **Consequences:** Adding a genuinely new *payload* feature is now a no-code catalog entry; adding a new *derived* feature still requires an engine change plus a catalog entry. Deactivating a feature blocks new/edited rules from using it but preserves historical rule versions.
+- **Consequences:** Adding a genuinely new _payload_ feature is now a no-code catalog entry; adding a new _derived_ feature still requires an engine change plus a catalog entry. Deactivating a feature blocks new/edited rules from using it but preserves historical rule versions.
 - **Related documents/files:** `backend/app/modules/features/`, `backend/app/modules/rules/service.py`, `backend/app/modules/strategies/service.py`, `backend/app/api/v1/meta.py`, `docs/06_data_model.md`.
 
 ### ADR-011 — Full maker-checker requires attached simulation evidence for strategy activation
@@ -167,3 +167,23 @@
 - **Reasoning:** The AST boundary makes the executable surface explicit and auditable, preserves original text plus a reproducible compiled form, supports deterministic NULL semantics, and provides useful power without ambient access to Python, the database, filesystem, network, time, or randomness.
 - **Consequences:** Only catalog identifiers and the documented operators/functions are available. New language features require parser, validator, interpreter, renderer, fuzz, and compatibility tests. Runtime expression failures follow the existing strategy-node `on_error` path and store safe error classes rather than payload values.
 - **Related documents/files:** `backend/app/engine/expression.py`, `backend/app/engine/preview.py`, `backend/app/api/v1/expressions.py`, `frontend/src/lib/components/ExpressionEditor.svelte`, `docs/phase3/05_expression_language.md`.
+
+### ADR-015 — Frontend redesign system choices D1–D10
+
+- **Date:** 2026-07-12
+- **Status:** Accepted and implemented
+- **Context:** Phase 3 made the Workbench substantially more capable, but its hand-styled presentation, flat navigation, silent mutations, and inconsistent loading/empty/governance states no longer matched the trust and productivity needs of risk analysts, managers, underwriters, auditors, and data scientists. The redesign had to improve interaction quality without changing backend behavior, routes, filters, query parameters, or test contracts.
+- **Decision:** Adopt the ten decisions from `docs/frontend-redesign/01_ux_research.md` as one coherent frontend architecture:
+  1. **D1 Component strategy:** vendor the curated official shadcn-svelte source set on bits-ui; keep OSCAR application components separately readable in-repo.
+  2. **D2 Visual language:** neutral semantic surfaces, indigo primary actions, status-specific tone tokens, 8px cards, 6px controls, and border-led elevation.
+  3. **D3 Typography:** Inter Variable for UI, JetBrains Mono for codes/JSON, compact enterprise type scale, and tabular figures.
+  4. **D4 Navigation IA:** group unchanged routes into Monitor, Author, Operate, and Govern, with responsive sidebar behavior.
+  5. **D5 Page patterns:** compose routes from PageHeader, FilterBar, DataTable/content, Drawer/Sheet, Dialog/ConfirmDialog, skeleton/empty/error states, and mutation toasts.
+  6. **D6 Lifecycle UX:** render versions and outcomes through VersionTimeline and the icon-plus-label StatusBadge map rather than color alone.
+  7. **D7 Canvas layout:** make the strategy canvas the full-height primary workspace, with collapsible palette/inspector and sticky governance actions.
+  8. **D8 Dark mode:** structure tokens for a future override but defer the mode toggle to FR7.
+  9. **D9 Charts:** use lightweight CSS/SVG presentation for current monitoring needs and avoid a chart dependency.
+  10. **D10 Responsiveness:** optimize for desktop/laptop work, collapse navigation progressively, and contain editor overflow within panels rather than redesign domain tools for mobile.
+- **Reasoning:** The selected approach establishes one visual and interaction grammar while keeping the verified Svelte 5 domain logic intact. Vendored primitives make accessibility behavior inspectable and stable; semantic tokens prevent page-level palette drift; shared application components reduce repeated implementation; and retaining all route/API/test contracts limits regression risk.
+- **Consequences:** `frontend/src/lib/components/ui` is registry-owned source and should be reconciled through the shadcn-svelte CLI in reviewed batches. OSCAR-specific behavior belongs in `frontend/src/lib/ui` or route/domain components. New routes should use semantic tokens and shared page patterns. Every mutation needs feedback, destructive/governance actions require controlled confirmation, and browser validation remains a required workstation gate before integration. Dark mode, command palette, saved filters, and density controls remain deferred under FR7.
+- **Related documents/files:** `docs/frontend-redesign/*`, `frontend/components.json`, `frontend/src/routes/layout.css`, `frontend/src/lib/components/ui/*`, `frontend/src/lib/ui/*`, `frontend/src/routes/**`, `frontend/e2e/*`.

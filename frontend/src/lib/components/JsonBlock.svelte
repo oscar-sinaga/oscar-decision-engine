@@ -3,5 +3,5 @@
 </script>
 
 <pre
-	class="overflow-auto rounded bg-slate-900 p-3 text-xs leading-relaxed text-slate-100"
-	style="max-height: {maxHeight}">{JSON.stringify(value, null, 2)}</pre>
+	class="overflow-auto rounded-card bg-text p-3 font-mono text-xs leading-relaxed text-surface"
+	style:max-height={maxHeight}>{JSON.stringify(value, null, 2)}</pre>

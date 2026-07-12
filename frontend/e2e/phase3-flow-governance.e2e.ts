@@ -195,7 +195,8 @@ test('grid, canvas, maker-checker governance, decision, and trace form one journ
 
 	await page.goto(`/strategies/${strategy.id}`);
 	await expect(page.getByTestId('strategy-flow-canvas')).toBeVisible();
-	await expect(page.getByText('ACTIVE', { exact: true }).first()).toBeVisible();
+	// StatusBadge renders humanized labels ("Active"), not raw enum values.
+	await expect(page.getByText('Active', { exact: true }).first()).toBeVisible();
 
 	// The DAG must actually render its nodes and edges, not just the canvas shell.
 	await expect(page.locator('.svelte-flow__node')).toHaveCount(graph.nodes.length);
@@ -217,7 +218,7 @@ test('grid, canvas, maker-checker governance, decision, and trace form one journ
 	// Starting a draft from the active flow must select the new DRAFT and unlock editing.
 	await page.getByRole('button', { name: 'Start new draft from this flow' }).click();
 	await expect(page.getByRole('button', { name: 'Save draft' })).toBeVisible();
-	await expect(page.getByText('DRAFT').first()).toBeVisible();
+	await expect(page.getByText('Draft').first()).toBeVisible();
 	await page.locator('.svelte-flow__node', { hasText: 'Affordability' }).click();
 	await expect(page.locator('label:has-text("Name") input')).toBeEnabled();
 

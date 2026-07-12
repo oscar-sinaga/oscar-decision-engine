@@ -30,9 +30,8 @@ test('catalog output, expression authoring, preview, and generated test form', a
 	await login(page, 'admin');
 	await page.goto('/features');
 	await page.getByRole('button', { name: 'New feature' }).click();
-	const featureCard = page
-		.getByRole('heading', { name: 'New feature' })
-		.locator('xpath=ancestor::section');
+	// The create form lives in a Sheet (drawer) since the FR2 redesign.
+	const featureCard = page.locator('[data-slot="sheet-content"]');
 	await featureCard.getByLabel('Path (dotted)').fill(featurePath);
 	await featureCard.getByLabel('Label').fill(`E2E limit ${suffix}`);
 	await featureCard.getByLabel('Data type').selectOption('NUMBER');
@@ -40,6 +39,9 @@ test('catalog output, expression authoring, preview, and generated test form', a
 	await featureCard.getByLabel('Category').fill('DECISION');
 	await featureCard.getByLabel('Writable output').check();
 	await page.getByRole('button', { name: 'Create feature' }).click();
+	await expect(
+		page.locator('[data-sonner-toast]').filter({ hasText: 'Feature created' })
+	).toBeVisible();
 	await expect(page.getByTestId('features-table')).toContainText(featurePath);
 
 	await page.goto('/rules/new');
@@ -49,16 +51,17 @@ test('catalog output, expression authoring, preview, and generated test form', a
 	await page.getByLabel('Output target').selectOption(featurePath);
 	await page.getByLabel('OSCAR expression').fill('loan.requested_amount * 0.8');
 	await expect(page.getByText(/Valid · NUMBER/)).toBeVisible();
-	await page.getByRole('button', { name: 'SQL-style' }).click();
+	// The SQL-style preview is a tab ("SQL preview") since the FR4 redesign.
+	await page.getByRole('tab', { name: 'SQL preview' }).click();
 	await expect(page.getByText('Preview only — OSCAR never executes SQL.')).toBeVisible();
 	await page.getByRole('button', { name: 'Create draft rule' }).click();
 
 	await expect(page.getByRole('heading', { name: ruleCode })).toBeVisible();
-	await expect(page.getByText('Test rule')).toBeVisible();
 	await expect(page.getByText('Used by')).toBeVisible();
-	const testCard = page
-		.getByRole('heading', { name: 'Test rule' })
-		.locator('xpath=ancestor::section');
+	// The test form lives in the "Test" tab since the FR4 redesign.
+	await page.getByRole('tab', { name: 'Test' }).click();
+	await expect(page.getByText('Test rule')).toBeVisible();
+	const testCard = page.getByRole('tabpanel');
 	await testCard.locator('input').first().fill('10000000');
 	await page.getByRole('button', { name: 'Run test' }).click();
 	await expect(testCard).toContainText(featurePath);

@@ -382,6 +382,7 @@ export interface ApprovalRequest {
 	status: string;
 	change_summary: string;
 	request_reason: string;
+	simulation_ref?: string | null;
 	decision_reason: string | null;
 	requested_by: string | null;
 	decided_by: string | null;

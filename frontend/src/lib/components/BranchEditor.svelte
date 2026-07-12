@@ -38,8 +38,8 @@
 
 <div class="space-y-3">
 	{#each branches as item, index (index)}
-		<section class="space-y-3 rounded-lg border border-slate-300 p-3">
-			<header class="flex items-center gap-2 text-xs font-bold text-slate-600">
+		<section class="space-y-3 rounded-card border border-border-strong p-3">
+			<header class="flex items-center gap-2 text-xs font-bold text-text-muted">
 				<span>WHEN · branch {index + 1}</span>
 				<button
 					class="ml-auto underline"
@@ -54,25 +54,25 @@
 					disabled={index === branches.length - 1}>↓</button
 				>
 				<button
-					class="text-red-600 underline"
+					class="text-danger underline"
 					type="button"
 					onclick={() => (branches = branches.filter((_, i) => i !== index))}
 					disabled={branches.length === 1}>remove</button
 				>
 			</header>
 			<ConditionBuilder {meta} bind:condition={item.when} />
-			<div class="text-xs font-bold text-slate-600">THEN</div>
+			<div class="text-xs font-bold text-text-muted">THEN</div>
 			<ActionListEditor {meta} {reasonCodes} bind:actions={item.then} />
 		</section>
 	{/each}
 	<button
-		class="text-xs font-semibold text-blue-700 underline"
+		class="text-xs font-semibold text-primary-700 underline"
 		type="button"
 		onclick={() => (branches = [...branches, branch()])}>+ branch</button
 	>
 
-	<section class="space-y-2 rounded-lg border border-dashed border-slate-300 p-3">
-		<label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+	<section class="space-y-2 rounded-card border border-dashed border-border-strong p-3">
+		<label class="flex items-center gap-2 text-xs font-bold text-text-muted">
 			<input
 				type="checkbox"
 				checked={defaultActions !== null}
