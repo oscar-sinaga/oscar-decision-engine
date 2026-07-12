@@ -3,11 +3,13 @@
 	import { api } from '$lib/api/client';
 	import type { ConfigEntity, ConfigVersion, Meta, ReasonCode } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
-	import Badge from '$lib/components/Badge.svelte';
-	import Card from '$lib/components/Card.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
 	import FeaturePicker from '$lib/components/FeaturePicker.svelte';
 	import JsonBlock from '$lib/components/JsonBlock.svelte';
+	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import StatusBadge from '$lib/ui/StatusBadge.svelte';
+	import { confirmAction } from '$lib/ui/confirm';
+	import { toast } from 'svelte-sonner';
 	import {
 		configToGrid,
 		emptyGridRow,
@@ -67,7 +69,7 @@
 	}
 
 	function touch() {
-		grid = structuredClone(grid);
+		grid = structuredClone($state.snapshot(grid));
 	}
 
 	function feature(path: string) {
@@ -117,7 +119,7 @@
 	}
 
 	function duplicateRow(index: number) {
-		const copy = structuredClone(grid.rows[index]);
+		const copy = structuredClone($state.snapshot(grid.rows[index]));
 		copy.key = `${copy.key}-copy-${Date.now()}`;
 		grid.rows.splice(index + 1, 0, copy);
 		touch();
@@ -183,6 +185,7 @@
 			);
 			await load(selectedVersion.id);
 			notice = 'Draft saved. Overlap warnings have been refreshed.';
+			toast.success('Decision table draft saved');
 		} catch (err) {
 			error = err;
 		} finally {
@@ -200,6 +203,7 @@
 			);
 			await load(selectedVersion.id);
 			notice = 'Version submitted for approval.';
+			toast.success('Decision table submitted for approval');
 		} catch (err) {
 			error = err;
 		} finally {
@@ -209,17 +213,25 @@
 
 	async function activate() {
 		if (!selectedVersion) return;
-		const reason = window.prompt('Approval reason', 'Reviewed decision-table grid') ?? '';
+		const confirmation = await confirmAction({
+			title: 'Activate decision table version?',
+			body: 'This version will become available to active strategies.',
+			confirmLabel: 'Activate',
+			requireReason: true
+		});
+		if (!confirmation.ok) return;
 		busy = true;
 		try {
 			await api<ConfigVersion>(
 				`/v1/decision-tables/${page.params.id}/versions/${selectedVersion.id}/activate`,
-				{ body: { reason } }
+				{ body: { reason: confirmation.reason ?? '' } }
 			);
 			await load(selectedVersion.id);
 			notice = 'Version activated.';
+			toast.success('Decision table activated');
 		} catch (err) {
 			error = err;
+			toast.error('Could not activate decision table');
 		} finally {
 			busy = false;
 		}
@@ -233,6 +245,7 @@
 			});
 			await load(created.id);
 			notice = `Draft v${created.version} created.`;
+			toast.success(`Draft v${created.version} created`);
 		} catch (err) {
 			error = err;
 		} finally {
@@ -246,270 +259,262 @@
 </script>
 
 {#if error}<div class="mb-4"><ErrorNote {error} /></div>{/if}
-{#if notice}<div
-		class="mb-4 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-	>
-		{notice}
-	</div>{/if}
 
 {#if entity && selectedVersion}
-	<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
-		<div>
-			<div class="flex items-center gap-2">
-				<a class="text-sm text-blue-700 underline" href="/decision-tables">Decision Tables</a>
-				<span class="text-slate-400">/</span>
-				<h1 class="text-xl font-bold text-slate-800">{entity.code}</h1>
-				<Badge value={selectedVersion.status} />
-			</div>
-			<p class="text-sm text-slate-500">{entity.name} · {entity.description || 'No description'}</p>
-		</div>
-		<div class="flex flex-wrap items-end gap-2">
-			<label class="text-xs font-semibold text-slate-600">
-				Version
+	<PageHeader
+		title={entity.code}
+		description={`${entity.name} · ${entity.description || 'No description'}`}
+	>
+		{#snippet actions()}
+			<div class="flex flex-wrap items-center gap-2">
+				<StatusBadge value={selectedVersion.status} />
+				<label class="sr-only" for="decision-table-version">Version</label>
 				<select
-					class="mt-1 block rounded border-slate-300 text-sm"
+					id="decision-table-version"
+					class="h-9 rounded-control border border-border bg-surface px-3 text-xs text-text shadow-card"
 					bind:value={selectedVersionId}
 					onchange={() => {
 						const version = entity?.versions.find((item) => item.id === selectedVersionId);
 						if (version) applyVersion(version);
 					}}
 				>
-					{#each entity.versions as version (version.id)}
-						<option value={version.id}>v{version.version} · {version.status}</option>
-					{/each}
+					{#each entity?.versions ?? [] as version (version.id)}<option value={version.id}
+							>v{version.version} · {version.status}</option
+						>{/each}
 				</select>
-			</label>
+			</div>
+		{/snippet}
+	</PageHeader>
+
+	{#if notice}<div
+			class="mb-4 rounded-card border border-success/20 bg-success-bg px-3 py-2 text-xs text-success"
+		>
+			{notice}
+		</div>{/if}
+
+	<div
+		class="sticky top-14 z-30 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface/95 p-2 shadow-card backdrop-blur"
+	>
+		<div class="flex items-center gap-1" role="tablist" aria-label="Decision table view">
+			<button
+				class="rounded-control px-3 py-2 text-xs font-semibold {tab === 'grid'
+					? 'bg-primary-50 text-primary-700'
+					: 'text-text-muted hover:bg-surface-muted'}"
+				onclick={() => (tab = 'grid')}>Grid</button
+			>
+			<button
+				class="rounded-control px-3 py-2 text-xs font-semibold {tab === 'json'
+					? 'bg-primary-50 text-primary-700'
+					: 'text-text-muted hover:bg-surface-muted'}"
+				onclick={() => (tab = 'json')}>Advanced JSON</button
+			>
+		</div>
+		<div class="flex flex-wrap items-center gap-2">
+			{#if tab === 'grid' && editable}<button
+					class="rounded-control border border-border bg-surface px-3 py-2 text-xs font-semibold text-text hover:bg-surface-muted"
+					onclick={() => addRow()}>Add row</button
+				>{/if}
 			{#if editable}
 				<button
-					class="rounded bg-blue-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+					class="rounded-control bg-primary-600 px-3 py-2 text-xs font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
 					disabled={busy}
 					onclick={save}>Save draft</button
 				>
 				<button
-					class="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
+					class="rounded-control border border-border bg-surface px-3 py-2 text-xs font-semibold text-text hover:bg-surface-muted disabled:opacity-50"
 					disabled={busy}
 					onclick={submitApproval}>Submit approval</button
 				>
 			{:else if selectedVersion.status === 'PENDING_APPROVAL' && auth.hasPermission('rule.approve')}
 				<button
-					class="rounded bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+					class="rounded-control bg-success px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
 					disabled={busy}
 					onclick={activate}>Activate</button
 				>
 			{:else if !entity.versions.some((version) => version.status === 'DRAFT' || version.status === 'PENDING_APPROVAL') && auth.hasPermission('rule.create')}
 				<button
-					class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+					class="rounded-control bg-primary-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
 					disabled={busy}
-					onclick={createDraft}>New draft from this version</button
+					onclick={createDraft}>New draft from version</button
 				>
 			{/if}
 		</div>
 	</div>
 
-	<div class="mb-4 flex gap-2 border-b border-slate-200">
-		<button
-			class="border-b-2 px-3 py-2 text-sm font-semibold {tab === 'grid'
-				? 'border-blue-700 text-blue-700'
-				: 'border-transparent text-slate-500'}"
-			onclick={() => (tab = 'grid')}>Grid</button
-		>
-		<button
-			class="border-b-2 px-3 py-2 text-sm font-semibold {tab === 'json'
-				? 'border-blue-700 text-blue-700'
-				: 'border-transparent text-slate-500'}"
-			onclick={() => (tab = 'json')}>Advanced JSON</button
-		>
-	</div>
-
 	{#if tab === 'json'}
-		<Card title="Generated decision-table configuration"
-			><JsonBlock value={configPreview} maxHeight="42rem" /></Card
-		>
+		<section class="rounded-card border border-border bg-surface p-4 shadow-card">
+			<h2 class="mb-3 text-sm font-semibold text-text">Generated configuration</h2>
+			<JsonBlock value={configPreview} maxHeight="42rem" />
+		</section>
 	{:else}
 		<div class="space-y-4">
-			<Card title="Table settings">
-				<div class="grid gap-3 lg:grid-cols-5">
-					<label class="text-xs font-semibold text-slate-600"
-						>Hit policy
-						<select
-							class="mt-1 block w-full rounded border-slate-300 text-sm"
+			<section class="rounded-card border border-border bg-surface p-4 shadow-card">
+				<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+					<label class="text-xs font-medium text-text-muted"
+						>Hit policy<select
+							class="mt-1 h-9 w-full rounded-control border border-border bg-surface px-2 text-xs text-text"
 							bind:value={grid.hitPolicy}
 							disabled={!editable}
 							onchange={touch}
-						>
-							<option value="FIRST_MATCH">FIRST MATCH</option><option value="PRIORITY"
+							><option value="FIRST_MATCH">FIRST MATCH</option><option value="PRIORITY"
 								>PRIORITY</option
-							>
-						</select>
-					</label>
-					<label class="text-xs font-semibold text-slate-600"
-						>No-match decision
-						<select
-							class="mt-1 block w-full rounded border-slate-300 text-sm"
+							></select
+						></label
+					>
+					<label class="text-xs font-medium text-text-muted"
+						>No-match decision<select
+							class="mt-1 h-9 w-full rounded-control border border-border bg-surface px-2 text-xs text-text"
 							bind:value={grid.noMatchDecision}
 							disabled={!editable}
 							onchange={touch}
-						>
-							{#each meta?.decisions ?? [] as decision (decision)}<option value={decision}
+							>{#each meta?.decisions ?? [] as decision (decision)}<option value={decision}
 									>{decision}</option
-								>{/each}
-						</select>
-					</label>
-					<label class="text-xs font-semibold text-slate-600"
-						>No-match reason
-						<select
-							class="mt-1 block w-full rounded border-slate-300 text-sm"
+								>{/each}</select
+						></label
+					>
+					<label class="text-xs font-medium text-text-muted"
+						>No-match reason<select
+							class="mt-1 h-9 w-full rounded-control border border-border bg-surface px-2 text-xs text-text"
 							bind:value={grid.noMatchReasonCode}
 							disabled={!editable}
 							onchange={touch}
-						>
-							<option value="">None</option>{#each reasonCodes as reason (reason.id)}<option
+							><option value="">None</option>{#each reasonCodes as reason (reason.id)}<option
 									value={reason.code}>{reason.code}</option
-								>{/each}
-						</select>
-					</label>
-					<label class="text-xs font-semibold text-slate-600"
-						>Above-limit reason
-						<select
-							class="mt-1 block w-full rounded border-slate-300 text-sm"
+								>{/each}</select
+						></label
+					>
+					<label class="text-xs font-medium text-text-muted"
+						>Above-limit reason<select
+							class="mt-1 h-9 w-full rounded-control border border-border bg-surface px-2 text-xs text-text"
 							bind:value={grid.aboveLimitReasonCode}
 							disabled={!editable}
 							onchange={touch}
-						>
-							<option value="">None</option>{#each reasonCodes as reason (reason.id)}<option
+							><option value="">None</option>{#each reasonCodes as reason (reason.id)}<option
 									value={reason.code}>{reason.code}</option
-								>{/each}
-						</select>
-					</label>
-					<label class="text-xs font-semibold text-slate-600"
-						>Version note
-						<input
-							class="mt-1 block w-full rounded border-slate-300 text-sm"
+								>{/each}</select
+						></label
+					>
+					<label class="text-xs font-medium text-text-muted"
+						>Version note<input
+							class="mt-1 h-9 w-full rounded-control border border-border bg-surface px-2 text-xs text-text"
 							bind:value={versionNote}
 							disabled={!editable}
-						/>
-					</label>
+						/></label
+					>
 				</div>
-			</Card>
-
-			{#if selectedVersion.warnings.length}
-				<div class="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-					<strong>Overlap warning:</strong>
-					{selectedVersion.warnings.length} row pair(s) may match the same input. The selected hit policy
+			</section>
+			{#if selectedVersion.warnings.length}<div
+					class="rounded-card border border-warning/25 bg-warning-bg px-4 py-3 text-xs text-warning"
+					role="status"
+				>
+					<strong>Overlap warning.</strong>
+					{selectedVersion.warnings.length} row pair(s) may match the same input; the selected hit policy
 					determines the winner.
-				</div>
-			{/if}
-
-			<Card title="Condition columns">
-				<div class="flex flex-wrap items-center gap-2">
-					<FeaturePicker features={featureOptions} bind:value={newColumnPath} />
+				</div>{/if}
+			<section class="rounded-card border border-border bg-surface p-3 shadow-card">
+				<div class="flex flex-wrap items-end gap-2">
+					<div class="min-w-64 flex-1">
+						<FeaturePicker features={featureOptions} bind:value={newColumnPath} />
+					</div>
 					<button
-						class="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+						class="h-9 rounded-control border border-border bg-surface px-3 text-xs font-semibold text-text hover:bg-surface-muted disabled:opacity-50"
 						disabled={!editable || !newColumnPath}
 						onclick={addColumn}>Add condition column</button
-					>
-					<span class="text-xs text-slate-500">Blank cells are wildcards (*).</span>
+					><span class="pb-2 text-[11px] text-text-muted">Blank cells use wildcard ∗.</span>
 				</div>
-			</Card>
-
-			<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-				<table class="min-w-max text-xs" data-testid="decision-table-grid">
-					<thead class="sticky top-0 z-10 bg-slate-100 text-left text-slate-600">
-						<tr>
-							<th class="sticky left-0 z-20 w-20 border-r border-slate-200 bg-slate-100 px-2 py-2"
+			</section>
+			<div
+				class="max-h-[calc(100vh-22rem)] min-h-[28rem] overflow-auto rounded-card border border-border bg-surface shadow-card"
+			>
+				<table
+					class="min-w-max border-separate border-spacing-0 text-xs"
+					data-testid="decision-table-grid"
+				>
+					<thead class="sticky top-0 z-20 bg-surface-sunken text-left text-text-muted"
+						><tr
+							><th
+								scope="col"
+								class="sticky left-0 z-30 w-20 border-b border-r border-border bg-surface-sunken px-2 py-2"
 								>Row</th
-							>
-							{#if grid.hitPolicy === 'PRIORITY'}<th
-									class="w-20 border-r border-slate-200 px-2 py-2">Priority</th
+							>{#if grid.hitPolicy === 'PRIORITY'}<th
+									scope="col"
+									class="w-20 border-b border-r border-border px-2 py-2">Priority</th
 								>{/if}
-							{#each grid.columns as column, columnIndex (column.path)}
-								<th class="min-w-64 border-r border-slate-200 px-2 py-2">
-									<div class="flex items-center justify-between gap-2">
-										<span class="font-mono text-[11px]">{column.path}</span>
-										{#if editable}<span class="flex gap-1"
-												><button title="Move left" onclick={() => moveColumn(columnIndex, -1)}
-													>←</button
-												><button title="Move right" onclick={() => moveColumn(columnIndex, 1)}
-													>→</button
+							{#each grid.columns as column, columnIndex (column.path)}<th
+									scope="col"
+									class="min-w-64 border-b border-r border-border px-2 py-2"
+									><div class="flex items-center justify-between gap-2">
+										<span class="font-mono text-[11px] text-text">{column.path}</span
+										>{#if editable}<span class="flex gap-1"
 												><button
-													class="text-red-600"
-													title="Remove column"
+													aria-label={`Move ${column.path} left`}
+													onclick={() => moveColumn(columnIndex, -1)}>←</button
+												><button
+													aria-label={`Move ${column.path} right`}
+													onclick={() => moveColumn(columnIndex, 1)}>→</button
+												><button
+													class="text-danger"
+													aria-label={`Remove ${column.path}`}
 													onclick={() => removeColumn(column.path)}>×</button
 												></span
 											>{/if}
 									</div>
-									<span class="mt-1 block text-[10px] font-normal text-slate-400"
+									<span class="mt-1 block text-[10px] font-normal text-text-faint"
 										>{feature(column.path)?.data_type ?? 'UNKNOWN'}</span
-									>
-								</th>
-							{/each}
-							<th class="min-w-48 border-r border-slate-200 px-2 py-2">Decision</th>
-							<th class="min-w-32 border-r border-slate-200 px-2 py-2">Risk grade</th>
-							<th class="min-w-60 border-r border-slate-200 px-2 py-2">Approved limit</th>
-							<th class="min-w-32 border-r border-slate-200 px-2 py-2">Tenor</th>
-							<th class="min-w-32 border-r border-slate-200 px-2 py-2">Pricing rate</th>
-							<th class="min-w-52 border-r border-slate-200 px-2 py-2">Reason code</th>
-							<th class="w-36 px-2 py-2">Actions</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-slate-200">
-						{#each grid.rows as row, rowIndex (row.key)}
-							<tr
-								class={warningForRow(rowIndex) ? 'bg-amber-50' : 'bg-white'}
+									></th
+								>{/each}
+							{#each ['Decision', 'Risk grade', 'Approved limit', 'Tenor', 'Pricing rate', 'Reason code', 'Actions'] as heading (heading)}<th
+									scope="col"
+									class="min-w-36 border-b border-r border-border px-2 py-2">{heading}</th
+								>{/each}</tr
+						></thead
+					>
+					<tbody
+						>{#each grid.rows as row, rowIndex (row.key)}<tr
+								class={warningForRow(rowIndex) ? 'bg-warning-bg' : 'bg-surface'}
 								title={rowSummary(row, grid.columns)}
 							>
 								<td
-									class="sticky left-0 z-10 border-r border-slate-200 bg-inherit px-2 py-2 align-top font-semibold"
-								>
-									#{rowIndex + 1}
-									{#if warningForRow(rowIndex)}<span
-											class="mt-1 block rounded bg-amber-200 px-1 py-0.5 text-[9px] text-amber-900"
+									class="sticky left-0 z-10 h-9 border-b border-r border-border bg-inherit px-2 py-2 align-top font-semibold text-text"
+									>#{rowIndex + 1}{#if warningForRow(rowIndex)}<span
+											class="mt-1 block rounded-control bg-warning/15 px-1 py-0.5 text-[9px] text-warning"
 											>OVERLAP</span
-										>{/if}
-								</td>
+										>{/if}</td
+								>
 								{#if grid.hitPolicy === 'PRIORITY'}<td
-										class="border-r border-slate-200 px-2 py-2 align-top"
+										class="border-b border-r border-border p-2 align-top"
 										><input
-											class="w-16 rounded border-slate-300 text-xs"
+											class="w-16 rounded-control border border-border bg-surface px-2 py-1"
 											type="number"
 											bind:value={row.priority}
 											disabled={!editable}
 											onchange={touch}
 										/></td
 									>{/if}
-								{#each grid.columns as column (column.path)}
-									{@const cell = row.cells[column.path]}
-									<td class="border-r border-slate-200 px-2 py-2 align-top">
-										<label class="mb-1 flex items-center gap-1 text-[10px] text-slate-500"
+								{#each grid.columns as column (column.path)}{@const cell =
+										row.cells[column.path]}<td class="border-b border-r border-border p-2 align-top"
+										><label class="mb-1 flex items-center gap-1 text-[10px] text-text-muted"
 											><input
 												type="checkbox"
 												checked={cell.active}
 												disabled={!editable}
 												onchange={(event) =>
 													setCellActive(cell, event.currentTarget.checked, column.path)}
-											/> use condition</label
-										>
-										{#if !cell.active}
-											<div
-												class="rounded border border-dashed border-slate-300 py-3 text-center text-lg text-slate-400"
+											/> condition</label
+										>{#if !cell.active}<div
+												class="rounded-control bg-surface-sunken py-3 text-center text-lg text-text-faint"
 											>
-												*
-											</div>
-										{:else}
-											<select
-												class="mb-1 block w-full rounded border-slate-300 text-xs"
+												∗
+											</div>{:else}<select
+												class="mb-1 block w-full rounded-control border border-border bg-surface px-2 py-1"
 												bind:value={cell.operator}
 												disabled={!editable}
 												onchange={touch}
-											>
-												{#each operators(column.path) as operator (operator)}<option
+												>{#each operators(column.path) as operator (operator)}<option
 														value={operator}>{operator}</option
-													>{/each}
-											</select>
-											{#if cell.operator !== 'exists' && cell.operator !== 'is_null'}
-												{#if feature(column.path)?.data_type === 'BOOLEAN'}
-													<select
-														class="block w-full rounded border-slate-300 text-xs"
+													>{/each}</select
+											>{#if cell.operator !== 'exists' && cell.operator !== 'is_null'}{#if feature(column.path)?.data_type === 'BOOLEAN'}<select
+														class="block w-full rounded-control border border-border bg-surface px-2 py-1"
 														value={String(cell.value)}
 														disabled={!editable}
 														onchange={(event) => {
@@ -518,10 +523,8 @@
 														}}
 														><option value="true">true</option><option value="false">false</option
 														></select
-													>
-												{:else}
-													<input
-														class="block w-full rounded border-slate-300 text-xs"
+													>{:else}<input
+														class="block w-full rounded-control border border-border bg-surface px-2 py-1"
 														type={feature(column.path)?.data_type === 'NUMBER'
 															? 'number'
 															: feature(column.path)?.data_type === 'DATE'
@@ -534,15 +537,11 @@
 														disabled={!editable}
 														oninput={(event) =>
 															setCellValue(row, column.path, event.currentTarget.value)}
-													/>
-												{/if}
-											{/if}
-										{/if}
-									</td>
-								{/each}
-								<td class="border-r border-slate-200 px-2 py-2 align-top"
+													/>{/if}{/if}{/if}</td
+									>{/each}
+								<td class="border-b border-r border-border p-2 align-top"
 									><select
-										class="w-full rounded border-slate-300 text-xs"
+										class="w-full rounded-control border border-border bg-surface px-2 py-1"
 										bind:value={row.output.decision}
 										disabled={!editable}
 										onchange={touch}
@@ -551,11 +550,10 @@
 											>{/each}</select
 									></td
 								>
-								<td class="border-r border-slate-200 px-2 py-2 align-top"
+								<td class="border-b border-r border-border p-2 align-top"
 									><input
-										class="w-full rounded border-slate-300 text-xs"
+										class="w-full rounded-control border border-border bg-surface px-2 py-1"
 										maxlength="5"
-										placeholder="optional"
 										value={row.output.risk_grade ?? ''}
 										disabled={!editable}
 										oninput={(event) => {
@@ -564,11 +562,10 @@
 										}}
 									/></td
 								>
-								<td class="border-r border-slate-200 px-2 py-2 align-top">
-									<input
-										class="mb-1 w-full rounded border-slate-300 text-xs"
+								<td class="min-w-60 border-b border-r border-border p-2 align-top"
+									><input
+										class="mb-1 w-full rounded-control border border-border bg-surface px-2 py-1"
 										type="number"
-										placeholder="literal amount"
 										value={row.output.approved_limit ?? ''}
 										disabled={!editable || Boolean(row.output.approved_limit_pct_of)}
 										oninput={(event) => {
@@ -576,8 +573,7 @@
 												event.currentTarget.value === '' ? null : Number(event.currentTarget.value);
 											touch();
 										}}
-									/>
-									<label class="flex items-center gap-1 text-[10px] text-slate-500"
+									/><label class="flex items-center gap-1 text-[10px] text-text-muted"
 										><input
 											type="checkbox"
 											checked={Boolean(row.output.approved_limit_pct_of)}
@@ -590,16 +586,15 @@
 												touch();
 											}}
 										/> % of field</label
-									>
-									{#if row.output.approved_limit_pct_of}<div class="mt-1 flex gap-1">
+									>{#if row.output.approved_limit_pct_of}<div class="mt-1 flex gap-1">
 											<input
-												class="min-w-36 flex-1 rounded border-slate-300 text-[10px]"
+												class="min-w-36 flex-1 rounded-control border border-border bg-surface px-2 py-1 text-[10px]"
 												list="limit-fields"
 												bind:value={row.output.approved_limit_pct_of.field}
 												disabled={!editable}
 												onchange={touch}
 											/><input
-												class="w-16 rounded border-slate-300 text-[10px]"
+												class="w-16 rounded-control border border-border bg-surface px-2 py-1 text-[10px]"
 												type="number"
 												step="0.01"
 												min="0.01"
@@ -608,11 +603,11 @@
 												disabled={!editable}
 												onchange={touch}
 											/>
-										</div>{/if}
-								</td>
-								<td class="border-r border-slate-200 px-2 py-2 align-top"
+										</div>{/if}</td
+								>
+								<td class="border-b border-r border-border p-2 align-top"
 									><input
-										class="w-full rounded border-slate-300 text-xs"
+										class="w-full rounded-control border border-border bg-surface px-2 py-1"
 										type="number"
 										value={row.output.approved_tenor_months ?? ''}
 										disabled={!editable}
@@ -623,9 +618,9 @@
 										}}
 									/></td
 								>
-								<td class="border-r border-slate-200 px-2 py-2 align-top"
+								<td class="border-b border-r border-border p-2 align-top"
 									><input
-										class="w-full rounded border-slate-300 text-xs"
+										class="w-full rounded-control border border-border bg-surface px-2 py-1"
 										type="number"
 										step="0.001"
 										value={row.output.pricing_rate ?? ''}
@@ -637,9 +632,9 @@
 										}}
 									/></td
 								>
-								<td class="border-r border-slate-200 px-2 py-2 align-top"
+								<td class="border-b border-r border-border p-2 align-top"
 									><select
-										class="w-full rounded border-slate-300 text-xs"
+										class="w-full rounded-control border border-border bg-surface px-2 py-1"
 										value={row.output.reason_code ?? ''}
 										disabled={!editable}
 										onchange={(event) => {
@@ -651,42 +646,33 @@
 											>{/each}</select
 									></td
 								>
-								<td class="px-2 py-2 align-top"
-									><div class="flex flex-wrap gap-1">
-										{#if editable}<button
-												class="rounded border px-1.5 py-1"
-												title="Move up"
+								<td class="border-b border-border p-2 align-top"
+									>{#if editable}<div class="flex flex-wrap gap-1">
+											<button
+												class="rounded-control border border-border px-1.5 py-1"
+												aria-label={`Move row ${rowIndex + 1} up`}
 												onclick={() => moveRow(rowIndex, -1)}>↑</button
 											><button
-												class="rounded border px-1.5 py-1"
-												title="Move down"
+												class="rounded-control border border-border px-1.5 py-1"
+												aria-label={`Move row ${rowIndex + 1} down`}
 												onclick={() => moveRow(rowIndex, 1)}>↓</button
 											><button
-												class="rounded border px-1.5 py-1"
-												title="Duplicate"
+												class="rounded-control border border-border px-1.5 py-1"
 												onclick={() => duplicateRow(rowIndex)}>Copy</button
 											><button
-												class="rounded border border-red-200 px-1.5 py-1 text-red-600"
-												title="Delete"
+												class="rounded-control border border-danger/25 px-1.5 py-1 text-danger"
 												onclick={() => deleteRow(rowIndex)}>Delete</button
-											>{/if}
-									</div></td
+											>
+										</div>{/if}</td
 								>
-							</tr>
-						{/each}
-					</tbody>
+							</tr>{/each}</tbody
+					>
 				</table>
 			</div>
 			<datalist id="limit-fields"
 				>{#each featureOptions as item (item.path)}<option value={item.path}>{item.label}</option
 					>{/each}</datalist
 			>
-			{#if editable}<button
-					class="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
-					onclick={() => addRow()}>+ Add row</button
-				>{/if}
 		</div>
 	{/if}
-{:else if !error}
-	<p class="text-sm text-slate-500">Loading decision table…</p>
-{/if}
+{:else if !error}<p class="text-sm text-text-muted">Loading decision table…</p>{/if}

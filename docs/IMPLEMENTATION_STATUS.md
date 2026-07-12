@@ -41,15 +41,15 @@
 
 ## Frontend Redesign Progress
 
-| Phase                       | Status   | Primary evidence                                                                                                                                                                       |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FR0 Foundation              | Complete | Official shadcn-svelte registry primitives vendored; OSCAR tokens/fonts and app component kit implemented; Svelte check 0/0, 41 Vitest, Prettier/ESLint clean, production build green. |
-| FR1 App shell               | Complete | Grouped responsive navigation, topbar, breadcrumbs, account menu, redesigned login, and shell e2e definition; static gates green. |
-| FR2 List pages              | Complete | All list surfaces use PageHeader, FilterBar, DataTable, StatusBadge, skeleton and empty-state patterns; list-pattern e2e definition added. |
-| FR3 Dashboard               | Complete | KPI cards, decision mix, reason codes, volume trend, SLA snapshot, score distribution, and recent decisions implemented with existing APIs. |
-| FR4 Editors & details       | In progress | Decision detail/trace and rules authoring screens redesigned; grid, canvas, manual-review, and simulations remain. |
-| FR5 Governance              | Pending  | Not started.                                                                                                                                                                           |
-| FR6 Feedback/a11y/stability | Pending  | Not started.                                                                                                                                                                           |
+| Phase                       | Status      | Primary evidence                                                                                                                                                                       |
+| --------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR0 Foundation              | Complete    | Official shadcn-svelte registry primitives vendored; OSCAR tokens/fonts and app component kit implemented; Svelte check 0/0, 41 Vitest, Prettier/ESLint clean, production build green. |
+| FR1 App shell               | Complete    | Grouped responsive navigation, topbar, breadcrumbs, account menu, redesigned login, and shell e2e definition; static gates green.                                                      |
+| FR2 List pages              | Complete    | All list surfaces use PageHeader, FilterBar, DataTable, StatusBadge, skeleton and empty-state patterns; list-pattern e2e definition added.                                             |
+| FR3 Dashboard               | Complete    | KPI cards, decision mix, reason codes, volume trend, SLA snapshot, score distribution, and recent decisions implemented with existing APIs.                                            |
+| FR4 Editors & details       | In progress | Decision detail/trace, rules authoring, decision-table grid, and strategy canvas redesigned; manual-review and simulations remain.                                                     |
+| FR5 Governance              | Pending     | Not started.                                                                                                                                                                           |
+| FR6 Feedback/a11y/stability | Pending     | Not started.                                                                                                                                                                           |
 
 ## Phase 2 Summary
 
@@ -65,4 +65,4 @@ None.
 
 ## Next Work
 
-Continue the approved frontend redesign with FR2 (list pages) on `feature/frontend-redesign`. Backend behavior, routes, testids, and API contracts remain frozen. No push or deployment was performed.
+Continue the approved frontend redesign with FR4.5 manual-review and FR4.6 simulations on `feature/frontend-redesign`. Backend behavior, routes, testids, and API contracts remain frozen. No push or deployment was performed.
