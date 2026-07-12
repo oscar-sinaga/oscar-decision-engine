@@ -197,6 +197,30 @@ test('grid, canvas, maker-checker governance, decision, and trace form one journ
 	await expect(page.getByTestId('strategy-flow-canvas')).toBeVisible();
 	await expect(page.getByText('ACTIVE', { exact: true }).first()).toBeVisible();
 
+	// The DAG must actually render its nodes and edges, not just the canvas shell.
+	await expect(page.locator('.svelte-flow__node')).toHaveCount(graph.nodes.length);
+	await expect(page.locator('.svelte-flow__edge')).toHaveCount(graph.edges.length);
+	await expect(page.getByTestId('readonly-note')).toBeVisible();
+
+	// Clicking a node opens its configuration with a deep link into the referenced editor.
+	await page.locator('.svelte-flow__node', { hasText: 'Final decision' }).click();
+	await expect(page.getByTestId('node-open-table')).toBeVisible();
+	await page.locator('.svelte-flow__node', { hasText: 'Affordability' }).click();
+	await expect(page.getByTestId('node-rule-links')).toBeVisible();
+
+	// Client-side navigation must survive the canvas page (regression: DataCloneError froze the router).
+	await page.getByTestId('main-nav').getByRole('link', { name: 'Rules' }).click();
+	await expect(page).toHaveURL(/\/rules$/);
+	await page.goBack();
+	await expect(page.locator('.svelte-flow__node').first()).toBeVisible();
+
+	// Starting a draft from the active flow must select the new DRAFT and unlock editing.
+	await page.getByRole('button', { name: 'Start new draft from this flow' }).click();
+	await expect(page.getByRole('button', { name: 'Save draft' })).toBeVisible();
+	await expect(page.getByText('DRAFT').first()).toBeVisible();
+	await page.locator('.svelte-flow__node', { hasText: 'Affordability' }).click();
+	await expect(page.locator('label:has-text("Name") input')).toBeEnabled();
+
 	await page.goto(`/decisions/${decision.decision_id}`);
 	await expect(page.getByTestId('decision-summary')).toBeVisible();
 	await expect(page.getByTestId('trace-steps')).toContainText('final');

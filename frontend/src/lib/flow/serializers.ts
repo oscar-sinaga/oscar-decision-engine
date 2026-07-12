@@ -11,7 +11,20 @@ function edgeId(source: string, target: string, label: string | null): string {
 	return `edge:${source}:${label ?? 'NEXT'}:${target}`;
 }
 
-export function graphToFlow(graph: StrategyGraph, readOnly = false): FlowGraph {
+// Version graphs arrive as Svelte 5 reactive proxies, which structuredClone
+// rejects with DataCloneError; configs are plain JSON so a JSON round-trip is safe.
+function cloneConfig(config: Record<string, unknown> | null | undefined): Record<string, unknown> {
+	return config ? (JSON.parse(JSON.stringify(config)) as Record<string, unknown>) : {};
+}
+
+function defaultNodeName(nodeType: string): string {
+	if (nodeType === 'START') return 'Start';
+	if (nodeType === 'END') return 'End';
+	return nodeType.replaceAll('_', ' ');
+}
+
+export function graphToFlow(graph: StrategyGraph | null | undefined, readOnly = false): FlowGraph {
+	if (!graph?.nodes) return { nodes: [], edges: [] };
 	return {
 		nodes: graph.nodes.map((node) => ({
 			id: node.node_key,
@@ -19,17 +32,17 @@ export function graphToFlow(graph: StrategyGraph, readOnly = false): FlowGraph {
 			position: { ...node.position },
 			data: {
 				nodeType: node.node_type,
-				name: node.name,
+				name: node.name || defaultNodeName(node.node_type),
 				referenceCode: node.reference_code,
 				onError: node.on_error,
-				config: structuredClone(node.config),
+				config: cloneConfig(node.config),
 				readOnly
 			},
 			draggable: !readOnly,
 			connectable: !readOnly,
 			deletable: !readOnly && node.node_type !== 'START'
 		})),
-		edges: graph.edges.map((edge) => ({
+		edges: (graph.edges ?? []).map((edge) => ({
 			id: edgeId(edge.from, edge.to, edge.label),
 			type: 'smoothstep',
 			source: edge.from,
@@ -53,7 +66,7 @@ export function flowToGraph(nodes: StrategyFlowNode[], edges: StrategyFlowEdge[]
 			name: node.data.name,
 			reference_code: node.data.referenceCode,
 			on_error: node.data.onError,
-			config: structuredClone(node.data.config),
+			config: cloneConfig(node.data.config),
 			position: {
 				x: Math.round(node.position.x),
 				y: Math.round(node.position.y)

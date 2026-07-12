@@ -1,6 +1,6 @@
 # Implementation Status
 
-> Maintained by the implementation agent. Last updated: 2026-07-11.
+> Maintained by the implementation agent. Last updated: 2026-07-12.
 
 ## Overall Status
 
@@ -22,6 +22,7 @@
 | P3.6 Expression language | Complete | Safe parser/interpreter, fuzz coverage, SQL display preview, admin gating; 104 unit + 106 integration + 24 Vitest at the gate. |
 | P3.7 Decision-table grid | Complete | Typed grid, table lifecycle, overlap warnings, risk-grade output; 105 unit + 106 integration + 27 Vitest at the gate. |
 | P3.8 Hardening/E2E/docs | Complete | Feature/category UI gap closed; workstation final gate: 213 pytest, 27 Vitest, production build, and 7/7 Playwright; manual, latency, PII, and preserved-volume migration acceptance complete. |
+| P3.5 fix: canvas rendering & interactivity (2026-07-12) | Complete | Fixed blank canvas + frozen navigation (structuredClone DataCloneError on Svelte 5 reactive graph state); new-draft flow now auto-selects the created DRAFT; node panel deep-links into rule/table editors; edge inspector with delete; 30 Vitest and 7/7 Playwright including new render/interaction regressions. |
 
 ## Acceptance Evidence
 

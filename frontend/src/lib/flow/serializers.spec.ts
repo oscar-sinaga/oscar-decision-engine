@@ -72,6 +72,34 @@ describe('strategy graph serializers', () => {
 		);
 	});
 
+	it('tolerates a missing graph', () => {
+		expect(graphToFlow(null)).toEqual({ nodes: [], edges: [] });
+		expect(graphToFlow(undefined)).toEqual({ nodes: [], edges: [] });
+	});
+
+	it('clones proxied configs without structuredClone (Svelte 5 reactive state)', () => {
+		const proxiedConfig = new Proxy(
+			{ condition: { field: 'applicant.age', operator: '>=', value: 18 } },
+			{}
+		);
+		expect(() => structuredClone(proxiedConfig)).toThrow();
+		const flow = graphToFlow({
+			nodes: [{ ...graph.nodes[1], config: proxiedConfig }],
+			edges: []
+		});
+		const condition = flow.nodes.find((node) => node.id === 'condition')!;
+		expect(condition.data.config).toEqual(graph.nodes[1].config);
+		expect(condition.data.config).not.toBe(proxiedConfig);
+	});
+
+	it('fills empty node names with a readable default', () => {
+		const flow = graphToFlow({
+			nodes: [{ ...graph.nodes[0], name: '' }],
+			edges: []
+		});
+		expect(flow.nodes[0].data.name).toBe('Start');
+	});
+
 	it('lays out layers left-to-right', () => {
 		const flow = graphToFlow(graph);
 		const laidOut = autoLayout(flow.nodes, flow.edges);

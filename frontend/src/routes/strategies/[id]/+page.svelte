@@ -10,7 +10,14 @@
 	} from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { api, ApiError } from '$lib/api/client';
-	import type { ConfigEntity, Meta, RuleSet, Strategy, StrategyVersion } from '$lib/api/types';
+	import type {
+		ConfigEntity,
+		Meta,
+		Rule,
+		RuleSet,
+		Strategy,
+		StrategyVersion
+	} from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import Card from '$lib/components/Card.svelte';
@@ -37,6 +44,7 @@
 	let strategy = $state<Strategy | null>(null);
 	let meta = $state<Meta | null>(null);
 	let ruleSets = $state<RuleSet[]>([]);
+	let rules = $state<Rule[]>([]);
 	let scorecards = $state<ConfigEntity[]>([]);
 	let decisionTables = $state<ConfigEntity[]>([]);
 	let error = $state<unknown>(null);
@@ -45,7 +53,7 @@
 	let nodes = $state.raw<StrategyFlowNode[]>([]);
 	let edges = $state.raw<StrategyFlowEdge[]>([]);
 	let selectedNodeId = $state<string | null>(null);
-	let loadedVersionId = $state<string | null>(null);
+	let selectedEdgeId = $state<string | null>(null);
 	let issues = $state<GraphIssue[]>([]);
 	let editorNote = $state('');
 	let rollbackReason = $state('');
@@ -61,6 +69,18 @@
 	const canActivate = $derived(auth.hasPermission('strategy.activate'));
 	const editable = $derived(Boolean(canCreate && selected?.status === 'DRAFT'));
 	const selectedNode = $derived(nodes.find((node) => node.id === selectedNodeId) ?? null);
+	const selectedEdge = $derived(edges.find((edge) => edge.id === selectedEdgeId) ?? null);
+	const ruleIdsByCode = $derived(new Map(rules.map((rule) => [rule.rule_code, rule.id])));
+	const selectedRuleSet = $derived(
+		selectedNode?.data.nodeType === 'RULE_SET'
+			? (ruleSets.find((item) => item.code === selectedNode.data.referenceCode) ?? null)
+			: null
+	);
+	const selectedTableId = $derived(
+		selectedNode?.data.nodeType === 'DECISION_TABLE'
+			? (decisionTables.find((item) => item.code === selectedNode.data.referenceCode)?.id ?? null)
+			: null
+	);
 	const referenceOptions = $derived.by(() => {
 		if (!selectedNode) return [] as { code: string; label: string }[];
 		if (selectedNode.data.nodeType === 'RULE_SET') {
@@ -78,30 +98,43 @@
 		return [];
 	});
 
+	function applyVersion(version: StrategyVersion | null) {
+		selected = version;
+		const flow = graphToFlow(version?.graph, version?.status !== 'DRAFT');
+		nodes = flow.nodes;
+		edges = flow.edges;
+		selectedNodeId = null;
+		selectedEdgeId = null;
+		issues = [];
+		editorNote = version?.version_note ?? '';
+	}
+
 	async function load() {
 		error = null;
 		try {
-			const [strategyResult, metaResult, ruleSetResult, scorecardResult, tableResult] =
+			const [strategyResult, metaResult, ruleSetResult, ruleResult, scorecardResult, tableResult] =
 				await Promise.all([
 					api<Strategy>(`/v1/strategies/${page.params.id}`),
 					api<Meta>('/v1/meta'),
 					api<RuleSet[]>('/v1/rule-sets'),
+					api<Rule[]>('/v1/rules'),
 					api<ConfigEntity[]>('/v1/scorecards'),
 					api<ConfigEntity[]>('/v1/decision-tables')
 				]);
 			strategy = strategyResult;
 			meta = metaResult;
 			ruleSets = ruleSetResult;
+			rules = ruleResult;
 			scorecards = scorecardResult;
 			decisionTables = tableResult;
 			const versions = strategy.versions ?? [];
 			const requestedVersionId = page.url.searchParams.get('version');
-			selected =
+			applyVersion(
 				versions.find((version) => version.id === requestedVersionId) ??
-				versions.find((version) => version.id === selected?.id) ??
-				versions[versions.length - 1] ??
-				null;
-			loadedVersionId = null;
+					versions.find((version) => version.id === selected?.id) ??
+					versions[versions.length - 1] ??
+					null
+			);
 		} catch (err) {
 			error = err;
 		}
@@ -111,25 +144,13 @@
 		load();
 	});
 
-	$effect(() => {
-		if (selected && selected.id !== loadedVersionId) {
-			const flow = graphToFlow(selected.graph, selected.status !== 'DRAFT');
-			nodes = flow.nodes;
-			edges = flow.edges;
-			selectedNodeId = null;
-			issues = [];
-			editorNote = selected.version_note ?? '';
-			loadedVersionId = selected.id;
-		}
-	});
-
 	function chooseVersion(version: StrategyVersion) {
-		selected = version;
-		loadedVersionId = null;
+		applyVersion(version);
 	}
 
 	function setSelectedNode(node: StrategyFlowNode | null) {
 		selectedNodeId = node?.id ?? null;
+		selectedEdgeId = null;
 		if (node?.data.nodeType === 'CONDITION') {
 			const parsed = jsonToBuilder({
 				rule_kind: 'STATEMENT',
@@ -198,11 +219,18 @@
 
 	function deleteSelectedNode() {
 		if (!selectedNode || !editable || selectedNode.data.nodeType === 'START') return;
-		nodes = nodes.filter((node) => node.id !== selectedNode.id);
-		edges = edges.filter(
-			(edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
-		);
+		// Capture the id first: the $derived selectedNode turns null as soon as nodes is filtered.
+		const nodeId = selectedNode.id;
+		nodes = nodes.filter((node) => node.id !== nodeId);
+		edges = edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
 		selectedNodeId = null;
+	}
+
+	function deleteSelectedEdge() {
+		if (!selectedEdge || !editable) return;
+		const edgeId = selectedEdge.id;
+		edges = edges.filter((edge) => edge.id !== edgeId);
+		selectedEdgeId = null;
 	}
 
 	function layout() {
@@ -225,14 +253,19 @@
 		try {
 			const body = { graph: flowToGraph(nodes, edges), version_note: editorNote };
 			if (asNewVersion) {
-				await api(`/v1/strategies/${strategy.id}/versions`, { body });
+				const created = await api<StrategyVersion>(`/v1/strategies/${strategy.id}/versions`, {
+					body
+				});
+				await load();
+				const draft = (strategy?.versions ?? []).find((version) => version.id === created.id);
+				if (draft) applyVersion(draft);
 			} else {
 				await api(`/v1/strategies/${strategy.id}/versions/${selected.id}`, {
 					method: 'PUT',
 					body
 				});
+				await load();
 			}
-			await load();
 		} catch (err) {
 			actionError = err instanceof ApiError ? err : new Error('Could not save the flow');
 			if (err instanceof ApiError) {
@@ -438,24 +471,30 @@
 			aria-label="Strategy flow canvas"
 		>
 			{#if selected}
-				<SvelteFlow
-					bind:nodes
-					bind:edges
-					{nodeTypes}
-					fitView
-					nodesDraggable={editable}
-					nodesConnectable={editable}
-					elementsSelectable={true}
-					deleteKey={editable ? 'Backspace' : null}
-					onconnect={connect}
-					onnodeclick={({ node }) => setSelectedNode(node as StrategyFlowNode)}
-					onpaneclick={() => setSelectedNode(null)}
-					defaultEdgeOptions={{ type: 'smoothstep' }}
-				>
-					<Background variant={BackgroundVariant.Dots} />
-					<Controls />
-					<MiniMap pannable zoomable />
-				</SvelteFlow>
+				{#key selected.id}
+					<SvelteFlow
+						bind:nodes
+						bind:edges
+						{nodeTypes}
+						fitView
+						nodesDraggable={editable}
+						nodesConnectable={editable}
+						elementsSelectable={true}
+						deleteKey={editable ? 'Backspace' : null}
+						onconnect={connect}
+						onnodeclick={({ node }) => setSelectedNode(node as StrategyFlowNode)}
+						onedgeclick={({ edge }) => {
+							selectedEdgeId = edge.id;
+							selectedNodeId = null;
+						}}
+						onpaneclick={() => setSelectedNode(null)}
+						defaultEdgeOptions={{ type: 'smoothstep' }}
+					>
+						<Background variant={BackgroundVariant.Dots} />
+						<Controls />
+						<MiniMap pannable zoomable />
+					</SvelteFlow>
+				{/key}
 			{/if}
 		</div>
 
@@ -492,6 +531,40 @@
 									>{/each}</select
 							></label
 						>
+					{/if}
+					{#if selectedRuleSet}
+						<div class="rounded border border-slate-200 p-2" data-testid="node-rule-links">
+							<div class="mb-1 font-semibold text-slate-600">
+								Rules in {selectedRuleSet.code}
+							</div>
+							<ul class="space-y-1">
+								{#each selectedRuleSet.rule_codes as ruleCode (ruleCode)}
+									<li class="flex items-center justify-between gap-2">
+										<span class="truncate font-mono text-[11px]">{ruleCode}</span>
+										{#if ruleIdsByCode.get(ruleCode)}
+											<a
+												class="shrink-0 text-blue-700 underline"
+												href={`/rules/${ruleIdsByCode.get(ruleCode)}`}>Open rule →</a
+											>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+							<p class="mt-2 text-[10px] text-slate-400">
+								Editing a rule creates a new rule version through its own approval flow.
+							</p>
+						</div>
+					{:else if selectedNode.data.nodeType === 'DECISION_TABLE' && selectedTableId}
+						<a
+							class="block text-blue-700 underline"
+							data-testid="node-open-table"
+							href={`/decision-tables/${selectedTableId}`}>Open table editor →</a
+						>
+					{:else if selectedNode.data.nodeType === 'SCORECARD'}
+						<p class="text-[11px] text-slate-500">
+							Score bands are versioned via the scorecard API. Model versions are documented in
+							<a class="text-blue-700 underline" href="/models">Model Registry</a>.
+						</p>
 					{/if}
 					{#if !['START', 'END'].includes(selectedNode.data.nodeType)}
 						<label class="block font-semibold text-slate-600"
@@ -559,12 +632,42 @@
 							)}</pre>
 					{/if}
 				</div>
+			{:else if selectedEdge}
+				<div class="space-y-3 text-xs" data-testid="edge-config">
+					<div class="flex items-center justify-between">
+						<Badge value={selectedEdge.label ? `EDGE ${selectedEdge.label}` : 'EDGE'} />
+						{#if editable}<button class="text-red-600 underline" onclick={deleteSelectedEdge}
+								>Delete edge</button
+							>{/if}
+					</div>
+					<p class="text-slate-600">
+						<span class="font-mono">{selectedEdge.source}</span> →
+						<span class="font-mono">{selectedEdge.target}</span>
+					</p>
+					{#if editable}
+						<p class="text-[11px] text-slate-400">
+							To reroute, delete this edge and drag a new connection between node handles.
+						</p>
+					{/if}
+				</div>
 			{:else}
 				<p class="text-xs text-slate-500">
-					Select a node to configure it. {editable
-						? 'Draft versions are editable.'
-						: 'This version is read-only.'}
+					Click a node to inspect or configure it, or click an edge to manage the connection.
 				</p>
+				{#if editable}
+					<p class="mt-2 text-[11px] text-slate-400">
+						Drag from a node's right handle to another node to connect them. Select an element and
+						press Backspace to delete it.
+					</p>
+				{:else if selected}
+					<div
+						class="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-800"
+						data-testid="readonly-note"
+					>
+						This {selected.status} version is immutable. Use “Start new draft from this flow” to make
+						changes, then submit the draft for approval.
+					</div>
+				{/if}
 			{/if}
 		</Card>
 	</div>
