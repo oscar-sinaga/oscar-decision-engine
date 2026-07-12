@@ -5,6 +5,7 @@ async function login(page: import('@playwright/test').Page): Promise<void> {
 	await page.getByLabel('Username').fill('admin');
 	await page.getByLabel('Password').fill('OscarDemo123!');
 	await page.getByRole('button', { name: 'Sign in' }).click();
+	await expect(page.getByTestId('main-nav')).toBeVisible();
 }
 
 test('decisions list supports loading, sorting, empty filtering, and pagination affordance', async ({

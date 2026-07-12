@@ -7,6 +7,8 @@ export default defineConfig({
 	workers: 1,
 	use: {
 		baseURL: process.env.OSCAR_WEB_BASE_URL ?? 'http://127.0.0.1:4173',
+		// Keep evidence when a journey fails so flakes can be diagnosed, not guessed at.
+		trace: 'retain-on-failure',
 		launchOptions: chromiumExecutable
 			? { executablePath: chromiumExecutable, args: ['--no-sandbox'] }
 			: undefined

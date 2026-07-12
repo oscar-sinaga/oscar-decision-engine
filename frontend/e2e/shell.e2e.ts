@@ -17,7 +17,8 @@ test('shell provides grouped navigation, breadcrumbs, collapse, and user sign ou
 	const nav = page.getByTestId('main-nav');
 	await expect(nav).toContainText('Dashboard');
 	await expect(nav).toContainText('Decision Tables');
-	await expect(page.getByText('Monitor', { exact: true })).toBeVisible();
+	// Scope to the nav: "Monitor" also appears in the topbar breadcrumb group.
+	await expect(nav.getByText('Monitor', { exact: true })).toBeVisible();
 
 	await page.getByLabel('Collapse navigation').first().click();
 	await expect(nav.getByText('Dashboard', { exact: true })).toBeHidden();
