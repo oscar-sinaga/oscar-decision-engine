@@ -7,7 +7,7 @@
 - MVP: **Complete**
 - Phase 2 buildable scope: **Complete**; external adapters and environment promotion remain business/infrastructure work.
 - Phase 3 implementation and workstation acceptance: **Complete (P3.1–P3.8)**
-- Frontend redesign: **FR0 complete; FR1–FR6 pending** on `feature/frontend-redesign`.
+- Frontend redesign: **FR0–FR1 complete; FR2–FR6 pending** on `feature/frontend-redesign`.
 - Docker Compose rebuild, preserved-volume migration checks, manual UI acceptance, latency/PII checks, and all seven Playwright scenarios are complete. Exact evidence is in `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md`.
 - Latest Phase 3 commit: `docs: synchronize Phase 3 documentation and final report`
 
@@ -44,7 +44,7 @@
 | Phase                       | Status   | Primary evidence                                                                                                                                                                       |
 | --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | FR0 Foundation              | Complete | Official shadcn-svelte registry primitives vendored; OSCAR tokens/fonts and app component kit implemented; Svelte check 0/0, 41 Vitest, Prettier/ESLint clean, production build green. |
-| FR1 App shell               | Pending  | Not started.                                                                                                                                                                           |
+| FR1 App shell               | Complete | Grouped responsive navigation, topbar, breadcrumbs, account menu, redesigned login, and shell e2e definition; static gates green. |
 | FR2 List pages              | Pending  | Not started.                                                                                                                                                                           |
 | FR3 Dashboard               | Pending  | Not started.                                                                                                                                                                           |
 | FR4 Editors & details       | Pending  | Not started.                                                                                                                                                                           |
@@ -65,4 +65,4 @@ None.
 
 ## Next Work
 
-Continue the approved frontend redesign with FR1 (app shell) on `feature/frontend-redesign`. Backend behavior, routes, testids, and API contracts remain frozen. No push or deployment was performed.
+Continue the approved frontend redesign with FR2 (list pages) on `feature/frontend-redesign`. Backend behavior, routes, testids, and API contracts remain frozen. No push or deployment was performed.
