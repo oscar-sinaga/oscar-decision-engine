@@ -7,7 +7,7 @@
 - MVP: **Complete**
 - Phase 2 buildable scope: **Complete**; external adapters and environment promotion remain business/infrastructure work.
 - Phase 3 implementation and workstation acceptance: **Complete (P3.1–P3.8)**
-- Frontend redesign: **FR0–FR3 complete; FR4–FR6 pending** on `feature/frontend-redesign`.
+- Frontend redesign: **Complete (FR0–FR6)** on `feature/frontend-redesign`; routes, query parameters, API contracts, and existing `data-testid` values remain unchanged.
 - Docker Compose rebuild, preserved-volume migration checks, manual UI acceptance, latency/PII checks, and all seven Playwright scenarios are complete. Exact evidence is in `docs/phase3/LOCAL_ENVIRONMENT_VALIDATION.md`.
 - Latest Phase 3 commit: `docs: synchronize Phase 3 documentation and final report`
 
@@ -41,15 +41,15 @@
 
 ## Frontend Redesign Progress
 
-| Phase                       | Status      | Primary evidence                                                                                                                                                                       |
-| --------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| FR0 Foundation              | Complete    | Official shadcn-svelte registry primitives vendored; OSCAR tokens/fonts and app component kit implemented; Svelte check 0/0, 41 Vitest, Prettier/ESLint clean, production build green. |
-| FR1 App shell               | Complete    | Grouped responsive navigation, topbar, breadcrumbs, account menu, redesigned login, and shell e2e definition; static gates green.                                                      |
-| FR2 List pages              | Complete    | All list surfaces use PageHeader, FilterBar, DataTable, StatusBadge, skeleton and empty-state patterns; list-pattern e2e definition added.                                             |
-| FR3 Dashboard               | Complete    | KPI cards, decision mix, reason codes, volume trend, SLA snapshot, score distribution, and recent decisions implemented with existing APIs.                                            |
-| FR4 Editors & details       | In progress | Decision detail/trace, rules authoring, decision-table grid, and strategy canvas redesigned; manual-review and simulations remain.                                                     |
-| FR5 Governance              | Pending     | Not started.                                                                                                                                                                           |
-| FR6 Feedback/a11y/stability | Pending     | Not started.                                                                                                                                                                           |
+| Phase                       | Status   | Primary evidence                                                                                                                                                                                                             |
+| --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR0 Foundation              | Complete | Official shadcn-svelte registry primitives vendored; OSCAR tokens/fonts and app component kit implemented; Svelte check 0/0, 41 Vitest, Prettier/ESLint clean, production build green.                                       |
+| FR1 App shell               | Complete | Grouped responsive navigation, topbar, breadcrumbs, account menu, redesigned login, and shell e2e definition; static gates green.                                                                                            |
+| FR2 List pages              | Complete | All list surfaces use PageHeader, FilterBar, DataTable, StatusBadge, skeleton and empty-state patterns; list-pattern e2e definition added.                                                                                   |
+| FR3 Dashboard               | Complete | KPI cards, decision mix, reason codes, volume trend, SLA snapshot, score distribution, and recent decisions implemented with existing APIs.                                                                                  |
+| FR4 Editors & details       | Complete | Decision trace, rule authoring, decision-table grid, strategy canvas, manual-review workspace, and single/batch simulations share the redesigned interaction patterns.                                                       |
+| FR5 Governance              | Complete | Audit field-level diff drawer, approvals inbox, reason-required maker-checker actions, user role dialog, permission matrix, and governance E2E definitions delivered.                                                        |
+| FR6 Feedback/a11y/stability | Complete | Mutation toasts, controlled destructive confirmations, global focus-visible treatment, sortable-table ARIA, semantic-token cleanup, legacy wrapper removal, and docs sync completed; lint/check, 41 Vitest, and build green. |
 
 ## Phase 2 Summary
 
@@ -65,4 +65,4 @@ None.
 
 ## Next Work
 
-Continue the approved frontend redesign with FR6 feedback, accessibility, stability, and documentation cleanup on `feature/frontend-redesign`. Backend behavior, routes, testids, and API contracts remain frozen. No push or deployment was performed.
+No frontend redesign implementation phase remains. Run the 11 Playwright scenarios and capture the 19-route visual smoke set on the local Docker-backed workstation before merging or pushing; those browser/runtime steps were explicitly excluded from this execution environment. No push or deployment was performed.

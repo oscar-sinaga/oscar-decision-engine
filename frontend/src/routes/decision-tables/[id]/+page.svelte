@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { api } from '$lib/api/client';
+	import { api, ApiError } from '$lib/api/client';
 	import type { ConfigEntity, ConfigVersion, Meta, ReasonCode } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
@@ -188,6 +188,7 @@
 			toast.success('Decision table draft saved');
 		} catch (err) {
 			error = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not save decision table');
 		} finally {
 			busy = false;
 		}
@@ -206,6 +207,7 @@
 			toast.success('Decision table submitted for approval');
 		} catch (err) {
 			error = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not submit decision table');
 		} finally {
 			busy = false;
 		}
@@ -231,7 +233,7 @@
 			toast.success('Decision table activated');
 		} catch (err) {
 			error = err;
-			toast.error('Could not activate decision table');
+			toast.error(err instanceof ApiError ? err.message : 'Could not activate decision table');
 		} finally {
 			busy = false;
 		}
@@ -248,6 +250,7 @@
 			toast.success(`Draft v${created.version} created`);
 		} catch (err) {
 			error = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not create decision table draft');
 		} finally {
 			busy = false;
 		}

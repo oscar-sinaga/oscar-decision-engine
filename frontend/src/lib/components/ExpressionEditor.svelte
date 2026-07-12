@@ -47,9 +47,13 @@
 </script>
 
 <div class="space-y-3">
-	<label class="block text-xs font-semibold text-slate-600">
+	<label class="block text-xs font-semibold text-text-muted">
 		Output target
-		<select class="mt-1 w-full rounded border-slate-300 text-sm" bind:value={outputTarget} required>
+		<select
+			class="mt-1 w-full rounded-control border-border-strong text-sm"
+			bind:value={outputTarget}
+			required
+		>
 			<option value="">— choose writable output —</option>
 			{#each meta?.writable_outputs ?? [] as output (output.path)}
 				<option value={output.path}>{output.label} · {output.path} · {output.data_type}</option>
@@ -57,35 +61,38 @@
 		</select>
 	</label>
 	<div class="flex gap-2">
-		<select class="min-w-0 flex-1 rounded border-slate-300 text-sm" bind:value={featureToInsert}>
+		<select
+			class="min-w-0 flex-1 rounded-control border-border-strong text-sm"
+			bind:value={featureToInsert}
+		>
 			<option value="">— insert catalog feature —</option>
 			{#each meta?.features ?? [] as feature (feature.path)}
 				<option value={feature.path}>{feature.path} · {feature.data_type}</option>
 			{/each}
 		</select>
 		<button
-			class="rounded bg-slate-200 px-3 text-xs font-semibold"
+			class="rounded bg-surface-sunken px-3 text-xs font-semibold"
 			type="button"
 			onclick={insertFeature}>Insert</button
 		>
 	</div>
-	<label class="block text-xs font-semibold text-slate-600">
+	<label class="block text-xs font-semibold text-text-muted">
 		OSCAR expression
 		<textarea
-			class="mt-1 min-h-40 w-full rounded border-slate-300 font-mono text-sm"
+			class="mt-1 min-h-40 w-full rounded border-border-strong font-mono text-sm"
 			bind:value={expression}
 			maxlength="2000"
 			placeholder="CASE WHEN loan.ltv > 0.85 THEN 0 ELSE loan.requested_amount * 0.8 END"
 			required></textarea>
 	</label>
 	<div class="text-xs">
-		{#if validating}<span class="text-slate-500">Validating…</span>
-		{:else if validation}<span class="font-semibold text-emerald-700">
+		{#if validating}<span class="text-text-muted">Validating…</span>
+		{:else if validation}<span class="font-semibold text-success">
 				Valid · {validation.inferred_type} · {validation.ast_node_count} AST nodes
 			</span>
-		{:else if validationError}<span class="font-semibold text-red-700">{validationError}</span>{/if}
+		{:else if validationError}<span class="font-semibold text-danger">{validationError}</span>{/if}
 	</div>
 	{#if validation?.referenced_features.length}
-		<p class="text-xs text-slate-500">References: {validation.referenced_features.join(', ')}</p>
+		<p class="text-xs text-text-muted">References: {validation.referenced_features.join(', ')}</p>
 	{/if}
 </div>

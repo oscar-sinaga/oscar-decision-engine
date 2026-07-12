@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Plus } from '@lucide/svelte';
-	import { api } from '$lib/api/client';
+	import { api, ApiError } from '$lib/api/client';
 	import type { RegisteredModel } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -12,6 +12,8 @@
 	import PageHeader from '$lib/ui/PageHeader.svelte';
 	import RelativeTime from '$lib/ui/RelativeTime.svelte';
 	import StatusBadge from '$lib/ui/StatusBadge.svelte';
+	import { confirmAction } from '$lib/ui/confirm';
+	import { toast } from 'svelte-sonner';
 
 	type ModelRow = RegisteredModel &
 		Record<string, unknown> & { status: string; actions: string; owner: string };
@@ -58,17 +60,29 @@
 			showCreate = false;
 			form = { code: '', version_label: '', name: '', provider: 'INTERNAL', description: '' };
 			await load();
+			toast.success('Model version registered');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not register model version');
 		}
 	}
 	async function toggle(model: RegisteredModel): Promise<void> {
+		const confirmation = await confirmAction({
+			title: model.active ? 'Retire model version?' : 'Reactivate model version?',
+			body: `${model.code} ${model.version_label}`,
+			confirmLabel: model.active ? 'Retire' : 'Reactivate',
+			tone: model.active ? 'danger' : 'default',
+			requireReason: true
+		});
+		if (!confirmation.ok) return;
 		actionError = null;
 		try {
 			await api(`/v1/models/${model.id}`, { method: 'PATCH', body: { active: !model.active } });
 			await load();
+			toast.success(model.active ? 'Model version retired' : 'Model version reactivated');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not update model status');
 		}
 	}
 </script>

@@ -40,6 +40,9 @@ test('catalog output, expression authoring, preview, and generated test form', a
 	await featureCard.getByLabel('Category').fill('DECISION');
 	await featureCard.getByLabel('Writable output').check();
 	await page.getByRole('button', { name: 'Create feature' }).click();
+	await expect(
+		page.locator('[data-sonner-toast]').filter({ hasText: 'Feature created' })
+	).toBeVisible();
 	await expect(page.getByTestId('features-table')).toContainText(featurePath);
 
 	await page.goto('/rules/new');

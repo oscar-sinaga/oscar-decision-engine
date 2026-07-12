@@ -71,6 +71,13 @@
 					{#each columns as column (column.key)}
 						<th
 							scope="col"
+							aria-sort={column.sortable
+								? sort?.key === column.key
+									? sort.direction === 'asc'
+										? 'ascending'
+										: 'descending'
+									: 'none'
+								: undefined}
 							style:width={column.width}
 							class={cn(
 								'h-10 border-b border-border px-3 font-semibold text-text-muted',
@@ -80,6 +87,7 @@
 							{#if column.sortable}
 								<button
 									type="button"
+									aria-label={`Sort by ${column.header}${sort?.key === column.key ? `, currently ${sort.direction}` : ''}`}
 									class="inline-flex items-center gap-1 rounded-control"
 									onclick={() => toggle(column)}
 								>
@@ -113,7 +121,11 @@
 				{:else}
 					{#each sortedRows as row (String(row[rowKey]))}
 						<tr
-							class={cn('h-10 transition', onRowClick && 'cursor-pointer hover:bg-surface-muted')}
+							class={cn(
+								'h-10 transition',
+								onRowClick &&
+									'cursor-pointer hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500'
+							)}
 							tabindex={onRowClick ? 0 : undefined}
 							onclick={() => onRowClick?.(row)}
 							onkeydown={(event) => keyboardRow(event, row)}

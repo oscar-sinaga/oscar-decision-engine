@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { ArrowLeft, Play, Save } from '@lucide/svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { api } from '$lib/api/client';
+	import { api, ApiError } from '$lib/api/client';
 	import type { Meta, ReasonCode, Rule, RuleUsage, RuleVersion } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
 	import BranchEditor from '$lib/components/BranchEditor.svelte';
@@ -26,6 +26,8 @@
 	import StatusBadge from '$lib/ui/StatusBadge.svelte';
 	import VersionTimeline from '$lib/ui/VersionTimeline.svelte';
 	import { setBreadcrumb } from '$lib/ui/breadcrumb.svelte';
+	import { confirmAction } from '$lib/ui/confirm';
+	import { toast } from 'svelte-sonner';
 
 	let rule = $state<Rule | null>(null);
 	let meta = $state<Meta | null>(null);
@@ -141,21 +143,42 @@
 			testResult = await api(`/v1/rules/${rule.id}/versions/${selectedVersion.id}/test`, {
 				body: { features: testValues }
 			});
+			toast.success('Rule test completed');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Rule test failed');
 		}
 	}
 
 	async function lifecycle(path: string, reason = ''): Promise<void> {
 		if (!rule || !selectedVersion) return;
+		if (['activate', 'reject', 'retire'].includes(path)) {
+			const confirmation = await confirmAction({
+				title: `${path[0].toUpperCase()}${path.slice(1)} rule version?`,
+				body: `${rule.rule_code} v${selectedVersion.version}`,
+				confirmLabel: path === 'activate' ? 'Activate' : path === 'reject' ? 'Reject' : 'Retire',
+				tone: path === 'activate' ? 'default' : 'danger',
+				requireReason: true
+			});
+			if (!confirmation.ok) return;
+			reason = confirmation.reason ?? '';
+		}
 		actionError = null;
 		try {
 			await api(`/v1/rules/${rule.id}/versions/${selectedVersion.id}/${path}`, {
 				body: { reason }
 			});
 			await load();
+			const lifecycleMessages: Record<string, string> = {
+				'submit-approval': 'Rule submitted for approval',
+				activate: 'Rule version activated',
+				reject: 'Rule version rejected',
+				retire: 'Rule version retired'
+			};
+			toast.success(lifecycleMessages[path] ?? 'Rule lifecycle updated');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not update rule lifecycle');
 		}
 	}
 
@@ -197,8 +220,10 @@
 			);
 			editing = false;
 			await load();
+			toast.success(asNewVersion ? 'Rule draft version created' : 'Rule draft saved');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not save rule');
 		} finally {
 			saving = false;
 		}

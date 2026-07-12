@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Check, Plus, Power, PowerOff } from '@lucide/svelte';
-	import { api } from '$lib/api/client';
+	import { api, ApiError } from '$lib/api/client';
 	import type { Feature, RuleCategoryCatalog } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -16,6 +16,8 @@
 	import PageHeader from '$lib/ui/PageHeader.svelte';
 	import RelativeTime from '$lib/ui/RelativeTime.svelte';
 	import StatusBadge from '$lib/ui/StatusBadge.svelte';
+	import { confirmAction } from '$lib/ui/confirm';
+	import { toast } from 'svelte-sonner';
 
 	type FeatureRow = Feature & Record<string, unknown> & { status: string; actions: string };
 	let features = $state<Feature[] | null>(null);
@@ -91,11 +93,21 @@
 				writable: false
 			};
 			await load();
+			toast.success('Feature created');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not create feature');
 		}
 	}
 	async function toggleActive(feature: Feature): Promise<void> {
+		const confirmation = await confirmAction({
+			title: feature.active ? 'Deactivate feature?' : 'Reactivate feature?',
+			body: feature.path,
+			confirmLabel: feature.active ? 'Deactivate' : 'Reactivate',
+			tone: feature.active ? 'danger' : 'default',
+			requireReason: true
+		});
+		if (!confirmation.ok) return;
 		actionError = null;
 		try {
 			await api(`/v1/features/${feature.id}`, {
@@ -103,8 +115,10 @@
 				body: { active: !feature.active }
 			});
 			await load();
+			toast.success(feature.active ? 'Feature deactivated' : 'Feature reactivated');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not update feature status');
 		}
 	}
 	async function toggleWritable(feature: Feature): Promise<void> {
@@ -115,8 +129,10 @@
 				body: { writable: !feature.writable }
 			});
 			await load();
+			toast.success(feature.writable ? 'Feature is now read-only' : 'Feature is now writable');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not update writable setting');
 		}
 	}
 	async function createCategory(event: SubmitEvent): Promise<void> {
@@ -129,11 +145,21 @@
 			categoryCode = '';
 			categoryLabel = '';
 			await load();
+			toast.success('Rule category created');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not create rule category');
 		}
 	}
 	async function toggleCategory(category: RuleCategoryCatalog): Promise<void> {
+		const confirmation = await confirmAction({
+			title: category.active ? 'Deactivate rule category?' : 'Reactivate rule category?',
+			body: `${category.code} — ${category.label}`,
+			confirmLabel: category.active ? 'Deactivate' : 'Reactivate',
+			tone: category.active ? 'danger' : 'default',
+			requireReason: true
+		});
+		if (!confirmation.ok) return;
 		actionError = null;
 		try {
 			await api(`/v1/rule-categories/${category.id}`, {
@@ -141,8 +167,10 @@
 				body: { active: !category.active }
 			});
 			await load();
+			toast.success(category.active ? 'Rule category deactivated' : 'Rule category reactivated');
 		} catch (err) {
 			actionError = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not update rule category');
 		}
 	}
 	function resetFilters(): void {

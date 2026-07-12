@@ -84,7 +84,7 @@
 			toast.success('Policy impact analysis completed');
 		} catch (err) {
 			error = err instanceof ApiError ? err : new Error('Invalid JSON population');
-			toast.error('Policy impact analysis failed');
+			toast.error(err instanceof ApiError ? err.message : 'Policy impact analysis failed');
 		} finally {
 			running = false;
 		}

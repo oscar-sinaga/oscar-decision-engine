@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { ArrowLeft, Save } from '@lucide/svelte';
-	import { api } from '$lib/api/client';
+	import { api, ApiError } from '$lib/api/client';
 	import type { Meta, ReasonCode, Rule } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
 	import BranchEditor from '$lib/components/BranchEditor.svelte';
@@ -24,6 +24,7 @@
 		type BuilderState
 	} from '$lib/rule-format';
 	import PageHeader from '$lib/ui/PageHeader.svelte';
+	import { toast } from 'svelte-sonner';
 
 	let meta = $state<Meta | null>(null);
 	let reasonCodes = $state<ReasonCode[]>([]);
@@ -94,9 +95,11 @@
 				? { expression, output_target: outputTarget }
 				: builderToJson(builderState);
 			const rule = await api<Rule>('/v1/rules', { body: { ...form, ...definition } });
+			toast.success('Rule created');
 			goto(`/rules/${rule.id}`);
 		} catch (err) {
 			error = err;
+			toast.error(err instanceof ApiError ? err.message : 'Could not create rule');
 		} finally {
 			saving = false;
 		}

@@ -45,9 +45,9 @@
 
 <div class="space-y-2">
 	{#each actions as action, index (index)}
-		<div class="flex flex-wrap items-center gap-2 rounded border border-slate-200 bg-white p-2">
+		<div class="flex flex-wrap items-center gap-2 rounded border border-border bg-surface p-2">
 			<select
-				class="rounded border-slate-300 text-sm"
+				class="rounded-control border-border-strong text-sm"
 				value={action.type}
 				onchange={(event) => resetAction(action, event.currentTarget.value)}
 			>
@@ -57,7 +57,7 @@
 			</select>
 			{#if action.type === 'SET_OUTPUT'}
 				<select
-					class="min-w-56 rounded border-slate-300 text-sm"
+					class="min-w-56 rounded border-border-strong text-sm"
 					bind:value={action.target}
 					onchange={touch}
 				>
@@ -67,7 +67,7 @@
 					{/each}
 				</select>
 				{#if auth.hasPermission('rule.author_expression')}
-					<label class="flex items-center gap-1 text-xs text-slate-600">
+					<label class="flex items-center gap-1 text-xs text-text-muted">
 						<input
 							type="checkbox"
 							checked={action.expression !== undefined}
@@ -77,14 +77,14 @@
 				{/if}
 				{#if action.expression !== undefined}
 					<input
-						class="min-w-64 flex-1 rounded border-slate-300 font-mono text-sm"
+						class="min-w-64 flex-1 rounded border-border-strong font-mono text-sm"
 						bind:value={action.expression}
 						oninput={touch}
 						placeholder="loan.requested_amount * 0.8"
 					/>
 				{:else if outputType(action) === 'BOOLEAN'}
 					<select
-						class="rounded border-slate-300 text-sm"
+						class="rounded-control border-border-strong text-sm"
 						value={String(action.value ?? false)}
 						onchange={(event) => {
 							action.value = event.currentTarget.value === 'true';
@@ -93,7 +93,7 @@
 					>
 				{:else}
 					<input
-						class="min-w-36 flex-1 rounded border-slate-300 text-sm"
+						class="min-w-36 flex-1 rounded border-border-strong text-sm"
 						type={outputType(action) === 'NUMBER'
 							? 'number'
 							: outputType(action) === 'DATE'
@@ -106,7 +106,7 @@
 				{/if}
 			{:else if action.type === 'SET_DECISION' || action.type === 'STOP_EXECUTION'}
 				<select
-					class="rounded border-slate-300 text-sm"
+					class="rounded-control border-border-strong text-sm"
 					bind:value={action.decision}
 					onchange={touch}
 				>
@@ -118,7 +118,7 @@
 			{/if}
 			{#if action.type !== 'SET_OUTPUT'}
 				<select
-					class="min-w-48 rounded border-slate-300 text-sm"
+					class="min-w-48 rounded border-border-strong text-sm"
 					bind:value={action.reason_code}
 					onchange={touch}
 				>
@@ -129,7 +129,7 @@
 				</select>
 			{/if}
 			<button
-				class="ml-auto text-xs text-red-600 underline"
+				class="ml-auto text-xs text-danger underline"
 				type="button"
 				onclick={() => (actions = actions.filter((_, i) => i !== index))}
 				disabled={actions.length === 1}>remove</button
@@ -137,7 +137,7 @@
 		</div>
 	{/each}
 	<button
-		class="text-xs font-semibold text-blue-700 underline"
+		class="text-xs font-semibold text-primary-700 underline"
 		type="button"
 		onclick={() => (actions = [...actions, { type: 'CONTINUE' }])}>+ action</button
 	>

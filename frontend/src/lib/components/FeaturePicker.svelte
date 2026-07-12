@@ -13,7 +13,7 @@
 
 <div class="flex min-w-64 items-center gap-2">
 	<input
-		class="min-w-0 flex-1 rounded border-slate-300 text-sm"
+		class="min-w-0 flex-1 rounded-control border-border-strong text-sm"
 		list={listId}
 		placeholder="Search feature path, label, or category"
 		bind:value
@@ -25,7 +25,7 @@
 		{/each}
 	</datalist>
 	{#if selected}
-		<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+		<span class="rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] font-semibold text-text-muted">
 			{selected.data_type}
 		</span>
 	{/if}

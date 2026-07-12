@@ -82,7 +82,7 @@
 			toast.success('Simulation completed');
 		} catch (err) {
 			error = err instanceof ApiError ? err : new Error('Invalid JSON payload');
-			toast.error('Simulation failed');
+			toast.error(err instanceof ApiError ? err.message : 'Simulation failed');
 		} finally {
 			running = false;
 		}

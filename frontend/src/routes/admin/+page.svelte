@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Check, ExternalLink, ShieldCheck, UserCog } from '@lucide/svelte';
-	import { api } from '$lib/api/client';
+	import { api, ApiError } from '$lib/api/client';
 	import type {
 		AdminUser,
 		ApprovalRequest,
@@ -89,7 +89,7 @@
 			await load();
 		} catch (err) {
 			actionError = err;
-			toast.error('Could not update user roles');
+			toast.error(err instanceof ApiError ? err.message : 'Could not update user roles');
 		}
 	}
 
@@ -154,7 +154,13 @@
 			await load();
 		} catch (err) {
 			actionError = err;
-			toast.error(isReject ? 'Could not reject approval' : 'Could not approve request');
+			toast.error(
+				err instanceof ApiError
+					? err.message
+					: isReject
+						? 'Could not reject approval'
+						: 'Could not approve request'
+			);
 		} finally {
 			busyApproval = null;
 		}

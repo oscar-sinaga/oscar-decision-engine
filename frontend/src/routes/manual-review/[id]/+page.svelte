@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { api } from '$lib/api/client';
+	import { api, ApiError } from '$lib/api/client';
 	import type { CaseDetail, ReasonCode } from '$lib/api/types';
 	import { auth } from '$lib/auth.svelte';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
@@ -54,7 +54,7 @@
 			toast.success('Manual-review case updated');
 		} catch (err) {
 			actionError = err;
-			toast.error('Could not update manual-review case');
+			toast.error(err instanceof ApiError ? err.message : 'Could not update manual-review case');
 		}
 	}
 

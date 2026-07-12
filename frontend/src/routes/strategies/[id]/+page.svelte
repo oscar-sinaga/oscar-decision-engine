@@ -227,8 +227,15 @@
 		edges = [...edges.filter((edge) => edge.id !== occupied?.id), connectionToEdge(connection)];
 	}
 
-	function deleteSelectedNode() {
+	async function deleteSelectedNode() {
 		if (!selectedNode || !editable || selectedNode.data.nodeType === 'START') return;
+		const confirmation = await confirmAction({
+			title: 'Delete flow node?',
+			body: `${selectedNode.data.name || selectedNode.id} and its connected edges will be removed from this draft.`,
+			confirmLabel: 'Delete node',
+			tone: 'danger'
+		});
+		if (!confirmation.ok) return;
 		// Capture the id first: the $derived selectedNode turns null as soon as nodes is filtered.
 		const nodeId = selectedNode.id;
 		nodes = nodes.filter((node) => node.id !== nodeId);
@@ -236,8 +243,15 @@
 		selectedNodeId = null;
 	}
 
-	function deleteSelectedEdge() {
+	async function deleteSelectedEdge() {
 		if (!selectedEdge || !editable) return;
+		const confirmation = await confirmAction({
+			title: 'Delete flow edge?',
+			body: `${selectedEdge.source} → ${selectedEdge.target}`,
+			confirmLabel: 'Delete edge',
+			tone: 'danger'
+		});
+		if (!confirmation.ok) return;
 		const edgeId = selectedEdge.id;
 		edges = edges.filter((edge) => edge.id !== edgeId);
 		selectedEdgeId = null;
@@ -279,6 +293,7 @@
 			toast.success(asNewVersion ? 'Strategy draft version created' : 'Strategy flow saved');
 		} catch (err) {
 			actionError = err instanceof ApiError ? err : new Error('Could not save the flow');
+			toast.error(err instanceof ApiError ? err.message : 'Could not save strategy flow');
 			if (err instanceof ApiError) {
 				issues = err.details.map((detail) => ({
 					field: detail.field ?? 'graph',
@@ -334,6 +349,7 @@
 			toast.success('Strategy submitted for approval');
 		} catch (err) {
 			actionError = err instanceof ApiError ? err : new Error('Could not submit for approval');
+			toast.error(err instanceof ApiError ? err.message : 'Could not submit strategy for approval');
 		}
 	}
 
