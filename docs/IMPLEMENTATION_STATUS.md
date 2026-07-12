@@ -65,4 +65,4 @@ None.
 
 ## Next Work
 
-Continue the approved frontend redesign with FR4.5 manual-review and FR4.6 simulations on `feature/frontend-redesign`. Backend behavior, routes, testids, and API contracts remain frozen. No push or deployment was performed.
+Continue the approved frontend redesign with FR5 governance on `feature/frontend-redesign`. Backend behavior, routes, testids, and API contracts remain frozen. No push or deployment was performed.

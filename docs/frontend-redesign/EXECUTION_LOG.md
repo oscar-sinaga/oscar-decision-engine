@@ -15,3 +15,6 @@
 
 - FR4.3 decision-table grid — done; sticky lifecycle toolbar, semantic settings panels, frozen grid header/row column, wildcard and overlap treatments, accessible row/column controls, registry-aligned confirmation, and snapshot-safe reactive cloning implemented without changing grid domain logic or `decision-table-grid`.
 - FR4.4 strategy canvas — done; full-height canvas, collapsible palette/inspector, sticky lifecycle actions, semantic node colors, bottom issue banner, version selector, controlled edge replacement, and all existing flow testids/behavior preserved. Gates for FR4.3/FR4.4: svelte-check 0/0, Vitest 41/41, Prettier/ESLint clean, production build green; Playwright deferred by contract.
+
+- FR4.5 manual-review workspace — done; evidence/work two-column layout, SLA and escalation chips, system-vs-analyst verdict, inline override guardrail, document checklist, comments timeline, assignment/escalation/document actions, and all existing controls/testids preserved.
+- FR4.6 simulations — done; unified Single/Batch navigation, payload and setup workspaces, target-vs-active outcome cards, shift/segment tables, empty states, and mutation feedback added without changing request contracts or testids. Gates: svelte-check 0/0, Vitest 41/41, Prettier/ESLint clean, production build green; Playwright intentionally deferred.
