@@ -36,6 +36,7 @@ from app.modules.auth.permissions import ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIO
 from app.modules.auth.security import hash_password
 from app.modules.features.service import catalog_seed_rows
 from app.modules.model_registry.models import RegisteredModel
+from app.shared.config import get_settings
 from app.shared.database.session import get_sessionmaker
 from app.shared.domain.enums import (
     ActorType,
@@ -645,6 +646,9 @@ async def seed_all(session: AsyncSession) -> None:
 
 
 async def main() -> None:
+    # The synthetic accounts and policy values are development fixtures, never deployment data.
+    if get_settings().environment.lower() not in {"development", "test", "testing", "compose", "local"}:
+        raise RuntimeError("Synthetic demo seeding is disabled outside local development")
     configure_logging()
     async with get_sessionmaker()() as session:
         await seed_all(session)

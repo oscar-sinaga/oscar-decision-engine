@@ -10,6 +10,8 @@ import asyncio
 import os
 from collections.abc import AsyncIterator
 
+from sqlalchemy.engine import make_url
+
 TEST_DATABASE_URL = os.environ.setdefault(
     "OSCAR_DATABASE_URL",
     "postgresql+asyncpg://oscar:oscar_dev_password@localhost:5455/oscar_test",
@@ -22,12 +24,14 @@ from httpx import ASGITransport, AsyncClient  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.seed import SEED_PASSWORD, seed_all  # noqa: E402
 
+# Match the configured test PostgreSQL instead of assuming developer-machine credentials.
+_test_dsn = make_url(TEST_DATABASE_URL)
 _ADMIN_DSN = {
-    "host": "localhost",
-    "port": 5455,
-    "user": "oscar",
-    "password": "oscar_dev_password",
-    "database": "oscar",
+    "host": _test_dsn.host or "localhost",
+    "port": _test_dsn.port or 5432,
+    "user": _test_dsn.username or "postgres",
+    "password": _test_dsn.password or "",
+    "database": "postgres",
 }
 
 

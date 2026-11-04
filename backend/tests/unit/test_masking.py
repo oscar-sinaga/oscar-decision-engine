@@ -52,3 +52,21 @@ def test_sensitive_key_matching() -> None:
     assert is_sensitive_key("customer_phone_number")
     assert not is_sensitive_key("requested_amount")
     assert not is_sensitive_key("risk_grade")
+
+
+def test_trace_masks_sensitive_field_references_and_output_values() -> None:
+    trace = {
+        "field": "outputs.customer_phone",
+        "actual": "+62812345678",
+        "expected": "+62812345678",
+        "operator": "EQ",
+    }
+    result = redact(trace)
+    assert result["field"] == "outputs.customer_phone"
+    assert result["actual"] == REDACTED
+    assert result["expected"] == REDACTED
+    assert result["operator"] == "EQ"
+    assert redact({"outputs.synthetic_phone": "+62812345678"}) == {
+        "outputs.synthetic_phone": REDACTED
+    }
+    assert redact({"applicant.customer_id": "PERSON-001"})["applicant.customer_id"] == REDACTED
