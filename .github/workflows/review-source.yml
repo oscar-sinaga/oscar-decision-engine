@@ -1,0 +1,32 @@
+name: OSCAR review source snapshot
+
+on:
+  push:
+    branches:
+      - fix/security-reliability-hardening-20261104
+    paths:
+      - .github/workflows/review-source.yml
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive tracked source only
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/oscar-review
+          git archive --format=zip --output=/tmp/oscar-review/source.zip HEAD
+          git rev-parse HEAD > /tmp/oscar-review/commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oscar-review-source
+          path: /tmp/oscar-review/
+          retention-days: 1
+          if-no-files-found: error
