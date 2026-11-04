@@ -42,8 +42,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-          enable-cache: true
-          cache-dependency-glob: "backend/uv.lock"
+          enable-cache: false
       - name: Install Python dependencies
         working-directory: backend
         run: uv sync --frozen
@@ -103,8 +102,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-          enable-cache: true
-          cache-dependency-glob: "backend/uv.lock"
+          enable-cache: false
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
