@@ -91,8 +91,8 @@ class AnalystDecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     analyst_decision: DecisionType
-    approved_limit: FiniteFloat | None = Field(default=None, gt=0, strict=True)
-    approved_tenor_months: int | None = Field(default=None, gt=0, strict=True)
+    approved_limit: FiniteFloat | None = Field(default=None, gt=0, lt=1e16, strict=True)
+    approved_tenor_months: int | None = Field(default=None, gt=0, le=2_147_483_647, strict=True)
     override_reason_code: str | None = None
     override_reason: str = ""
     notes: str = ""

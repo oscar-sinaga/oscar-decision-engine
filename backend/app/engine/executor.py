@@ -558,6 +558,12 @@ def _run_decision_table_step(
         if isinstance(base, (int, float)) and not isinstance(base, bool):
             approved_limit = round(float(base) * output.approved_limit_pct_of.pct, 2)
 
+    if approved_limit is not None and (
+        not finite_number(approved_limit) or not 0 <= approved_limit < 1e16
+    ):
+        # The existing configured FAIL/MANUAL_REVIEW fallback handles invalid formula outputs.
+        raise ValueError("Calculated limit is outside supported persistence bounds")
+
     # Configurable escalation: approval with a limit below the requested amount
     # becomes a conditional approval.
     requested = context.features.get("loan.requested_amount")

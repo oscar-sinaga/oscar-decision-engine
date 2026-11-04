@@ -11,7 +11,7 @@ from datetime import date
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
 
 from app.engine.dsl import Condition
 from app.engine.evaluator import evaluate_condition
@@ -28,7 +28,7 @@ class LimitFromField(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     field: str
-    pct: float = Field(gt=0, le=1)
+    pct: FiniteFloat = Field(gt=0, le=1, strict=True)
 
 
 class TableOutput(BaseModel):
@@ -37,10 +37,11 @@ class TableOutput(BaseModel):
     decision: DecisionType
     risk_grade: str | None = Field(default=None, min_length=1, max_length=5)
     reason_code: str | None = None
-    approved_limit: float | None = None
+    # Technical bounds match PostgreSQL Numeric(18, 2), not a credit-policy threshold.
+    approved_limit: FiniteFloat | None = Field(default=None, ge=0, lt=1e16, strict=True)
     approved_limit_pct_of: LimitFromField | None = None
-    approved_tenor_months: int | None = None
-    pricing_rate: float | None = None
+    approved_tenor_months: int | None = Field(default=None, gt=0, le=2_147_483_647, strict=True)
+    pricing_rate: FiniteFloat | None = Field(default=None, ge=0, le=999.99999, strict=True)
 
 
 class TableRow(BaseModel):

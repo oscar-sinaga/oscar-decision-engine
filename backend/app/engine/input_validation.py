@@ -2,10 +2,10 @@
 
 import math
 from datetime import date
-from typing import Any
+from typing import Any, TypeGuard
 
 
-def finite_number(value: Any) -> bool:
+def finite_number(value: Any) -> TypeGuard[int | float]:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
     try:

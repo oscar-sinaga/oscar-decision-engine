@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: oscar-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -39,26 +43,57 @@ jobs:
       OSCAR_SEED_PASSWORD: OscarDemo123!
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
           enable-cache: false
       - name: Install Python dependencies
+        id: install
         working-directory: backend
         run: uv sync --frozen
-      - name: Ruff, mypy, pytest (real PostgreSQL + Alembic)
+      - name: Formatting and lint (no automatic source edits)
         working-directory: backend
         run: |
-          uv run ruff format --check .
+          set -euo pipefail
+          uv run ruff format --diff .
           uv run ruff check .
+      - name: Strict type checking
+        if: always() && steps.install.outcome == 'success'
+        working-directory: backend
+        run: |
+          set -euo pipefail
           uv run mypy app tests
-          uv run pytest -q
+      - name: Repeated PostgreSQL tests and synthetic migration rehearsal
+        if: always() && steps.install.outcome == 'success'
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          if (set -o pipefail; false | cat); then
+            echo 'Pipeline failure propagation is broken'; exit 1
+          fi
+          mkdir -p ci-evidence
+          uv run pytest -q | tee ci-evidence/pytest-first.txt
+          uv run alembic downgrade f4b7c9d2e601
+          uv run alembic upgrade head
+          uv run pytest -q | tee ci-evidence/pytest-second.txt
+      - name: Upload backend test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-backend-evidence
+          path: backend/ci-evidence/
+          if-no-files-found: ignore
+          retention-days: 7
 
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -70,6 +105,7 @@ jobs:
       - name: Frontend static gates
         working-directory: frontend
         run: |
+          set -euo pipefail
           npm run lint
           npm run check
           npm run test:unit -- --run
@@ -99,6 +135,8 @@ jobs:
       OSCAR_WEB_BASE_URL: http://127.0.0.1:4173
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
@@ -111,6 +149,7 @@ jobs:
       - name: Install and start backend (synthetic CI fixtures only)
         working-directory: backend
         run: |
+          set -euo pipefail
           uv sync --frozen
           uv run alembic upgrade head
           uv run python -m app.seed
@@ -125,9 +164,11 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
-      - name: Run browser regression tests
+      - name: Run browser regression tests twice
         working-directory: frontend
-        run: npx playwright test
+        run: |
+          set -euo pipefail
+          npx playwright test --repeat-each=2
       - name: Upload failure traces
         if: failure()
         uses: actions/upload-artifact@v4

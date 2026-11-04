@@ -1,66 +1,78 @@
 # Follow-up audit — 4 November 2026
 
-Scope: the proposed hardening PR, not a production deployment. Baseline source:
+Scope: proposed hardening PR #1, not a production deployment. Baseline source:
 `303162b0b26bbbd75159c0784d2f6c925f34d9ce` (previous application head `05d0055c`).
 
 ## Reproduction evidence
 
 The existing pure engine unit suite passed 108 tests. Fourteen additional cases
-**failed on the baseline**: bool/number equality and membership, large-integer
+failed on the baseline: bool/number equality and membership, large-integer
 ordering, ISO date ordering, omitted membership operands, non-finite scores,
 non-finite JSON payloads, ambiguous dotted payload keys, and DATE overlap analysis.
 The same unit suite plus regressions passed 122 tests after the local corrections.
-Full database/browser validation is performed by the accompanying CI run; local
-unit results do not stand in for that validation.
+A second set exposed 19 invalid or oversized financial-output cases. With those
+corrections and two deterministic property tests, the local unit suite passed 143.
+Full PostgreSQL/browser/type validation must be checked separately in GitHub Actions.
 
-## Corrections under test
+## Corrections
 
 | Area | Defect and correction |
 | --- | --- |
-| Runtime catalog | Newly registered PAYLOAD features were accepted by rule authoring but dropped by the executor's static map. Resolved plans now carry the governed payload paths/types. Retiring a catalog entry does not erase inputs of already-approved versions. |
-| Input types | Numbers, booleans, strings and dates are no longer implicitly interchangeable. NaN/Infinity and ambiguous dotted keys are rejected. Required-field policy remains configurable. |
-| Rule comparisons | Boolean equality is distinct from 0/1, integer ordering keeps precision, and canonical ISO dates compare consistently with authoring validation. Membership operands must be supplied and shaped correctly. |
-| Decision-table warnings | DATE range overlap checking no longer raises an uncaught TypeError. Overlap remains conservative, and discrete candidate values use the same runtime comparisons. |
-| Model scores | Non-finite scores are treated as unavailable rather than receiving a valid risk grade. |
-| Maker-checker | The initial creator, recorded editors, and submitter cannot approve their own change, across rules, tables, scorecards and strategies. |
-| Concurrent configuration | Transaction-scoped shared/read and exclusive/write policy locks protect resolved plans and lifecycle checks. Writers refresh previously loaded ORM objects after acquiring the lock. |
-| Simulation evidence | Evidence is bound to a fingerprint of the resolved graph, referenced configurations and catalog. Graph/dependency changes invalidate old evidence; activation rechecks it. Old simulations without fingerprints must be rerun. |
-| Published rule sets | Membership used by pending, active or retired strategy versions cannot be edited in place. Create a new rule set and governed draft instead. The existing expression integration test now follows this workflow without weakening outcome/trace assertions. |
-| Batch simulation | Absence of an active comparison policy is handled deliberately. An invalid stored active policy is still an error, not silently skipped. |
-| Manual review | FRAUD_INVESTIGATION stays open/escalated with the application pending, not approved/closed. A subsequent fraud approval still requires override permission. Concurrent stale decisions are serialized per case. |
-| Assignment/documents | Unknown assignee filters return no rows, invalid assignees are rejected, and document resolution requires an open case and a requested document. Approval financial terms are forbidden on non-approval outcomes; the UI clears them accordingly. |
-| JWT | Signed tokens must contain expiration, issuance, subject and actor claims. Known published development JWT values are rejected for non-local environments. |
-| Test isolation | The destructive integration fixture refuses any database name except `oscar_test` before loading application code or opening a connection. |
+| Runtime catalog | Newly registered PAYLOAD features were accepted by authoring but dropped by the static runtime map. Resolved plans now carry governed paths/types, including references of existing approved versions. |
+| Input/comparison types | Booleans are distinct from numbers, large-integer ordering keeps precision, ISO date ordering is supported, membership operands are validated, and non-finite/ambiguous JSON values are rejected. |
+| Decision tables | DATE overlap checking no longer raises an uncaught TypeError. Overlap checking remains conservative rather than a complete symbolic proof. |
+| Financial outputs | Strict finite terms and PostgreSQL representability bounds prevent invalid limits, tenors, prices and scores from reaching persistence. Oversized calculated limits take the configured error/fallback path. These are technical bounds, not new lending-policy thresholds. |
+| Maker-checker | Initial creators, recorded editors and submitters cannot approve their own configuration change, across rules, tables, scorecards and strategies. |
+| Concurrent policy changes | Transaction-scoped shared reader/exclusive writer advisory locks protect plan resolution and lifecycle checks; stale ORM state is refreshed after locking. |
+| Simulation evidence | A fingerprint binds evidence to the resolved graph, referenced configurations and catalog. Edited graph/dependencies invalidate stale evidence even when the strategy version ID is unchanged. Old evidence without fingerprints must be rerun. |
+| Published rule sets | Membership used by pending, active or retired strategy versions cannot be edited in place. Create a new set and governed draft instead. |
+| Batch simulation | An absent active comparison policy is handled deliberately; corrupted active configuration is not silently ignored. |
+| Manual review | Fraud investigation remains open/escalated, and subsequent approval requires override permission. Concurrent stale decisions are serialized per case. |
+| Assignment/documents | Unknown assignee filters return no rows, invalid assignees are rejected, and document resolution requires an open case/requested document. Approval terms are forbidden on non-approval outcomes, including in the UI. |
+| JWT | Signed tokens require expiration, issuance, subject and actor claims; known published development/CI secrets are rejected for hosted environments. |
+| Test isolation | The destructive integration fixture refuses any database name except oscar_test before importing application code or opening a connection. |
 
-## Compatibility and operational notes
+## Validation integrity correction
 
-The advisory-lock namespace is intentionally conservative for an internal policy
-workbench. Decision readers remain concurrent; long batch simulations may delay
-policy changes until their transactions finish. Measure contention under the
-intended workload before production. A future immutable policy snapshot format
-may reduce that contention; this patch does not claim such a redesign.
+The temporary first repair runner had a pipeline exit-status defect: commands
+piped into tee did not propagate failure under the implicit shell. Its detailed
+logs contained 263 pytest passes / 2 failures and one mypy error despite a green
+job. That result is NOT a passing backend acceptance. No main merge or deployment
+occurred. The temporary publisher and its payload files were removed.
 
-Rule-set membership edits and stale simulation attachment now fail explicitly.
-Existing traces and audit rows are not rewritten. Credit-policy thresholds are
-unchanged. No production database, secret, main-branch ref or deployment is touched.
+The final corrections are committed as directly reviewable source. Canonical CI
+now uses explicit Bash and set -euo pipefail, checks pipeline failure propagation,
+runs two full PostgreSQL suites around a synthetic migration down/up rehearsal,
+and repeats the 11 browser scenarios twice. It has read-only repository permissions
+and does not edit or publish source code. Any failing gate leaves the job failed.
 
-## Dependency review
+The two regressions preserve original assertions: catalog operator violations
+retain field-specific errors, and expression fixtures use an isolated rule set
+without changing seeded rule-usage counts. finite_number now returns a TypeGuard,
+retaining runtime checks while making static type narrowing correct.
 
-The initial lockfile scan reported npm advisories for 28 packages (6 high), and
-Python advisories involving anyio, certifi, dnspython, PyJWT and urllib3. These are
-scanner observations, not proof that all reported exploit preconditions exist in
-this application. Compatible lockfile updates are tested with the application;
-no forced major-version downgrade or audit suppression is used.
+Two deterministic property tests check 10,000 typed equality and 2,000 overlap
+cases. These are sampled checks, not proof over every possible input.
 
-The initial PyJWT report included a no-fixed-version advisory about reusing a
-mutable options mapping after disabling signature verification. OSCAR uses a new
-options mapping per decode and does not disable signature verification. Record
-any remaining scanner finding explicitly; do not call the dependency tree clean
-merely because functional CI is green.
+## Dependency evidence
 
-## Release status
+The initial npm audit reported 28 affected packages including 6 high severity.
+Compatible updates reduced the recorded full-tree report to 22 (9 low and 13
+moderate; no high/critical findings), with 0 in npm's omit-dev runtime tree.
+The recorded Python runtime pip-audit reported 0 vulnerabilities after updates.
+These are scanner observations, not proof of absent vulnerabilities.
 
-Keep PR #1 in review. Passing this regression suite is not proof of an absolute
-absence of bugs. Production database restore/migration rehearsal, protected
-branch rules, privacy classification, load testing, and independent security/UAT
-remain distinct release requirements.
+Remaining SvelteKit/tooling findings need a separately reviewed major-version
+upgrade. No forced downgrade, audit suppression or blanket claim of safety was
+used. Development dependency classification alone does not prove non-exposure:
+build-time tooling can affect shipped output.
+
+## Compatibility and release limitations
+
+Decision readers remain concurrent; the conservative policy advisory lock can
+make long batch simulations delay configuration writers. Measure contention and
+throughput under the intended workload. No production benchmark is claimed.
+Existing traces/audits are not rewritten; stale simulations need rerunning.
+Keep PR #1 in review. Branch protection, production backup/restore rehearsal,
+privacy classification, realistic load tests and independent security/UAT remain
+separate requirements. Successful CI cannot establish absolute absence of bugs.

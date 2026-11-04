@@ -150,7 +150,7 @@ async def test_active_expression_rule_executes_inside_decision_strategy(
         json={
             "code": set_code,
             "name": "Expression test",
-            "rule_codes": ["DTI_MAX_STANDARD", code],
+            "rule_codes": [code],
         },
     )
     assert created_set.status_code == 201, created_set.text
