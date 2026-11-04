@@ -50,8 +50,6 @@ jobs:
       - name: Ruff, mypy, pytest (real PostgreSQL + Alembic)
         working-directory: backend
         run: |
-          uv run ruff format .
-          git diff -- app tests
           uv run ruff format --check .
           uv run ruff check .
           uv run mypy app tests
@@ -73,8 +71,6 @@ jobs:
       - name: Frontend static gates
         working-directory: frontend
         run: |
-          npx prettier --write src/routes/login/+page.svelte
-          git diff -- src/routes/login/+page.svelte
           npm run lint
           npm run check
           npm run test:unit -- --run

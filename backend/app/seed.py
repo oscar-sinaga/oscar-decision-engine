@@ -647,7 +647,13 @@ async def seed_all(session: AsyncSession) -> None:
 
 async def main() -> None:
     # The synthetic accounts and policy values are development fixtures, never deployment data.
-    if get_settings().environment.lower() not in {"development", "test", "testing", "compose", "local"}:
+    if get_settings().environment.lower() not in {
+        "development",
+        "test",
+        "testing",
+        "compose",
+        "local",
+    }:
         raise RuntimeError("Synthetic demo seeding is disabled outside local development")
     if not os.environ.get("OSCAR_SEED_PASSWORD"):
         raise RuntimeError("Provide OSCAR_SEED_PASSWORD explicitly before demo seeding")

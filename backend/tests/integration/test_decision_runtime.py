@@ -172,9 +172,7 @@ async def test_trace_feature_values_and_steps_mask_sensitive_values(db_client: A
         assert "CUST-001" not in str(trace.step_results)
 
     analyst = await login(db_client, "riskanalyst")
-    viewed = await db_client.get(
-        f"/v1/decisions/{created['decision_id']}/trace", headers=analyst
-    )
+    viewed = await db_client.get(f"/v1/decisions/{created['decision_id']}/trace", headers=analyst)
     assert viewed.status_code == 200
     assert viewed.json()["feature_values"]["applicant.customer_id"] == "***REDACTED***"
     assert "CUST-001" not in viewed.text

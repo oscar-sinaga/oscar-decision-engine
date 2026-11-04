@@ -410,3 +410,16 @@ Responses always include `graph`; `steps` is also returned only when the graph i
 ### Decision tables
 
 The existing `/v1/decision-tables` version endpoints remain the contract for the grid editor. Version responses include computed `warnings`, including overlapping rows. Outputs support decision, reason code(s), risk grade, approved limit/formula, tenor, and pricing fields. No separate browser-only storage exists.
+
+## 2026-11-04 Idempotency Hardening Addendum
+
+- `POST /v1/decisions` accepts optional `Idempotency-Key` (1–200 characters).
+- A first successful keyed decision stores a SHA-256 fingerprint of the canonical full
+  application request together with the authenticated actor identifier.
+- A retry using the same key **and same payload and actor** returns the original decision.
+- Reuse of a key with a different payload/actor, or one predating the fingerprint migration,
+  returns `409 CONFLICT`. Clients must use a new unique key.
+- Fingerprint comparison also applies to concurrent unique-index collisions. No raw request
+  payload is stored in the fingerprint.
+- Production and simulation traces redact sensitive dynamic keys/feature values. Redaction is
+  intentionally irreversible; preserved traces may no longer support replay of sensitive inputs.

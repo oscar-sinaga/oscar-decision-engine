@@ -59,8 +59,16 @@ def is_sensitive_key(key: str) -> bool:
 
 _FIELD_REFERENCE_KEYS = ("field", "target", "feature", "feature_path", "output_target")
 _FIELD_VALUE_KEYS = {
-    "value", "actual", "expected", "observed", "left", "right",
-    "resolved_value", "calculated_value", "input", "result",
+    "value",
+    "actual",
+    "expected",
+    "observed",
+    "left",
+    "right",
+    "resolved_value",
+    "calculated_value",
+    "input",
+    "result",
 }
 
 

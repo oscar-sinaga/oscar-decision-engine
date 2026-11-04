@@ -51,7 +51,9 @@ class DecisionHistoryResponse(BaseModel):
 async def submit_decision(
     body: DecisionRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
-    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", min_length=1, max_length=200)] = None,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key", min_length=1, max_length=200)
+    ] = None,
     user: User = require_permission(Permissions.DECISION_EXECUTE),
 ) -> DecisionResponse:
     return await execute_decision(session, body, actor=user, idempotency_key=idempotency_key)
