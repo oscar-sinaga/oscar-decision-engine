@@ -41,7 +41,7 @@ from app.shared.domain.enums import (
 from app.shared.domain.errors import NotFoundError
 from app.shared.logging import get_correlation_id, get_logger, get_request_id
 from app.shared.utils.ids import display_id
-from app.shared.utils.masking import sanitize_snapshot
+from app.shared.utils.masking import redact, sanitize_snapshot
 
 logger = get_logger("oscar.simulations")
 
@@ -83,7 +83,7 @@ def _simulation_trace(
             "execution": "GRAPH",
         },
         "input_snapshot": sanitize_snapshot(payload),
-        "feature_values": result.feature_values,
+        "feature_values": sanitize_snapshot(result.feature_values),
         "outputs": sanitize_snapshot(
             {
                 key: value
@@ -91,13 +91,13 @@ def _simulation_trace(
                 if key.startswith("outputs.")
             }
         ),
-        "steps": result.step_results,
-        "score_result": result.score_result,
+        "steps": redact(result.step_results),
+        "score_result": redact(result.score_result),
         "final_decision": {
             "decision": result.final_decision.value,
             "reason_codes": result.reason_codes,
         },
-        "errors": result.errors,
+        "errors": redact(result.errors),
         "metadata": {
             "latency_ms": result.latency_ms,
             "request_id": get_request_id(),

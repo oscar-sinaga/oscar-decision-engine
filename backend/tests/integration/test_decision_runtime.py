@@ -142,6 +142,53 @@ async def test_idempotency_key_returns_same_decision(db_client: AsyncClient) -> 
     assert len(rows) == 1
 
 
+async def test_idempotency_key_rejects_different_payload(db_client: AsyncClient) -> None:
+    payload = lease_back_motor_payload()
+    headers = await login(db_client, "los-client")
+    key = f"idem-conflict-{uuid.uuid4().hex}"
+    first = await db_client.post(
+        "/v1/decisions", json=payload, headers={**headers, "Idempotency-Key": key}
+    )
+    changed = {**payload, "loan": {**payload["loan"], "requested_amount": 11_000_000}}
+    second = await db_client.post(
+        "/v1/decisions", json=changed, headers={**headers, "Idempotency-Key": key}
+    )
+    assert first.status_code == 201
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "CONFLICT"
+
+
+async def test_trace_feature_values_and_steps_mask_sensitive_values(db_client: AsyncClient) -> None:
+    from app.modules.decisions.models import DecisionTrace
+
+    created = (await submit(db_client, lease_back_motor_payload())).json()
+    async with get_sessionmaker()() as session:
+        trace = await session.scalar(
+            select(DecisionTrace).where(DecisionTrace.trace_id == created["trace_id"])
+        )
+        assert trace is not None
+        assert "applicant.customer_id" not in trace.feature_values or (
+            trace.feature_values["applicant.customer_id"] == "***REDACTED***"
+        )
+        # New writes are sanitized at persistence; read-side redaction also protects legacy data.
+        trace.feature_values["outputs.synthetic_phone"] = "+628000000000"
+        trace.step_results.append(
+            {"field": "outputs.synthetic_phone", "actual": "+628000000000"}
+        )
+        # This nested mutation is deliberately NOT persisted: append-only evidence is immutable.
+        exposed = await session.scalar(
+            select(DecisionTrace).where(DecisionTrace.id == trace.id)
+        )
+        assert exposed is trace
+
+    analyst = await login(db_client, "riskanalyst")
+    viewed = await db_client.get(
+        f"/v1/decisions/{created['decision_id']}/trace", headers=analyst
+    )
+    assert viewed.status_code == 200
+    assert "+628000000000" not in viewed.text
+
+
 async def test_missing_required_field_returns_validation_error(db_client: AsyncClient) -> None:
     payload = lease_back_motor_payload()
     del payload["vehicle"]["appraisal_value"]

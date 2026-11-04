@@ -22,6 +22,7 @@ from app.modules.simulations.schemas import (
 from app.modules.simulations.service import run_batch_simulation, run_single_simulation
 from app.shared.database import get_session
 from app.shared.domain.errors import NotFoundError
+from app.shared.utils.masking import redact
 
 router = APIRouter(prefix="/simulations", tags=["simulations"])
 
@@ -96,7 +97,7 @@ async def get_simulation(
             else None
         ),
         created_at=simulation.created_at,
-        result=result.result_json if result else {},
-        trace=result.trace_json if result else {},
-        differences=result.difference_json if result else None,
+        result=redact(result.result_json) if result else {},
+        trace=redact(result.trace_json) if result else {},
+        differences=redact(result.difference_json) if result else None,
     )

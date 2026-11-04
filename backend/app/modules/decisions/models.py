@@ -81,6 +81,7 @@ class Decision(Base):
         String(20), default=ExecutionMode.PRODUCTION
     )
     idempotency_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    request_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     application: Mapped[Application] = relationship()
