@@ -211,7 +211,7 @@ async def test_full_length_catalog_identifiers_are_not_truncated_in_audit(
     headers = await login(db_client, "admin")
     code = "M" + uuid.uuid4().hex.upper() + "X" * 67
     version = "V" * 100
-    path = "applicant." + uuid.uuid4().hex + "x" * 158
+    path = "applicant.f" + uuid.uuid4().hex + "x" * 157
     assert len(code) == 100 and len(path) == 200
     model = await db_client.post(
         "/v1/models",
