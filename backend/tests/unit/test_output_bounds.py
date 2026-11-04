@@ -44,7 +44,9 @@ def test_table_financial_terms_must_fit_persistence(field: str, value: Any) -> N
         TableOutput.model_validate({"decision": "APPROVE", field: value})
 
 
-@pytest.mark.parametrize("field,value", [("approved_limit", 1e16), ("approved_tenor_months", 2**31)])
+@pytest.mark.parametrize(
+    "field,value", [("approved_limit", 1e16), ("approved_tenor_months", 2**31)]
+)
 def test_manual_terms_must_fit_persistence(field: str, value: Any) -> None:
     with pytest.raises(ValidationError):
         AnalystDecisionRequest.model_validate({"analyst_decision": "APPROVE", field: value})
@@ -137,7 +139,6 @@ def test_overlap_detector_has_no_false_negatives_on_sampled_numeric_domain() -> 
         ]
         detected = bool(find_overlapping_rows(DecisionTableConfig(rows=rows)))
         common_input = any(
-            all(evaluate_condition(c, {"x": i / 2})[0] for c in conditions)
-            for i in range(-12, 13)
+            all(evaluate_condition(c, {"x": i / 2})[0] for c in conditions) for i in range(-12, 13)
         )
         assert not common_input or detected
