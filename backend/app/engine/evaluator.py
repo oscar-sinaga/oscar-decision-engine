@@ -15,23 +15,34 @@ from app.engine.dsl import (
     NotGroup,
     Operator,
 )
+from app.engine.input_validation import finite_number, iso_date
 
 _MISSING = object()
 
 
+def values_equal(actual: Any, expected: Any) -> bool:
+    """JSON equality does not equate booleans to the numbers zero and one."""
+    if isinstance(actual, bool) or isinstance(expected, bool):
+        return type(actual) is type(expected) and bool(actual == expected)
+    if isinstance(actual, (int, float)) or isinstance(expected, (int, float)):
+        return finite_number(actual) and finite_number(expected) and bool(actual == expected)
+    return type(actual) is type(expected) and bool(actual == expected)
+
+
 def _compare_numbers(actual: Any, operator: Operator, expected: Any) -> bool:
-    if isinstance(actual, bool) or not isinstance(actual, (int, float)):
+    if not (
+        (finite_number(actual) and finite_number(expected))
+        or (iso_date(actual) and iso_date(expected))
+    ):
         return False
-    if isinstance(expected, bool) or not isinstance(expected, (int, float)):
-        return False
-    left, right = float(actual), float(expected)
+    # Keep integer comparisons exact. Canonical ISO date strings sort chronologically.
     if operator is Operator.GT:
-        return left > right
+        return bool(actual > expected)
     if operator is Operator.GTE:
-        return left >= right
+        return bool(actual >= expected)
     if operator is Operator.LT:
-        return left < right
-    return left <= right
+        return bool(actual < expected)
+    return bool(actual <= expected)
 
 
 def evaluate_condition(
@@ -49,13 +60,13 @@ def evaluate_condition(
     elif not present:
         result = False
     elif operator is Operator.EQ:
-        result = actual == condition.value
+        result = values_equal(actual, condition.value)
     elif operator is Operator.NEQ:
-        result = actual != condition.value
+        result = not values_equal(actual, condition.value)
     elif operator is Operator.IN:
-        result = actual in condition.value
+        result = any(values_equal(actual, item) for item in condition.value)
     elif operator is Operator.NOT_IN:
-        result = actual not in condition.value
+        result = not any(values_equal(actual, item) for item in condition.value)
     else:
         result = _compare_numbers(actual, operator, condition.value)
 

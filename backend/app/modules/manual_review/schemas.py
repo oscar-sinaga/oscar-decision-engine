@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, model_validator
 
 from app.shared.domain.enums import (
     CasePriority,
@@ -91,11 +91,18 @@ class AnalystDecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     analyst_decision: DecisionType
-    approved_limit: float | None = Field(default=None, gt=0)
-    approved_tenor_months: int | None = Field(default=None, gt=0)
+    approved_limit: FiniteFloat | None = Field(default=None, gt=0, strict=True)
+    approved_tenor_months: int | None = Field(default=None, gt=0, strict=True)
     override_reason_code: str | None = None
     override_reason: str = ""
     notes: str = ""
+
+    @model_validator(mode="after")
+    def _approval_terms_only(self) -> "AnalystDecisionRequest":
+        if self.analyst_decision not in (DecisionType.APPROVE, DecisionType.APPROVE_WITH_CONDITION):
+            if self.approved_limit is not None or self.approved_tenor_months is not None:
+                raise ValueError("Approval terms are only allowed for approval decisions")
+        return self
 
 
 class EscalateRequest(BaseModel):

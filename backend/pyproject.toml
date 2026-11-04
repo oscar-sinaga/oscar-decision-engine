@@ -10,7 +10,7 @@ dependencies = [
   "sqlalchemy>=2,<3",
   "alembic>=1,<2",
   "asyncpg>=0.29,<1",
-  "pyjwt>=2,<3",
+  "pyjwt>=2.15,<3",
   "bcrypt>=4,<6",
 ]
 

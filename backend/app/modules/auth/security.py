@@ -37,7 +37,10 @@ def decode_access_token(token: str) -> dict[str, Any]:
     settings = get_settings()
     try:
         decoded: dict[str, Any] = jwt.decode(
-            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+            options={"require": ["exp", "iat", "sub", "actor_type"]},
         )
     except jwt.PyJWTError as exc:
         raise AuthenticationError("Invalid or expired token") from exc

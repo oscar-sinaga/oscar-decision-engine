@@ -63,6 +63,19 @@ async def get_case(session: AsyncSession, case_id: str) -> ManualReviewCase:
     return case
 
 
+async def _lock_open_case(session: AsyncSession, case: ManualReviewCase) -> ManualReviewCase:
+    locked = await session.scalar(
+        select(ManualReviewCase)
+        .where(ManualReviewCase.id == case.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if locked is None:
+        raise NotFoundError("Manual review case no longer exists")
+    _ensure_open(locked)
+    return locked
+
+
 def _ensure_open(case: ManualReviewCase) -> None:
     if case.status not in OPEN_STATUSES:
         raise ConflictError(f"Case '{case.case_id}' is {case.status} and cannot be modified")
@@ -71,7 +84,9 @@ def _ensure_open(case: ManualReviewCase) -> None:
 async def assign_case(
     session: AsyncSession, case: ManualReviewCase, assignee: User, actor: User
 ) -> ManualReviewCase:
-    _ensure_open(case)
+    case = await _lock_open_case(session, case)
+    if not assignee.is_active or Permissions.MANUAL_REVIEW_DECIDE not in assignee.permission_codes:
+        raise ValidationFailedError("Assignee must be an active authorized manual-review analyst")
     before = {"status": case.status, "assigned_to": str(case.assigned_to or "")}
     case.assigned_to = assignee.id
     if case.status == CaseStatus.NEW:
@@ -105,7 +120,7 @@ async def decide_case(
     request: AnalystDecisionRequest,
     actor: User,
 ) -> ManualReviewCase:
-    _ensure_open(case)
+    case = await _lock_open_case(session, case)
 
     if request.analyst_decision not in ANALYST_DECISIONS:
         raise ValidationFailedError(
@@ -132,7 +147,7 @@ async def decide_case(
         DecisionType.APPROVE_WITH_CONDITION,
     )
     if (
-        case.system_decision == DecisionType.FRAUD_INVESTIGATION
+        DecisionType.FRAUD_INVESTIGATION in (case.system_decision, case.analyst_decision)
         and approve_like
         and Permissions.MANUAL_REVIEW_OVERRIDE not in actor.permission_codes
     ):
@@ -170,11 +185,18 @@ async def decide_case(
         if request.analyst_decision == DecisionType.REJECT
         else CaseStatus.APPROVED_BY_ANALYST
     )
-    case.closed_at = now
+    fraud_routing = request.analyst_decision == DecisionType.FRAUD_INVESTIGATION
+    if fraud_routing:
+        case.status = CaseStatus.ESCALATED
+        case.priority = CasePriority.HIGH
+        case.sla_due_at = sla_due_at(CasePriority.HIGH, case.created_at)
+    case.closed_at = None if fraud_routing else now
 
     application = await session.get(Application, case.application_pk)
     if application is not None:
-        application.status = ApplicationStatus.DECIDED
+        application.status = (
+            ApplicationStatus.PENDING_REVIEW if fraud_routing else ApplicationStatus.DECIDED
+        )
 
     after = {
         "status": case.status,
@@ -226,7 +248,7 @@ async def escalate_case(
     actor: User,
     escalated_to: str | None = None,
 ) -> ManualReviewCase:
-    _ensure_open(case)
+    case = await _lock_open_case(session, case)
     before = {"status": case.status, "escalated_to": case.escalated_to}
     case.status = CaseStatus.ESCALATED
     case.escalated_to = escalated_to
@@ -252,7 +274,7 @@ async def request_documents(
     actor: User,
     document_names: list[str] | None = None,
 ) -> ManualReviewCase:
-    _ensure_open(case)
+    case = await _lock_open_case(session, case)
     before = {"status": case.status}
     case.status = CaseStatus.PENDING_DOCUMENTS
     case.notes = f"{case.notes}\n[DOCUMENT REQUEST] {message}".strip()
@@ -288,9 +310,14 @@ async def resolve_document(
     status: DocumentStatus,
     actor: User,
 ) -> ManualReviewDocument:
+    case = await _lock_open_case(session, case)
+    if status not in (DocumentStatus.RECEIVED, DocumentStatus.WAIVED):
+        raise ValidationFailedError("A document can only be resolved as RECEIVED or WAIVED")
     document = await session.get(ManualReviewDocument, document_id)
     if document is None or document.case_pk != case.id:
         raise NotFoundError(f"Document '{document_id}' not found for case '{case.case_id}'")
+    if document.status != DocumentStatus.REQUESTED:
+        raise ConflictError("Document has already been resolved")
     before = {"status": document.status}
     document.status = status
     document.resolved_at = datetime.now(UTC)

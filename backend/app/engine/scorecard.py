@@ -7,15 +7,16 @@ replace the payload source later without changing this mapping logic.
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
 
+from app.engine.input_validation import finite_number
 from app.shared.domain.enums import DecisionType
 
 
 class ScoreBand(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    min_score: float
+    min_score: FiniteFloat
     risk_grade: str = Field(min_length=1, max_length=5)
 
 
@@ -47,7 +48,7 @@ def resolve_score(config: ScorecardConfig, features: dict[str, Any]) -> ScoreOut
     raw_version = features.get(config.model_version_field)
     model_version = str(raw_version) if raw_version is not None else None
 
-    if isinstance(raw_score, bool) or not isinstance(raw_score, (int, float)):
+    if not finite_number(raw_score):
         return ScoreOutcome(
             score=None, risk_grade=None, model_version=model_version, score_missing=True
         )

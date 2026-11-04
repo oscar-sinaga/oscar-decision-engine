@@ -33,8 +33,9 @@ from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
 from app.modules.features.models import Feature
+from app.modules.governance.locking import lock_policy
 from app.modules.governance.service import (
-    ensure_maker_checker,
+    ensure_independent_approver,
     open_approval_request,
     resolve_approval_request,
 )
@@ -421,6 +422,7 @@ async def get_rule_usage(session: AsyncSession, rule: Rule) -> dict[str, Any]:
 
 
 async def create_rule(session: AsyncSession, request: RuleCreateRequest, actor: User) -> Rule:
+    await lock_policy(session)
     condition, action, expression_text = await prepare_rule_storage(session, request, actor)
     category = await session.scalar(
         select(RuleCategory).where(
@@ -486,6 +488,7 @@ async def create_rule(session: AsyncSession, request: RuleCreateRequest, actor: 
 async def create_rule_version(
     session: AsyncSession, rule: Rule, request: RuleVersionUpdateRequest, actor: User
 ) -> RuleVersion:
+    await lock_policy(session, rule)
     condition, action, expression_text = await prepare_rule_storage(session, request, actor)
     open_versions = [
         v for v in rule.versions if v.status in (ConfigStatus.DRAFT, ConfigStatus.PENDING_APPROVAL)
@@ -535,6 +538,7 @@ async def update_rule_version(
     request: RuleVersionUpdateRequest,
     actor: User,
 ) -> RuleVersion:
+    await lock_policy(session, rule, version)
     ensure_editable(version)
     condition, action, expression_text = await prepare_rule_storage(session, request, actor)
     before = {
@@ -571,6 +575,7 @@ async def update_rule_version(
 async def submit_rule_version(
     session: AsyncSession, rule: Rule, version: RuleVersion, actor: User
 ) -> RuleVersion:
+    await lock_policy(session, rule, version)
     before = version.status
     submit_for_approval(version)
     approval = open_approval_request(
@@ -600,7 +605,15 @@ async def submit_rule_version(
 async def activate_rule_version(
     session: AsyncSession, rule: Rule, version: RuleVersion, actor: User, reason: str | None
 ) -> RuleVersion:
-    ensure_maker_checker(version.created_by, actor)
+    await lock_policy(session, rule, version)
+    await ensure_independent_approver(
+        session,
+        version.created_by,
+        actor,
+        entity_type="RULE_VERSION",
+        entity_id=rule.rule_code,
+        entity_version=str(version.version),
+    )
     previous_active = next((v for v in rule.versions if v.status == ConfigStatus.ACTIVE), None)
     before = version.status
     activate_version(version, previous_active)
@@ -641,6 +654,7 @@ async def activate_rule_version(
 async def reject_rule_version(
     session: AsyncSession, rule: Rule, version: RuleVersion, actor: User, reason: str
 ) -> RuleVersion:
+    await lock_policy(session, rule, version)
     before = version.status
     reject_version(version)
     await resolve_approval_request(
@@ -671,6 +685,7 @@ async def reject_rule_version(
 async def retire_rule_version(
     session: AsyncSession, rule: Rule, version: RuleVersion, actor: User, reason: str
 ) -> RuleVersion:
+    await lock_policy(session, rule, version)
     before = version.status
     retire_version(version)
     record_audit_event(

@@ -64,7 +64,13 @@ class Settings(BaseSettings):
         local_environments = {"development", "test", "testing", "compose", "local"}
         if self.environment.lower() not in local_environments:
             if (
-                self.jwt_secret == "dev-only-unsafe-secret-change-me"
+                self.jwt_secret
+                in {
+                    "dev-only-unsafe-secret-change-me",
+                    "compose-dev-secret-not-for-production",
+                    "ci-test-only-secret-not-for-any-deployment",
+                    "replace-with-a-strong-random-secret",
+                }
                 or self.jwt_secret.startswith("REPLACE_")
                 or len(self.jwt_secret) < 32
             ):

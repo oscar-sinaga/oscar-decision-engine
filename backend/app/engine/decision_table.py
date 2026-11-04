@@ -7,6 +7,7 @@ Rows hold leaf conditions (implicitly ANDed) and one output. Hit policies:
 - ``PRIORITY``: rows evaluated in ascending ``priority`` (lower wins first).
 """
 
+from datetime import date
 from enum import StrEnum
 from typing import Any
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.engine.dsl import Condition
 from app.engine.evaluator import evaluate_condition
+from app.engine.input_validation import iso_date
 from app.shared.domain.enums import DecisionType
 
 
@@ -133,60 +135,50 @@ def _rows_may_overlap(row_a: TableRow, row_b: TableRow) -> bool:
 
 
 def _conditions_satisfiable_together(conditions: list[Condition]) -> bool:
-    lower, upper = float("-inf"), float("inf")
-    lower_inclusive = upper_inclusive = True
-    allowed: set[Any] | None = None
-    excluded: set[Any] = set()
-
-    for cond in conditions:
-        op, value = cond.operator.value, cond.value
-        if op == ">":
-            if value >= lower:
-                lower, lower_inclusive = float(value), False
-        elif op == ">=":
-            if value > lower:
-                lower, lower_inclusive = float(value), True
-        elif op == "<":
-            if value <= upper:
-                upper, upper_inclusive = float(value), False
-        elif op == "<=":
-            if value < upper:
-                upper, upper_inclusive = float(value), True
-        elif op == "=":
-            values = {value}
-            allowed = values if allowed is None else allowed & values
-        elif op == "in":
-            values = set(value)
-            allowed = values if allowed is None else allowed & values
-        elif op == "!=":
-            excluded.add(value)
-        elif op == "not_in":
-            excluded.update(value)
-        # exists / is_null do not constrain overlap detection.
-
+    allowed: list[Any] | None = None
+    for condition in conditions:
+        if condition.operator.value == "=":
+            allowed = [condition.value]
+            break
+        if condition.operator.value == "in":
+            allowed = condition.value
+            break
     if allowed is not None:
-        allowed = {v for v in allowed if v not in excluded}
-        if not allowed:
+        return any(
+            all(evaluate_condition(c, {c.field: value})[0] for c in conditions) for value in allowed
+        )
+
+    lower: int | float = float("-inf")
+    upper: int | float = float("inf")
+    lower_inclusive = upper_inclusive = True
+    domain: str | None = None
+    for condition in conditions:
+        op, value = condition.operator.value, condition.value
+        if op not in {">", ">=", "<", "<="}:
+            continue
+        current_domain = "date" if iso_date(value) else "number"
+        if domain is not None and domain != current_domain:
             return False
-        numeric = [float(v) for v in allowed if isinstance(v, (int, float))]
-        non_numeric = [v for v in allowed if not isinstance(v, (int, float))]
-        if numeric:
-            return any(
-                _in_range(v, lower, upper, lower_inclusive, upper_inclusive) for v in numeric
-            ) or bool(non_numeric)
-        return True
+        domain = current_domain
+        boundary = date.fromisoformat(value).toordinal() if domain == "date" else value
+        if op in {">", ">="}:
+            inclusive = op == ">="
+            if boundary > lower:
+                lower, lower_inclusive = boundary, inclusive
+            elif boundary == lower:
+                lower_inclusive = lower_inclusive and inclusive
+        else:
+            inclusive = op == "<="
+            if boundary < upper:
+                upper, upper_inclusive = boundary, inclusive
+            elif boundary == upper:
+                upper_inclusive = upper_inclusive and inclusive
     if lower > upper:
         return False
-    if lower == upper and not (lower_inclusive and upper_inclusive):
-        return False
-    return True
-
-
-def _in_range(
-    value: float, lower: float, upper: float, lower_inclusive: bool, upper_inclusive: bool
-) -> bool:
-    if value < lower or (value == lower and not lower_inclusive):
-        return False
-    if value > upper or (value == upper and not upper_inclusive):
-        return False
+    if lower == upper:
+        if not (lower_inclusive and upper_inclusive):
+            return False
+        candidate = date.fromordinal(int(lower)).isoformat() if domain == "date" else lower
+        return all(evaluate_condition(c, {c.field: candidate})[0] for c in conditions)
+    # Remaining unconstrained/excluded regions are conservatively flagged, never executed.
     return True

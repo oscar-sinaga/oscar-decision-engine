@@ -34,6 +34,7 @@ from app.engine.dsl import (
 from app.engine.evaluator import evaluate_node
 from app.engine.expression import ast_from_json, evaluate_expression
 from app.engine.features import build_base_features, compute_derived_feature
+from app.engine.input_validation import feature_type_errors, finite_number
 from app.engine.scorecard import ScorecardConfig, resolve_score
 from app.shared.domain.enums import (
     DECISION_SEVERITY,
@@ -126,6 +127,8 @@ class ExecutablePlan(BaseModel):
     nodes: dict[str, NodePlan] = Field(default_factory=dict)
     edges: dict[str, dict[str | None, str]] = Field(default_factory=dict)
     start_key: str = "start"
+    # Governed PAYLOAD inputs only. Never accept caller-provided RULE_OUTPUT or SCORE fields.
+    payload_feature_types: dict[str, str] | None = None
     # Internal compatibility input for existing engine unit fixtures.  It is
     # normalized into a linear graph at model creation and is not used by the
     # runtime driver afterward.
@@ -225,7 +228,15 @@ def run_strategy(plan: ExecutablePlan, payload: dict[str, Any]) -> ExecutionResu
     plan._normalize_legacy_steps()
     started = time.perf_counter()
     executed_at = datetime.now(UTC)
-    context = _ExecutionContext(build_base_features(payload))
+    context = _ExecutionContext(
+        build_base_features(payload, payload_paths=plan.payload_feature_types)
+    )
+    if plan.payload_feature_types is not None:
+        context.validation_failures = [
+            ValidationFailure(**error)
+            for error in feature_type_errors(context.features, plan.payload_feature_types)
+        ]
+        context.stop = bool(context.validation_failures)
     step_results: list[dict[str, Any]] = []
 
     current = plan.edges.get(plan.start_key, {}).get(None)
@@ -386,6 +397,8 @@ def _run_calculation_step(
     calculated: dict[str, Any] = {}
     for code in step.config.get("calculations", []):
         value = compute_derived_feature(code, context.features)
+        if value is not None and not finite_number(value):
+            raise ValueError("Derived feature calculation produced a non-finite value")
         context.features[code] = value
         calculated[code] = value
     return StepStatus.PASSED, {"calculated": calculated}

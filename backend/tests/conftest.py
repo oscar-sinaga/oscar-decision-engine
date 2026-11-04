@@ -17,6 +17,9 @@ TEST_DATABASE_URL = os.environ.setdefault(
     "postgresql+asyncpg://oscar:oscar_dev_password@localhost:5455/oscar_test",
 )
 
+if make_url(TEST_DATABASE_URL).database != "oscar_test":
+    raise RuntimeError("Refusing destructive test setup: OSCAR_DATABASE_URL must target oscar_test")
+
 import pytest  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402

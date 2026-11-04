@@ -1,5 +1,7 @@
 """Build a version-pinned engine graph from stored strategy configuration."""
 
+import hashlib
+import json
 import uuid
 
 from pydantic import TypeAdapter
@@ -17,6 +19,8 @@ from app.engine.dsl import (
 from app.engine.executor import ExecutablePlan, NodePlan, ResolvedRule
 from app.engine.expression import ast_from_json, ast_to_json, render_expression
 from app.engine.scorecard import ScorecardConfig, parse_scorecard_config
+from app.modules.features.models import Feature
+from app.modules.governance.locking import lock_policy
 from app.modules.rules.models import RuleSet, RuleSetMember, RuleVersion
 from app.modules.scorecards.models import (
     DecisionTable,
@@ -25,7 +29,7 @@ from app.modules.scorecards.models import (
     ScorecardVersion,
 )
 from app.modules.strategies.models import Strategy, StrategyNode, StrategyVersion
-from app.shared.domain.enums import ConfigStatus, NodeType
+from app.shared.domain.enums import ConfigStatus, FeatureSource, NodeType
 from app.shared.domain.errors import ConfigurationError
 
 _CONDITION_ADAPTER: TypeAdapter[ConditionNode] = TypeAdapter(ConditionNode)
@@ -34,6 +38,7 @@ _CONDITION_ADAPTER: TypeAdapter[ConditionNode] = TypeAdapter(ConditionNode)
 async def resolve_active_strategy_version(
     session: AsyncSession, product_type: str, segment: str
 ) -> StrategyVersion:
+    await lock_policy(session, shared=True)
     result = await session.scalar(
         select(StrategyVersion)
         .join(Strategy, StrategyVersion.strategy_id == Strategy.id)
@@ -60,6 +65,7 @@ async def resolve_active_strategy_version(
 async def get_strategy_version(
     session: AsyncSession, strategy_version_id: uuid.UUID
 ) -> StrategyVersion | None:
+    await lock_policy(session, shared=True)
     version: StrategyVersion | None = await session.scalar(
         select(StrategyVersion)
         .where(StrategyVersion.id == strategy_version_id)
@@ -73,6 +79,8 @@ async def get_strategy_version(
 
 
 async def build_plan(session: AsyncSession, strategy_version: StrategyVersion) -> ExecutablePlan:
+    await lock_policy(session, strategy_version, shared=True)
+    await session.refresh(strategy_version, ["strategy", "nodes", "edges"])
     strategy = strategy_version.strategy
     nodes: dict[str, NodePlan] = {}
     start_keys: list[str] = []
@@ -89,7 +97,12 @@ async def build_plan(session: AsyncSession, strategy_version: StrategyVersion) -
         branch = edges.setdefault(edge.from_node_key, {})
         branch[edge.label] = edge.to_node_key
 
+    # Inactive catalog inputs remain readable by existing versions; only authoring is blocked.
+    payload_features = (
+        await session.scalars(select(Feature).where(Feature.source == FeatureSource.PAYLOAD))
+    ).all()
     return ExecutablePlan(
+        payload_feature_types={feature.path: feature.data_type for feature in payload_features},
         strategy_code=strategy.strategy_code,
         strategy_version=strategy_version.version,
         strategy_version_id=str(strategy_version.id),
@@ -219,3 +232,11 @@ async def _resolve_scorecard(
     if version is None:
         raise ConfigurationError(f"Scorecard '{reference_code}' has no active version")
     return parse_scorecard_config(version.config_json), version.version
+
+
+def plan_fingerprint(plan: ExecutablePlan) -> str:
+    """Bind simulation evidence to the resolved graph, catalog and dependency versions."""
+    canonical = json.dumps(
+        plan.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), allow_nan=False
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

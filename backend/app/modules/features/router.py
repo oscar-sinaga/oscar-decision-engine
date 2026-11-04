@@ -19,6 +19,7 @@ from app.modules.auth.dependencies import require_permission
 from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
 from app.modules.features.models import Feature
+from app.modules.governance.locking import lock_policy
 from app.shared.database import get_session
 from app.shared.domain.enums import FeatureDataType, FeatureSource
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
@@ -113,6 +114,7 @@ async def create_feature(
     session: Session,
     user: User = require_permission(Permissions.RULE_CREATE),
 ) -> FeatureResponse:
+    await lock_policy(session)
     if body.writable and body.source is FeatureSource.PAYLOAD:
         raise ValidationFailedError(
             "Payload features cannot be writable",
@@ -144,6 +146,7 @@ async def update_feature(
     session: Session,
     user: User = require_permission(Permissions.RULE_CREATE),
 ) -> FeatureResponse:
+    await lock_policy(session)
     feature = await session.get(Feature, feature_id)
     if feature is None:
         raise NotFoundError(f"Feature '{feature_id}' not found")
