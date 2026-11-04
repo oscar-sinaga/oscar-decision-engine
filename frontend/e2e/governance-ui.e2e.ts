@@ -12,6 +12,10 @@ async function login(page: import('@playwright/test').Page): Promise<void> {
 
 test('audit row opens metadata and field-level diff drawer', async ({ page }) => {
 	await login(page);
+	// A fresh CI database has no audit entries until a state change is performed.
+	await page.goto('/simulations');
+	await page.getByTestId('run-simulation').click();
+	await expect(page.getByTestId('sim-result')).toBeVisible({ timeout: 15_000 });
 	await page.goto('/audit');
 	const firstRow = page.getByTestId('audit-table').locator('tbody tr').first();
 	await expect(firstRow).toBeVisible();

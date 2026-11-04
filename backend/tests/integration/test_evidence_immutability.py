@@ -1,6 +1,7 @@
 """Database-level append-only evidence guard regression tests."""
 
 import pytest
+from httpx import AsyncClient
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 
@@ -12,7 +13,9 @@ from tests.integration.test_decision_runtime import lease_back_motor_payload, su
 
 @pytest.mark.parametrize("operation", ("UPDATE", "DELETE", "TRUNCATE"))
 @pytest.mark.parametrize("table", ("audit_logs", "decision_traces"))
-async def test_evidence_tables_reject_mutations(db_client, operation: str, table: str) -> None:
+async def test_evidence_tables_reject_mutations(
+    db_client: AsyncClient, operation: str, table: str
+) -> None:
     created = await submit(db_client, lease_back_motor_payload())
     assert created.status_code == 201
     async with get_sessionmaker()() as session:
