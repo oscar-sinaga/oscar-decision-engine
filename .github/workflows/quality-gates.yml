@@ -1,0 +1,142 @@
+name: OSCAR quality gates
+
+on:
+  push:
+    branches:
+      - main
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oscar-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: oscar
+          POSTGRES_PASSWORD: oscar_ci_only
+          POSTGRES_DB: oscar
+        ports:
+          - 5455:5432
+        options: >-
+          --health-cmd "pg_isready -U oscar -d oscar"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:oscar_ci_only@127.0.0.1:5455/oscar_test
+      OSCAR_ENVIRONMENT: testing
+      OSCAR_JWT_SECRET: ci-test-only-secret-not-for-any-deployment
+      OSCAR_SEED_PASSWORD: OscarDemo123!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+      - name: Install Python dependencies
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Ruff, mypy, pytest (real PostgreSQL + Alembic)
+        working-directory: backend
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          uv run mypy app tests
+          uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend static gates
+        working-directory: frontend
+        run: |
+          npm run lint
+          npm run check
+          npm run test:unit -- --run
+          npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: oscar
+          POSTGRES_PASSWORD: oscar_ci_only
+          POSTGRES_DB: oscar
+        ports:
+          - 5455:5432
+        options: >-
+          --health-cmd "pg_isready -U oscar -d oscar"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:oscar_ci_only@127.0.0.1:5455/oscar
+      OSCAR_ENVIRONMENT: testing
+      OSCAR_JWT_SECRET: ci-test-only-secret-not-for-any-deployment
+      OSCAR_SEED_PASSWORD: OscarDemo123!
+      OSCAR_LOG_JSON: "true"
+      OSCAR_WEB_BASE_URL: http://127.0.0.1:4173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and start backend (synthetic CI fixtures only)
+        working-directory: backend
+        run: |
+          uv sync --frozen
+          uv run alembic upgrade head
+          uv run python -m app.seed
+          nohup uv run --no-sync uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/oscar-backend-ci.log 2>&1 &
+          for i in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:8000/health; then break; fi
+            sleep 2
+          done
+          curl --fail --show-error http://127.0.0.1:8000/health
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run browser regression tests
+        working-directory: frontend
+        run: npx playwright test
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-playwright-failures
+          path: |
+            frontend/test-results/
+            /tmp/oscar-backend-ci.log
+          if-no-files-found: ignore
+          retention-days: 5

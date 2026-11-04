@@ -7,10 +7,10 @@ transaction. If any mandatory persistence (including the audit event) fails,
 the whole decision fails — no silent unaudited decisions (docs/18 §12).
 """
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from hashlib import sha256
-import json
 from typing import Any
 
 from sqlalchemy import select

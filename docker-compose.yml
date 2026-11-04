@@ -24,7 +24,7 @@ services:
       OSCAR_ENVIRONMENT: ${OSCAR_ENVIRONMENT:-development}
       OSCAR_JWT_SECRET: ${OSCAR_JWT_SECRET:?Set OSCAR_JWT_SECRET in .env}
       OSCAR_ENABLE_DEMO_SEED: ${OSCAR_ENABLE_DEMO_SEED:-false}
-      OSCAR_SEED_PASSWORD: ${OSCAR_SEED_PASSWORD:-OscarDemo123!}
+      OSCAR_SEED_PASSWORD: ${OSCAR_SEED_PASSWORD:-}
       OSCAR_CORS_ORIGINS: '["http://localhost:5173","http://127.0.0.1:5173","http://localhost:4173","http://127.0.0.1:4173","http://localhost:3000","http://127.0.0.1:3000"]'
     ports:
       - "127.0.0.1:8000:8000"
@@ -36,7 +36,8 @@ services:
       - -ec
       - |
         uv run --no-sync alembic upgrade head
-        if [ "$$OSCAR_ENABLE_DEMO_SEED" = "true" ]; then
+        if [ "$OSCAR_ENABLE_DEMO_SEED" = "true" ]; then
+          test -n "$OSCAR_SEED_PASSWORD" || { echo "Set OSCAR_SEED_PASSWORD for opt-in demo seeding"; exit 1; }
           uv run --no-sync python -m app.seed
         fi
         exec uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000

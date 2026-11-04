@@ -167,26 +167,17 @@ async def test_trace_feature_values_and_steps_mask_sensitive_values(db_client: A
             select(DecisionTrace).where(DecisionTrace.trace_id == created["trace_id"])
         )
         assert trace is not None
-        assert "applicant.customer_id" not in trace.feature_values or (
-            trace.feature_values["applicant.customer_id"] == "***REDACTED***"
-        )
-        # New writes are sanitized at persistence; read-side redaction also protects legacy data.
-        trace.feature_values["outputs.synthetic_phone"] = "+628000000000"
-        trace.step_results.append(
-            {"field": "outputs.synthetic_phone", "actual": "+628000000000"}
-        )
-        # This nested mutation is deliberately NOT persisted: append-only evidence is immutable.
-        exposed = await session.scalar(
-            select(DecisionTrace).where(DecisionTrace.id == trace.id)
-        )
-        assert exposed is trace
+        assert trace.feature_values["applicant.customer_id"] == "***REDACTED***"
+        assert "CUST-001" not in str(trace.feature_values)
+        assert "CUST-001" not in str(trace.step_results)
 
     analyst = await login(db_client, "riskanalyst")
     viewed = await db_client.get(
         f"/v1/decisions/{created['decision_id']}/trace", headers=analyst
     )
     assert viewed.status_code == 200
-    assert "+628000000000" not in viewed.text
+    assert viewed.json()["feature_values"]["applicant.customer_id"] == "***REDACTED***"
+    assert "CUST-001" not in viewed.text
 
 
 async def test_missing_required_field_returns_validation_error(db_client: AsyncClient) -> None:

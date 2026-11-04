@@ -63,7 +63,11 @@ class Settings(BaseSettings):
         """Do not allow development credentials or demo seeding in hosted environments."""
         local_environments = {"development", "test", "testing", "compose", "local"}
         if self.environment.lower() not in local_environments:
-            if self.jwt_secret == "dev-only-unsafe-secret-change-me" or len(self.jwt_secret) < 32:
+            if (
+                self.jwt_secret == "dev-only-unsafe-secret-change-me"
+                or self.jwt_secret.startswith("REPLACE_")
+                or len(self.jwt_secret) < 32
+            ):
                 raise ValueError("OSCAR_JWT_SECRET must be a strong secret in non-local environments")
             if "oscar_dev_password" in self.database_url:
                 raise ValueError("Development database credentials cannot be used for deployment")
