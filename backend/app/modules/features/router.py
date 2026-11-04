@@ -7,7 +7,7 @@ versions keep referencing it, but new/edited rules can no longer use it.
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,6 +23,7 @@ from app.modules.governance.locking import lock_policy
 from app.shared.database import get_session
 from app.shared.domain.enums import FeatureDataType, FeatureSource
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
+from app.shared.domain.request_models import PatchRequest, StorageRequest
 
 router = APIRouter(prefix="/features", tags=["features"])
 
@@ -31,7 +32,7 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 _PATH_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$"
 
 
-class FeatureCreateRequest(BaseModel):
+class FeatureCreateRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid")
 
     path: str = Field(min_length=3, max_length=200, pattern=_PATH_PATTERN)
@@ -44,13 +45,15 @@ class FeatureCreateRequest(BaseModel):
     writable: bool = False
 
 
-class FeatureUpdateRequest(BaseModel):
+class FeatureUpdateRequest(PatchRequest):
+    nullable_fields: ClassVar[frozenset[str]] = frozenset({"allowed_values"})
+
     model_config = ConfigDict(extra="forbid")
 
-    label: str | None = None
+    label: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     data_type: FeatureDataType | None = None
-    category: str | None = None
+    category: str | None = Field(default=None, max_length=50)
     allowed_values: list[Any] | None = None
     active: bool | None = None
     writable: bool | None = None

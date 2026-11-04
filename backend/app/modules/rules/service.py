@@ -149,7 +149,8 @@ async def validate_rule_definition(
                             {
                                 "field": path,
                                 "issue": (
-                                    f"operator '{operator}' not allowed for {data_type.value} feature"
+                                    f"operator '{operator}' not allowed for "
+                                    f"{data_type.value} feature"
                                 ),
                             }
                         ],

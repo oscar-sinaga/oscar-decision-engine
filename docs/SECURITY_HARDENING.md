@@ -82,3 +82,12 @@ A CI workflow file alone does **not** protect the branch.
 **No automated test suite can establish absolute absence of bugs.** Treat successful
 CI as a release gate, not as proof of production readiness. Do not insert real personal
 customer information into GitHub issues, CI fixtures, screenshots, or sample traces.
+
+## Request-boundary follow-up — 2026-11-05
+
+The latest migration is `d7a4c192e605`, following the original append-only migration
+`c1e5f09a64d2`. Audit identifiers are widened to preserve valid feature/model/strategy names.
+Downgrade refuses to truncate evidence that no longer fits the old schema. Read
+`REQUEST_BOUNDARY_AUDIT_2026_11_05.md` for the newly reproduced defects, tests and remaining
+release gates. CI's schema rehearsal uses only a reset, guarded `oscar_test` database; it is
+not a preserved-production-volume migration/restore claim.

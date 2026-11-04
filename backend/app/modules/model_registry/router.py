@@ -15,29 +15,31 @@ from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
 from app.modules.model_registry.models import RegisteredModel
 from app.shared.database import get_session
+from app.shared.database.constraints import flush_unique
 from app.shared.domain.errors import ConflictError, NotFoundError
+from app.shared.domain.request_models import PatchRequest, StorageRequest
 
 router = APIRouter(prefix="/models", tags=["models"])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
-class ModelCreateRequest(BaseModel):
+class ModelCreateRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid")
 
     code: str = Field(min_length=2, max_length=100, pattern=r"^[A-Z][A-Z0-9_]*$")
     version_label: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=200)
-    provider: str = "INTERNAL"
+    provider: str = Field(default="INTERNAL", max_length=100)
     description: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class ModelUpdateRequest(BaseModel):
+class ModelUpdateRequest(PatchRequest):
     model_config = ConfigDict(extra="forbid")
 
-    name: str | None = None
-    provider: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    provider: str | None = Field(default=None, max_length=100)
     description: str | None = None
     active: bool | None = None
     metadata: dict[str, Any] | None = None
@@ -109,7 +111,7 @@ async def register_model(
         created_by=user.id,
     )
     session.add(model)
-    await session.flush()
+    await flush_unique(session, "Model code and version already exist")
     record_audit_event(
         session,
         event_type="MODEL_REGISTERED",
@@ -130,7 +132,12 @@ async def update_model(
     session: Session,
     user: User = require_permission(Permissions.MODEL_MANAGE),
 ) -> ModelResponse:
-    model = await session.get(RegisteredModel, model_id)
+    model = await session.scalar(
+        select(RegisteredModel)
+        .where(RegisteredModel.id == model_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if model is None:
         raise NotFoundError(f"Model '{model_id}' not found")
     changes = body.model_dump(exclude_unset=True)

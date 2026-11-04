@@ -23,7 +23,16 @@ def iso_date(value: Any) -> bool:
         return False
 
 
-def validate_payload_json(value: Any, depth: int = 0) -> None:
+def _validate_storage_string(value: str) -> None:
+    if "\x00" in value:
+        raise ValueError("JSON strings must not contain NUL characters")
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("JSON strings must contain valid Unicode scalar values") from exc
+
+
+def validate_payload_json(value: Any, depth: int = 0, *, undotted_keys: bool = True) -> None:
     """Reject invalid JSON numbers and ambiguous paths before flattening/persistence.
 
     Error messages intentionally omit input values, including unknown nested fields.
@@ -32,12 +41,15 @@ def validate_payload_json(value: Any, depth: int = 0) -> None:
         raise ValueError("Application payload nesting exceeds the supported limit")
     if isinstance(value, dict):
         for key, item in value.items():
-            if not isinstance(key, str) or "." in key:
+            if not isinstance(key, str) or (undotted_keys and "." in key):
                 raise ValueError("Application payload keys must be undotted strings")
-            validate_payload_json(item, depth + 1)
+            _validate_storage_string(key)
+            validate_payload_json(item, depth + 1, undotted_keys=undotted_keys)
     elif isinstance(value, list):
         for item in value:
-            validate_payload_json(item, depth + 1)
+            validate_payload_json(item, depth + 1, undotted_keys=undotted_keys)
+    elif isinstance(value, str):
+        _validate_storage_string(value)
     elif isinstance(value, (int, float)) and not isinstance(value, bool):
         if not finite_number(value):
             raise ValueError("Application payload numbers must be finite and representable")

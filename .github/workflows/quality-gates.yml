@@ -75,6 +75,9 @@ jobs:
           fi
           mkdir -p ci-evidence
           uv run pytest -q | tee ci-evidence/pytest-first.txt
+          # Recreate only the guarded oscar_test DB for a reversible schema rehearsal.
+          # The widened audit columns correctly refuse truncating newer long identifiers.
+          uv run python -c "import asyncio; from tests.conftest import _recreate_test_database, _run_migrations; asyncio.run(_recreate_test_database()); _run_migrations()"
           uv run alembic downgrade f4b7c9d2e601
           uv run alembic upgrade head
           uv run pytest -q | tee ci-evidence/pytest-second.txt

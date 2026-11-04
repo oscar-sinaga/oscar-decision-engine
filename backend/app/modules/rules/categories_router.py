@@ -15,13 +15,15 @@ from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
 from app.modules.rules.models import RuleCategory
 from app.shared.database import get_session
+from app.shared.database.constraints import flush_unique
 from app.shared.domain.errors import ConflictError, NotFoundError
+from app.shared.domain.request_models import PatchRequest, StorageRequest
 
 router = APIRouter(prefix="/rule-categories", tags=["rule-categories"])
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
-class CategoryCreateRequest(BaseModel):
+class CategoryCreateRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid")
 
     code: str = Field(min_length=2, max_length=50, pattern=r"^[A-Z][A-Z0-9_]*$")
@@ -29,7 +31,7 @@ class CategoryCreateRequest(BaseModel):
     active: bool = True
 
 
-class CategoryUpdateRequest(BaseModel):
+class CategoryUpdateRequest(PatchRequest):
     model_config = ConfigDict(extra="forbid")
 
     label: str | None = Field(default=None, min_length=1, max_length=100)
@@ -74,7 +76,7 @@ async def create_category(
         raise ConflictError(f"Rule category '{body.code}' already exists")
     category = RuleCategory(**body.model_dump())
     session.add(category)
-    await session.flush()
+    await flush_unique(session, "Rule category code already exists")
     record_audit_event(
         session,
         event_type="RULE_CATEGORY_CREATED",
@@ -95,7 +97,12 @@ async def update_category(
     session: Session,
     user: User = require_permission(Permissions.RULE_CREATE),
 ) -> CategoryResponse:
-    category = await session.get(RuleCategory, category_id)
+    category = await session.scalar(
+        select(RuleCategory)
+        .where(RuleCategory.id == category_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if category is None:
         raise NotFoundError(f"Rule category '{category_id}' not found")
     changes = body.model_dump(exclude_unset=True)
