@@ -687,12 +687,20 @@ def _evaluate(node: ExprNode, features: Mapping[str, object]) -> Scalar:
         value = _evaluate(node.operand, features)
         if value is None:
             return None
+        # Python treats True == 1 and False == 0. Rule membership must not
+        # silently mix boolean and numeric feature domains.
         choices = [item.value for item in node.values]
-        result = value in choices
+        result = any(_typed_equal(value, choice) for choice in choices)
         return not result if node.negated else result
     if isinstance(node, BinaryNode):
         if node.operator in {"AND", "OR"}:
             left = _evaluate(node.left, features)
+            # SQL three-valued logic permits these results without evaluating
+            # the other operand. The skipped side may otherwise raise (e.g. / 0).
+            if node.operator == "AND" and left is False:
+                return False
+            if node.operator == "OR" and left is True:
+                return True
             right = _evaluate(node.right, features)
             return _tri_logic(node.operator, left, right)
         left = _evaluate(node.left, features)
@@ -713,9 +721,15 @@ def _evaluate(node: ExprNode, features: Mapping[str, object]) -> Scalar:
             raise ExpressionEvaluationError("expression division by zero")
         return left_number / right_number
     if isinstance(node, FunctionNode):
-        values = [_evaluate(argument, features) for argument in node.arguments]
         if node.name == "COALESCE":
-            return next((value for value in values if value is not None), None)
+            # COALESCE is lazy: later fallback expressions must not run once
+            # the first non-null value has been found.
+            for argument in node.arguments:
+                value = _evaluate(argument, features)
+                if value is not None:
+                    return value
+            return None
+        values = [_evaluate(argument, features) for argument in node.arguments]
         if any(value is None for value in values):
             return None
         numbers = [_require_number(value) for value in values]
@@ -764,6 +778,19 @@ def _tri_logic(operator: str, left: Scalar, right: Scalar) -> bool | None:
     return False
 
 
+def _typed_equal(left: Scalar, right: Scalar) -> bool:
+    """Compare JSON scalar values without Python's bool/int coercion."""
+    if type(left) is type(right):
+        return bool(left == right)
+    both_numbers = (
+        isinstance(left, (int, float))
+        and not isinstance(left, bool)
+        and isinstance(right, (int, float))
+        and not isinstance(right, bool)
+    )
+    return bool(left == right) if both_numbers else False
+
+
 def _compare(operator: str, left: Scalar, right: Scalar) -> bool:
     if type(left) is not type(right) and not (
         isinstance(left, (int, float))
@@ -773,9 +800,9 @@ def _compare(operator: str, left: Scalar, right: Scalar) -> bool:
     ):
         raise ExpressionEvaluationError("comparison type error")
     if operator == "=":
-        return left == right
+        return _typed_equal(left, right)
     if operator == "!=":
-        return left != right
+        return not _typed_equal(left, right)
     try:
         if operator == ">":
             return left > right  # type: ignore[operator]
