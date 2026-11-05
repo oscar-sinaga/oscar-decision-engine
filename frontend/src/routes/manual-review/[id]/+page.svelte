@@ -60,10 +60,12 @@
 
 	function submitDecision(event: SubmitEvent) {
 		event.preventDefault();
+		const approving = ['APPROVE', 'APPROVE_WITH_CONDITION'].includes(form.analyst_decision);
 		act('decision', {
 			analyst_decision: form.analyst_decision,
-			approved_limit: form.approved_limit ? Number(form.approved_limit) : null,
-			approved_tenor_months: form.approved_tenor_months ? Number(form.approved_tenor_months) : null,
+			approved_limit: approving && form.approved_limit ? Number(form.approved_limit) : null,
+			approved_tenor_months:
+				approving && form.approved_tenor_months ? Number(form.approved_tenor_months) : null,
 			override_reason_code: form.override_reason_code || null,
 			override_reason: form.override_reason,
 			notes: form.notes

@@ -12,8 +12,18 @@ async function login(page: import('@playwright/test').Page): Promise<void> {
 
 test('audit row opens metadata and field-level diff drawer', async ({ page }) => {
 	await login(page);
+	// A fresh CI database has no audit entries until a state change is performed.
+	await page.goto('/simulations');
+	await page.getByTestId('run-simulation').click();
+	await expect(page.getByTestId('sim-result')).toBeVisible({ timeout: 15_000 });
 	await page.goto('/audit');
-	const firstRow = page.getByTestId('audit-table').locator('tbody tr').first();
+	// Skeleton rows are visible before data arrives, but have no click handler.
+	// Select actual event content rather than clicking the first placeholder row.
+	const firstRow = page
+		.getByTestId('audit-table')
+		.locator('tbody tr')
+		.filter({ hasText: 'SIMULATION_EXECUTED' })
+		.first();
 	await expect(firstRow).toBeVisible();
 	await firstRow.click();
 	await expect(page.getByText('Field changes', { exact: true })).toBeVisible();

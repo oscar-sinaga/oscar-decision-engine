@@ -6,7 +6,9 @@ databases without code changes. No secret has a production-looking default.
 """
 
 from functools import lru_cache
+from typing import Self
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +32,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-only-unsafe-secret-change-me"
     jwt_algorithm: str = "HS256"
     jwt_expires_minutes: int = 60 * 8
+    enable_demo_seed: bool = False
 
     # Observability
     log_level: str = "INFO"
@@ -54,6 +57,31 @@ class Settings(BaseSettings):
     # Full maker-checker: require an attached simulation of the exact strategy
     # version before it can be activated (docs/14 §6, Phase 2).
     require_strategy_simulation_before_activation: bool = True
+
+    @model_validator(mode="after")
+    def reject_unsafe_server_settings(self) -> Self:
+        """Do not allow development credentials or demo seeding in hosted environments."""
+        local_environments = {"development", "test", "testing", "compose", "local"}
+        if self.environment.lower() not in local_environments:
+            if (
+                self.jwt_secret
+                in {
+                    "dev-only-unsafe-secret-change-me",
+                    "compose-dev-secret-not-for-production",
+                    "ci-test-only-secret-not-for-any-deployment",
+                    "replace-with-a-strong-random-secret",
+                }
+                or self.jwt_secret.startswith("REPLACE_")
+                or len(self.jwt_secret) < 32
+            ):
+                raise ValueError(
+                    "OSCAR_JWT_SECRET must be a strong secret in non-local environments"
+                )
+            if "oscar_dev_password" in self.database_url:
+                raise ValueError("Development database credentials cannot be used for deployment")
+            if self.enable_demo_seed:
+                raise ValueError("OSCAR_ENABLE_DEMO_SEED must be false outside local development")
+        return self
 
 
 @lru_cache

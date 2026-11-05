@@ -193,3 +193,21 @@ Acceptance found and fixed a local CORS mismatch between the documented `127.0.0
 ### Production readiness note
 
 Phase 3 is implementation- and workstation-acceptance-complete for the repository scope. Before production deployment, complete organization-specific security/performance testing, secret management, restore rehearsal, real adapter integration, policy-owner review of retired/active rules, UAT, and controlled environment promotion.
+
+## Proposed Security & Reliability Hardening (2026-11-04)
+
+This is a **post-report pull-request change**, not a revision of the July acceptance evidence.
+See `docs/SECURITY_HARDENING.md` for details and current validation status.
+Hardening introduces runtime configuration guards, opt-in demo seeding, loopback development
+ports, redaction of dynamic trace features and evaluated condition values, request fingerprints
+for idempotency, PostgreSQL append-only triggers, and reproducible CI checks.
+
+**Backward compatibility:** the new idempotency fingerprint is intentionally nullable for
+historical rows. A replay of an old un-fingerprinted idempotency key returns HTTP 409 rather
+than risk returning an unrelated decision. No audit/trace rows are purged or rewritten.
+Existing PostgreSQL volume passwords are not changed simply by editing Compose environment
+variables. Back up and rehearse before applying Alembic revision `c1e5f09a64d2`.
+
+**Still outstanding:** GitHub branch protection (administrator rule); secrets manager and
+production database least privilege; real customer/LOS data contracts and privacy review;
+UAT/load/security testing and controlled deployment.

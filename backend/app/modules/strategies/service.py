@@ -17,8 +17,9 @@ from app.engine.features import DERIVED_FEATURES
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
 from app.modules.features.service import active_feature_paths
+from app.modules.governance.locking import lock_policy
 from app.modules.governance.service import (
-    ensure_maker_checker,
+    ensure_independent_approver,
     open_approval_request,
     pending_approval_request,
     resolve_approval_request,
@@ -30,7 +31,7 @@ from app.modules.scorecards.models import (
     Scorecard,
     ScorecardVersion,
 )
-from app.modules.simulations.models import Simulation
+from app.modules.simulations.models import Simulation, SimulationResult
 from app.modules.strategies.graph_validation import validate_graph_structure
 from app.modules.strategies.models import (
     Strategy,
@@ -38,6 +39,7 @@ from app.modules.strategies.models import (
     StrategyNode,
     StrategyVersion,
 )
+from app.modules.strategies.plan_builder import build_plan, plan_fingerprint
 from app.modules.strategies.schemas import (
     EdgeRequest,
     EdgeResponse,
@@ -56,6 +58,7 @@ from app.shared.domain.enums import (
     ApprovalStatus,
     ConfigStatus,
     NodeType,
+    SimulationStatus,
     StepType,
 )
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
@@ -316,6 +319,7 @@ async def _verify_references_activatable(session: AsyncSession, version: Strateg
 async def create_strategy(
     session: AsyncSession, request: StrategyCreateRequest, actor: User
 ) -> Strategy:
+    await lock_policy(session)
     duplicate = await session.scalar(
         select(Strategy).where(Strategy.strategy_code == request.strategy_code)
     )
@@ -487,6 +491,7 @@ async def create_strategy_version(
     request: StrategyVersionCreateRequest,
     actor: User,
 ) -> StrategyVersion:
+    await lock_policy(session, strategy)
     graph = request_graph(request)
     await validate_graph(session, graph)
     open_versions = [
@@ -532,6 +537,7 @@ async def update_strategy_version(
     request: StrategyVersionCreateRequest,
     actor: User,
 ) -> StrategyVersion:
+    await lock_policy(session, strategy, version)
     ensure_editable(version)
     graph = request_graph(request)
     await validate_graph(session, graph)
@@ -566,10 +572,26 @@ async def _validate_simulation_ref(
     simulation = await session.scalar(
         select(Simulation).where(Simulation.simulation_id == simulation_id)
     )
-    if simulation is None or simulation.strategy_version_id != version.id:
+    if (
+        simulation is None
+        or simulation.strategy_version_id != version.id
+        or simulation.status != SimulationStatus.COMPLETED
+    ):
         raise ValidationFailedError(
             "Attached simulation does not match this strategy version",
             details=[{"field": "simulation_id", "issue": f"invalid: {simulation_id}"}],
+        )
+    evidence = await session.scalar(
+        select(SimulationResult).where(SimulationResult.simulation_pk == simulation.id)
+    )
+    trace = evidence.trace_json if evidence is not None else {}
+    draft = trace.get("draft_trace") or {}
+    fingerprint = trace.get("plan_fingerprint") or draft.get("strategy", {}).get("plan_fingerprint")
+    current = plan_fingerprint(await build_plan(session, version))
+    if fingerprint != current:
+        raise ValidationFailedError(
+            "Simulation evidence is stale; rerun the current resolved strategy before approval",
+            details=[{"field": "simulation_id", "issue": "configuration fingerprint mismatch"}],
         )
     return simulation.simulation_id
 
@@ -581,6 +603,7 @@ async def submit_strategy_version(
     actor: User,
     simulation_id: str | None = None,
 ) -> StrategyVersion:
+    await lock_policy(session, strategy, version)
     await validate_graph(session, graph_request_from_version(version))
     before = version.status
     simulation_ref = (
@@ -614,6 +637,7 @@ async def submit_strategy_version(
 async def reject_strategy_version(
     session: AsyncSession, strategy: Strategy, version: StrategyVersion, actor: User, reason: str
 ) -> StrategyVersion:
+    await lock_policy(session, strategy, version)
     before = version.status
     reject_version(version)
     await resolve_approval_request(
@@ -672,11 +696,19 @@ async def activate_strategy_version(
     actor: User,
     reason: str | None,
 ) -> StrategyVersion:
+    await lock_policy(session, strategy, version)
     if version.status != ConfigStatus.PENDING_APPROVAL:
         raise ConflictError(
             f"Version {version.version} is {version.status}; submit for approval first"
         )
-    ensure_maker_checker(version.created_by, actor)
+    await ensure_independent_approver(
+        session,
+        version.created_by,
+        actor,
+        entity_type="STRATEGY_VERSION",
+        entity_id=strategy.strategy_code,
+        entity_version=str(version.version),
+    )
     await _verify_references_activatable(session, version)
     if get_settings().require_strategy_simulation_before_activation:
         request = await pending_approval_request(
@@ -690,6 +722,7 @@ async def activate_strategy_version(
                 "A simulation of this strategy version must be attached before activation "
                 "(submit for approval with simulation_id)"
             )
+        await _validate_simulation_ref(session, version, request.simulation_ref)
     before = version.status
     retired = await _retire_competing_active_versions(session, strategy, version)
     version.status = ConfigStatus.ACTIVE
@@ -737,6 +770,7 @@ async def rollback_to_version(
     actor: User,
     reason: str,
 ) -> StrategyVersion:
+    await lock_policy(session, strategy, version)
     if not reason.strip():
         raise ValidationFailedError(
             "Rollback requires a reason",

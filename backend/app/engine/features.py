@@ -9,8 +9,11 @@ payload values. Credit-policy thresholds never live here; they belong to
 configurable rules and decision tables.
 """
 
+from collections.abc import Collection
 from datetime import UTC, datetime
 from typing import Any
+
+from app.engine.input_validation import finite_number
 
 FeatureMap = dict[str, Any]
 
@@ -72,10 +75,13 @@ def flatten_payload(payload: dict[str, Any], prefix: str = "") -> FeatureMap:
     return flat
 
 
-def build_base_features(payload: dict[str, Any]) -> FeatureMap:
+def build_base_features(
+    payload: dict[str, Any], *, payload_paths: Collection[str] | None = None
+) -> FeatureMap:
     """Feature map from the raw application payload (before calculations)."""
     flat = flatten_payload(payload)
-    features = {path: flat[path] for path in PAYLOAD_FEATURES if path in flat}
+    paths = PAYLOAD_FEATURES if payload_paths is None else payload_paths
+    features = {path: flat[path] for path in paths if path in flat}
     # application.* metadata is provided at the top level of the payload.
     if "product_type" in payload:
         features["application.product_type"] = payload["product_type"]
@@ -85,11 +91,7 @@ def build_base_features(payload: dict[str, Any]) -> FeatureMap:
 
 
 def _as_number(value: Any) -> float | None:
-    if isinstance(value, bool) or value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    return None
+    return float(value) if finite_number(value) else None
 
 
 def compute_derived_feature(code: str, features: FeatureMap, *, now: datetime | None = None) -> Any:

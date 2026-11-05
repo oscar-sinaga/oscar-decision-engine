@@ -140,3 +140,16 @@ Retention periods are company/regulatory decisions and must remain configurable.
 - Logs contain no prohibited PII/secrets in automated tests.
 - Audit persistence failure is visible and cannot silently pass for critical state changes.
 - Technical logs, trace records, and audit events can be queried independently.
+
+## Hardening Addendum — 2026-11-04
+
+- New decision traces sanitize `input_snapshot`, `feature_values`, evaluated step details,
+  score details, and errors before persistence; read APIs redact again for older records.
+- New simulation traces also redact dynamic values, and trace reads apply defensive redaction.
+- Logging redaction handles scalar `extra` fields in addition to nested dictionaries/lists.
+- PostgreSQL revision `c1e5f09a64d2` installs BEFORE UPDATE/DELETE and BEFORE TRUNCATE
+  triggers on `audit_logs` and `decision_traces`; ordinary application SQL cannot modify them.
+  Privileged database owners/superusers may still disable triggers: use separate least-privilege
+  runtime credentials, operational controls, audited backups, and retention procedures.
+- Key-name redaction is a defense-in-depth mechanism, NOT a complete privacy classification
+  guarantee. Whitelist feature schemas and privacy-test new external adapters before production.

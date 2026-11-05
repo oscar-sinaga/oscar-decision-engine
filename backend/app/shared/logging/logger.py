@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.shared.logging.context import get_correlation_id, get_request_id
-from app.shared.utils.masking import redact
+from app.shared.utils.masking import REDACTED, is_sensitive_key, redact
 
 _STANDARD_ATTRS = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys()) | {
     "message",
@@ -35,7 +35,7 @@ class JsonLogFormatter(logging.Formatter):
         for key, value in record.__dict__.items():
             if key in _STANDARD_ATTRS or key.startswith("_"):
                 continue
-            payload[key] = redact(value) if isinstance(value, (dict, list, tuple)) else value
+            payload[key] = REDACTED if is_sensitive_key(key) else redact(value)
         if record.exc_info and record.exc_info[0] is not None:
             # Exception *type* only; stack traces stay out of structured logs
             # and are never returned to clients.

@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.modules.strategies.graph_validation import MAX_GRAPH_EDGES, MAX_GRAPH_NODES
 from app.shared.domain.enums import (
     ConfigStatus,
     NodeType,
@@ -12,37 +13,56 @@ from app.shared.domain.enums import (
     StepOnError,
     StepType,
 )
+from app.shared.domain.request_models import StorageRequest
 
 
-class StrategyCreateRequest(BaseModel):
+class StrategyCreateRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid")
 
     strategy_code: str = Field(min_length=3, max_length=100, pattern=r"^[A-Z][A-Z0-9_]*$")
     name: str = Field(min_length=1, max_length=200)
     product_type: ProductType
     segment: str = Field(default="DEFAULT", max_length=100)
-    owner_team: str = "RISK"
+    owner_team: str = Field(default="RISK", max_length=100)
 
 
-class StepRequest(BaseModel):
+def _validate_path_list(config: dict[str, Any], key: str) -> None:
+    if key not in config:
+        return
+    value = config[key]
+    if not isinstance(value, list) or any(
+        not isinstance(item, str) or not item.strip() for item in value
+    ):
+        raise ValueError(f"{key} must be a list of nonempty feature paths")
+
+
+class StepRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid")
 
     order: int = Field(ge=1)
     type: StepType
-    name: str = ""
-    reference_code: str | None = None
+    name: str = Field(default="", max_length=200)
+    reference_code: str | None = Field(default=None, max_length=100)
     on_error: StepOnError = StepOnError.FAIL
     config: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_config_shape(self) -> "StepRequest":
+        if self.type is StepType.VALIDATION:
+            _validate_path_list(self.config, "required_fields")
+        elif self.type is StepType.CALCULATION:
+            _validate_path_list(self.config, "calculations")
+        return self
 
 
 class Position(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    x: int = 0
-    y: int = 0
+    x: int = Field(default=0, ge=-(2**31), le=2**31 - 1)
+    y: int = Field(default=0, ge=-(2**31), le=2**31 - 1)
 
 
-class NodeRequest(BaseModel):
+class NodeRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid")
 
     node_key: str | None = Field(default=None, min_length=1, max_length=50)
@@ -53,8 +73,16 @@ class NodeRequest(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
     position: Position = Field(default_factory=Position)
 
+    @model_validator(mode="after")
+    def validate_config_shape(self) -> "NodeRequest":
+        if self.node_type is NodeType.VALIDATION:
+            _validate_path_list(self.config, "required_fields")
+        elif self.node_type is NodeType.CALCULATION:
+            _validate_path_list(self.config, "calculations")
+        return self
 
-class EdgeRequest(BaseModel):
+
+class EdgeRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     from_node_key: str = Field(alias="from", min_length=1, max_length=50)
@@ -70,15 +98,15 @@ class EdgeRequest(BaseModel):
 class GraphRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    nodes: list[NodeRequest] = Field(min_length=1)
-    edges: list[EdgeRequest] = Field(default_factory=list)
+    nodes: list[NodeRequest] = Field(min_length=1, max_length=MAX_GRAPH_NODES)
+    edges: list[EdgeRequest] = Field(default_factory=list, max_length=MAX_GRAPH_EDGES)
 
 
-class StrategyVersionCreateRequest(BaseModel):
+class StrategyVersionCreateRequest(StorageRequest):
     model_config = ConfigDict(extra="forbid")
 
     version_note: str = ""
-    steps: list[StepRequest] | None = None
+    steps: list[StepRequest] | None = Field(default=None, max_length=MAX_GRAPH_NODES - 2)
     graph: GraphRequest | None = None
 
     @model_validator(mode="after")

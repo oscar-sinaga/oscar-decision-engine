@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import false, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.dependencies import require_permission
@@ -104,7 +104,7 @@ async def list_cases(
         query = query.where(ManualReviewCase.priority == priority)
     if assigned_to is not None:
         assignee = await session.scalar(select(User).where(User.username == assigned_to))
-        query = query.where(ManualReviewCase.assigned_to == (assignee.id if assignee else None))
+        query = query.where(ManualReviewCase.assigned_to == assignee.id if assignee else false())
     if product_type is not None:
         query = query.where(Application.product_type == product_type)
     if date_from is not None:

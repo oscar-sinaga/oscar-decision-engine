@@ -1,0 +1,60 @@
+name: OSCAR deep audit
+
+on:
+  push:
+    branches: ["fix/security-reliability-hardening-20261104"]
+    paths:
+      - ".github/workflows/deep-audit.yml"
+      - "frontend/package*.json"
+      - "backend/pyproject.toml"
+      - "backend/uv.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: false
+      - name: Collect tracked source (no workspace secrets)
+        run: |
+          mkdir -p audit-evidence
+          git rev-parse HEAD > audit-evidence/source-commit.txt
+          git archive --format=zip HEAD > audit-evidence/tracked-source.zip
+      - name: Inspect locked JavaScript dependencies
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          set +e
+          npm audit --json > ../audit-evidence/npm-audit-all.json
+          status=$?
+          echo "$status" > ../audit-evidence/npm-audit-exit.txt
+          npm audit --omit=dev --json > ../audit-evidence/npm-audit-runtime.json
+          exit 0
+      - name: Inspect locked Python runtime dependencies
+        working-directory: backend
+        run: |
+          uv export --frozen --no-dev --no-hashes --format requirements-txt > ../audit-evidence/runtime-requirements.txt
+          set +e
+          uvx pip-audit -r ../audit-evidence/runtime-requirements.txt --format json --output ../audit-evidence/pip-audit.json
+          echo "$?" > ../audit-evidence/pip-audit-exit.txt
+          exit 0
+      - name: Publish audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-deep-audit-${{ github.sha }}
+          path: audit-evidence/
+          retention-days: 7
+          if-no-files-found: error

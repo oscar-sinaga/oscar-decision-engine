@@ -30,6 +30,7 @@ from app.modules.strategies.models import StrategyVersion
 from app.modules.strategies.plan_builder import (
     build_plan,
     get_strategy_version,
+    plan_fingerprint,
     resolve_active_strategy_version,
 )
 from app.shared.domain.enums import (
@@ -38,10 +39,10 @@ from app.shared.domain.enums import (
     SimulationStatus,
     SimulationType,
 )
-from app.shared.domain.errors import NotFoundError
+from app.shared.domain.errors import ConfigurationError, NotFoundError
 from app.shared.logging import get_correlation_id, get_logger, get_request_id
 from app.shared.utils.ids import display_id
-from app.shared.utils.masking import sanitize_snapshot
+from app.shared.utils.masking import redact, sanitize_snapshot
 
 logger = get_logger("oscar.simulations")
 
@@ -81,9 +82,10 @@ def _simulation_trace(
             "strategy_code": plan.strategy_code,
             "version": plan.strategy_version,
             "execution": "GRAPH",
+            "plan_fingerprint": plan_fingerprint(plan),
         },
         "input_snapshot": sanitize_snapshot(payload),
-        "feature_values": result.feature_values,
+        "feature_values": sanitize_snapshot(result.feature_values),
         "outputs": sanitize_snapshot(
             {
                 key: value
@@ -91,13 +93,13 @@ def _simulation_trace(
                 if key.startswith("outputs.")
             }
         ),
-        "steps": result.step_results,
-        "score_result": result.score_result,
+        "steps": redact(result.step_results),
+        "score_result": redact(result.score_result),
         "final_decision": {
             "decision": result.final_decision.value,
             "reason_codes": result.reason_codes,
         },
-        "errors": result.errors,
+        "errors": redact(result.errors),
         "metadata": {
             "latency_ms": result.latency_ms,
             "request_id": get_request_id(),
@@ -275,9 +277,11 @@ async def run_batch_simulation(
         if key not in active_plan_cache:
             try:
                 version = await resolve_active_strategy_version(session, product, segment)
-                active_plan_cache[key] = await build_plan(session, version)
-            except NotFoundError:
+            except ConfigurationError:
                 active_plan_cache[key] = None
+            else:
+                # An absent active policy is allowed; corrupted stored policies are not swallowed.
+                active_plan_cache[key] = await build_plan(session, version)
         return active_plan_cache[key]
 
     target_results: list[ExecutionResult] = []
@@ -345,7 +349,10 @@ async def run_batch_simulation(
                 "target": target_aggregate.model_dump(),
                 "active": active_aggregate.model_dump() if active_aggregate else None,
             },
-            trace_json={"execution_mode": ExecutionMode.SIMULATION.value},
+            trace_json={
+                "execution_mode": ExecutionMode.SIMULATION.value,
+                "plan_fingerprint": plan_fingerprint(target_plan),
+            },
             difference_json=[s.model_dump() for s in decision_shifts],
         )
     )

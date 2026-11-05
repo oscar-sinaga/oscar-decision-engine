@@ -7,8 +7,10 @@ transaction. If any mandatory persistence (including the audit event) fails,
 the whole decision fails — no silent unaudited decisions (docs/18 §12).
 """
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
+from hashlib import sha256
 from typing import Any
 
 from sqlalchemy import select
@@ -37,14 +39,34 @@ from app.shared.domain.enums import (
     DecisionType,
     ExecutionMode,
 )
-from app.shared.domain.errors import ValidationFailedError
+from app.shared.domain.errors import ConflictError, ValidationFailedError
 from app.shared.logging import get_correlation_id, get_logger, get_request_id
 from app.shared.utils.ids import display_id
-from app.shared.utils.masking import sanitize_snapshot
+from app.shared.utils.masking import redact, sanitize_snapshot
 
 logger = get_logger("oscar.decisions")
 
 REVIEW_DECISIONS = {DecisionType.MANUAL_REVIEW, DecisionType.FRAUD_INVESTIGATION}
+
+
+def _request_fingerprint(payload: dict[str, Any], actor_id: Any) -> str:
+    """Fingerprint full canonical request and caller, before masking any inputs."""
+    canonical = json.dumps(
+        {"actor_id": str(actor_id), "request": payload},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return sha256(canonical).hexdigest()
+
+
+def _check_idempotency_match(existing: Decision, fingerprint: str) -> None:
+    if existing.request_fingerprint != fingerprint:
+        # Old records have no fingerprint and must not be blindly replayed.
+        raise ConflictError(
+            "Idempotency-Key was already used for a different request or client; "
+            "submit a new unique key"
+        )
 
 
 async def execute_decision(
@@ -54,18 +76,20 @@ async def execute_decision(
     actor: User,
     idempotency_key: str | None = None,
 ) -> DecisionResponse:
+    payload = request.to_payload()
+    fingerprint = _request_fingerprint(payload, actor.id) if idempotency_key else None
     if idempotency_key:
         existing = await session.scalar(
             select(Decision).where(Decision.idempotency_key == idempotency_key)
         )
         if existing is not None:
+            assert fingerprint is not None
+            _check_idempotency_match(existing, fingerprint)
             logger.info(
                 "decision.idempotent_replay",
                 extra={"decision_id": existing.decision_id, "idempotency_key_present": True},
             )
             return await build_decision_response(session, existing)
-
-    payload = request.to_payload()
     strategy_version = await resolve_active_strategy_version(
         session, request.product_type.value, request.segment
     )
@@ -108,6 +132,7 @@ async def execute_decision(
 
     decision = _build_decision_row(request, application, strategy_version.id, result)
     decision.idempotency_key = idempotency_key
+    decision.request_fingerprint = fingerprint
     session.add(decision)
     try:
         await session.flush()
@@ -119,6 +144,8 @@ async def execute_decision(
                 select(Decision).where(Decision.idempotency_key == idempotency_key)
             )
             if existing is not None:
+                assert fingerprint is not None
+                _check_idempotency_match(existing, fingerprint)
                 return await build_decision_response(session, existing)
         raise
 
@@ -232,9 +259,9 @@ def _build_trace_row(
         decision_pk=decision.id,
         execution_mode=ExecutionMode.PRODUCTION,
         input_snapshot=snapshot,
-        feature_values=result.feature_values,
-        step_results=result.step_results,
-        score_results=result.score_result,
+        feature_values=sanitize_snapshot(result.feature_values),
+        step_results=redact(result.step_results),
+        score_results=redact(result.score_result),
         final_output={
             "decision": result.final_decision.value,
             "reason_codes": result.reason_codes,
@@ -244,7 +271,7 @@ def _build_trace_row(
             "approved_tenor_months": result.approved_tenor_months,
             "pricing_rate": result.pricing_rate,
         },
-        errors=result.errors,
+        errors=redact(result.errors),
         latency_ms=result.latency_ms,
         request_id=get_request_id(),
         correlation_id=get_correlation_id(),
@@ -328,8 +355,8 @@ async def build_trace_response(session: AsyncSession, decision: Decision) -> Tra
             version=strategy_version.version if strategy_version else 0,
             execution="GRAPH",
         ),
-        input_snapshot=trace.input_snapshot,
-        feature_values=trace.feature_values,
+        input_snapshot=sanitize_snapshot(trace.input_snapshot),
+        feature_values=sanitize_snapshot(trace.feature_values),
         outputs=sanitize_snapshot(
             {
                 key: value
@@ -337,10 +364,10 @@ async def build_trace_response(session: AsyncSession, decision: Decision) -> Tra
                 if key.startswith("outputs.")
             }
         ),
-        steps=trace.step_results,
-        score_result=trace.score_results,
-        final_decision=trace.final_output,
-        errors=trace.errors,
+        steps=redact(trace.step_results),
+        score_result=redact(trace.score_results),
+        final_decision=redact(trace.final_output),
+        errors=redact(trace.errors),
         metadata={
             "latency_ms": trace.latency_ms,
             "request_id": trace.request_id,

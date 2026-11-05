@@ -65,4 +65,20 @@ None.
 
 ## Next Work
 
-No frontend redesign implementation phase remains. Run the 11 Playwright scenarios and capture the 19-route visual smoke set on the local Docker-backed workstation before merging or pushing; those browser/runtime steps were explicitly excluded from this execution environment. No push or deployment was performed.
+Frontend redesign acceptance was completed on 2026-07-12 and merged into `main` at `e336ab0`.
+A **separate November 2026 hardening branch** adds CI, secret hygiene, idempotency conflict
+handling, broader redaction, and database evidence immutability. This does **not** imply
+production readiness. See `docs/SECURITY_HARDENING.md` for migration/review gates
+and outstanding branch-protection administrator action. No production deployment is claimed.
+
+## Security & Reliability Hardening — 2026-11-04 (proposed branch)
+
+- Branch: `fix/security-reliability-hardening-20261104`; leave `main` unchanged until all CI gates and review complete.
+- Development secrets now supplied through ignored `.env`; Docker hosts bind loopback only.
+- Synthetic demo seeding is opt-in and prohibited in non-local environments.
+- Decision/simulation evidence gains sensitive-field redaction at write and read boundaries.
+- Idempotency fingerprints bind requests to the same payload and actor; historic un-fingerprinted keys return 409.
+- Alembic `c1e5f09a64d2` adds append-only PostgreSQL triggers for `decision_traces` and `audit_logs`.
+- GitHub Actions quality gates are defined for backend PostgreSQL tests, frontend and Playwright.
+- Administrative pending item: apply `main` branch ruleset and required CI checks in GitHub Settings.
+- Rollout pending: preserved-volume migration rehearsal, credential rotation, full UAT, and dependency audit triage.

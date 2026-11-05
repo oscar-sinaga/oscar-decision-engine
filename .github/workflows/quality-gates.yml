@@ -1,0 +1,184 @@
+name: OSCAR quality gates
+
+on:
+  push:
+    branches:
+      - main
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: oscar-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: oscar
+          POSTGRES_PASSWORD: oscar_ci_only
+          POSTGRES_DB: oscar
+        ports:
+          - 5455:5432
+        options: >-
+          --health-cmd "pg_isready -U oscar -d oscar"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:oscar_ci_only@127.0.0.1:5455/oscar_test
+      OSCAR_ENVIRONMENT: testing
+      OSCAR_JWT_SECRET: ci-test-only-secret-not-for-any-deployment
+      OSCAR_SEED_PASSWORD: OscarDemo123!
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: false
+      - name: Install Python dependencies
+        id: install
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Formatting and lint (no automatic source edits)
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          uv run ruff format --diff .
+          uv run ruff check .
+      - name: Strict type checking
+        if: always() && steps.install.outcome == 'success'
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          uv run mypy app tests
+      - name: Repeated PostgreSQL tests and synthetic migration rehearsal
+        if: always() && steps.install.outcome == 'success'
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          if (set -o pipefail; false | cat); then
+            echo 'Pipeline failure propagation is broken'; exit 1
+          fi
+          mkdir -p ci-evidence
+          uv run pytest -q | tee ci-evidence/pytest-first.txt
+          # Recreate only the guarded oscar_test DB for a reversible schema rehearsal.
+          # The widened audit columns correctly refuse truncating newer long identifiers.
+          uv run python -c "import asyncio; from tests.conftest import _recreate_test_database, _run_migrations; asyncio.run(_recreate_test_database()); _run_migrations()"
+          uv run alembic downgrade f4b7c9d2e601
+          uv run alembic upgrade head
+          uv run pytest -q | tee ci-evidence/pytest-second.txt
+      - name: Upload backend test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-backend-evidence
+          path: backend/ci-evidence/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend static gates
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm run check
+          npm run test:unit -- --run
+          npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: oscar
+          POSTGRES_PASSWORD: oscar_ci_only
+          POSTGRES_DB: oscar
+        ports:
+          - 5455:5432
+        options: >-
+          --health-cmd "pg_isready -U oscar -d oscar"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:oscar_ci_only@127.0.0.1:5455/oscar
+      OSCAR_ENVIRONMENT: testing
+      OSCAR_JWT_SECRET: ci-test-only-secret-not-for-any-deployment
+      OSCAR_SEED_PASSWORD: OscarDemo123!
+      OSCAR_LOG_JSON: "true"
+      OSCAR_WEB_BASE_URL: http://127.0.0.1:4173
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and start backend (synthetic CI fixtures only)
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          uv sync --frozen
+          uv run alembic upgrade head
+          uv run python -m app.seed
+          nohup uv run --no-sync uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/oscar-backend-ci.log 2>&1 &
+          for i in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:8000/health; then break; fi
+            sleep 2
+          done
+          curl --fail --show-error http://127.0.0.1:8000/health
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run browser regression tests twice
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npx playwright test --repeat-each=2
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oscar-playwright-failures
+          path: |
+            frontend/test-results/
+            /tmp/oscar-backend-ci.log
+          if-no-files-found: ignore
+          retention-days: 5
