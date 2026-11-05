@@ -208,14 +208,12 @@ def test_interpreter_is_deterministic_and_has_no_forbidden_runtime_bridge() -> N
     assert "import ast" not in text
 
 
-
 @pytest.mark.parametrize(
     ("expression", "payload", "expected"),
     [
         ("FALSE AND (monthly_income / 0 > 0)", {}, False),
         ("TRUE OR (monthly_income / 0 > 0)", {}, True),
-        ("COALESCE(monthly_income, existing_monthly_obligation / 0)",
-         {"monthly_income": 100}, 100),
+        ("COALESCE(monthly_income, existing_monthly_obligation / 0)", {"monthly_income": 100}, 100),
         ("COALESCE(NULL, monthly_income)", {"monthly_income": 100}, 100),
         ("flag.active AND FALSE", {}, False),
         ("flag.active OR TRUE", {}, True),
@@ -241,7 +239,6 @@ def test_expression_membership_uses_strict_boolean_numeric_equality() -> None:
     assert evaluate_expression(is_zero.root, {"monthly_income": 0}) is False
 
 
-
 def test_expression_arithmetic_overflow_is_controlled_not_persisted() -> None:
     validated = validate_expression("monthly_income * monthly_income", FEATURE_TYPES)
     with pytest.raises(ExpressionEvaluationError, match="non-finite"):
@@ -252,3 +249,10 @@ def test_expression_rejects_nonfinite_feature_from_internal_source() -> None:
     validated = validate_expression("COALESCE(monthly_income, 1)", FEATURE_TYPES)
     with pytest.raises(ExpressionEvaluationError, match="non-finite"):
         evaluate_expression(validated.root, {"monthly_income": float("inf")})
+
+
+
+def test_intermediate_overflow_cannot_turn_into_boolean_approval() -> None:
+    validated = validate_expression("monthly_income * monthly_income > 0", FEATURE_TYPES)
+    with pytest.raises(ExpressionEvaluationError, match="non-finite"):
+        evaluate_expression(validated.root, {"monthly_income": 1e308})

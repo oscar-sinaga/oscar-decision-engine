@@ -680,6 +680,8 @@ def _evaluate(node: ExprNode, features: Mapping[str, object]) -> Scalar:
         return node.value
     if isinstance(node, IdentifierNode):
         value = features.get(node.path)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            _checked_number(value)
         return value if isinstance(value, (int, float, str, bool)) or value is None else None
     if isinstance(node, UnaryNode):
         value = _evaluate(node.operand, features)
@@ -720,14 +722,14 @@ def _evaluate(node: ExprNode, features: Mapping[str, object]) -> Scalar:
         left_number = _require_number(left)
         right_number = _require_number(right)
         if node.operator == "+":
-            return left_number + right_number
+            return _checked_number(left_number + right_number)
         if node.operator == "-":
-            return left_number - right_number
+            return _checked_number(left_number - right_number)
         if node.operator == "*":
-            return left_number * right_number
+            return _checked_number(left_number * right_number)
         if right_number == 0:
             raise ExpressionEvaluationError("expression division by zero")
-        return left_number / right_number
+        return _checked_number(left_number / right_number)
     if isinstance(node, FunctionNode):
         if node.name == "COALESCE":
             # COALESCE is lazy: later fallback expressions must not run once
@@ -758,10 +760,16 @@ def _evaluate(node: ExprNode, features: Mapping[str, object]) -> Scalar:
     return _evaluate(node.default, features) if node.default is not None else None
 
 
+def _checked_number(value: int | float) -> int | float:
+    if not finite_number(value):
+        raise ExpressionEvaluationError("expression produced a non-finite number")
+    return value
+
+
 def _require_number(value: Scalar) -> int | float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ExpressionEvaluationError("numeric expression type error")
-    return value
+    return _checked_number(value)
 
 
 def _require_bool(value: Scalar) -> bool:
