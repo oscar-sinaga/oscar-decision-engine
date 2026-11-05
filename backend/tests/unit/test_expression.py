@@ -251,7 +251,6 @@ def test_expression_rejects_nonfinite_feature_from_internal_source() -> None:
         evaluate_expression(validated.root, {"monthly_income": float("inf")})
 
 
-
 def test_intermediate_overflow_cannot_turn_into_boolean_approval() -> None:
     validated = validate_expression("monthly_income * monthly_income > 0", FEATURE_TYPES)
     with pytest.raises(ExpressionEvaluationError, match="non-finite"):
