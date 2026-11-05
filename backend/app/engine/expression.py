@@ -10,6 +10,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from app.engine.input_validation import finite_number
+
 MAX_EXPRESSION_LENGTH = 2_000
 MAX_AST_DEPTH = 20
 MAX_AST_NODES = 200
@@ -660,7 +662,13 @@ def evaluate_expression(node: ExprNode, features: Mapping[str, object]) -> Scala
     """Interpret a validated tree without ambient capabilities or side effects."""
 
     try:
-        return _evaluate(node, features)
+        result = _evaluate(node, features)
+        # Even finite JSON inputs can overflow (e.g. 1e308 * 1e308).
+        # Never allow NaN/Infinity/huge integers to propagate to a trace or JSONB.
+        if isinstance(result, (int, float)) and not isinstance(result, bool):
+            if not finite_number(result):
+                raise ExpressionEvaluationError("expression produced a non-finite number")
+        return result
     except ExpressionEvaluationError:
         raise
     except (ArithmeticError, TypeError, ValueError) as exc:
