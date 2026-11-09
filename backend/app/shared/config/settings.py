@@ -8,7 +8,7 @@ databases without code changes. No secret has a production-looking default.
 from functools import lru_cache
 from typing import Self
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://oscar:oscar_dev_password@localhost:5455/oscar"
     database_echo: bool = False
+    database_pool_size: int = Field(default=3, ge=1, le=5)
+    database_max_overflow: int = Field(default=1, ge=0, le=3)
 
     # Auth / RBAC. The default secret is intentionally marked unsafe; deployments
     # must override OSCAR_JWT_SECRET.

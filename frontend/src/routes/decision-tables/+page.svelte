@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { Plus } from '@lucide/svelte';
 	import { api, ApiError } from '$lib/api/client';
@@ -66,7 +68,7 @@
 				}
 			});
 			toast.success('Decision table created');
-			goto(`/decision-tables/${created.id}`);
+			goto(appPath(`/decision-tables/${created.id}`));
 		} catch (err) {
 			error = err;
 			toast.error(err instanceof ApiError ? err.message : 'Could not create decision table');
@@ -157,7 +159,7 @@
 		{loading}
 		rowKey="id"
 		testId="decision-tables-table"
-		onRowClick={(row) => goto(`/decision-tables/${row.id}`)}
+		onRowClick={(row) => goto(appPath(`/decision-tables/${row.id}`))}
 		empty={{
 			title: 'No decision tables',
 			hint: 'Create a table to translate rule outputs into final decisions.',

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath, appRoute } from '$lib/app-path';
+
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { goto } from '$app/navigation';
@@ -13,10 +15,10 @@
 	auth.initialize();
 
 	$effect(() => {
-		const path = page.url.pathname;
+		const path = appRoute(page.url.pathname);
 		setBreadcrumb(null);
 		if (!auth.isAuthenticated && path !== '/login') {
-			goto('/login');
+			goto(appPath('/login'));
 		} else if (auth.isAuthenticated && !auth.user) {
 			auth.loadProfile().catch(() => auth.logout());
 		}
@@ -25,7 +27,7 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-{#if page.url.pathname === '/login'}
+{#if appRoute(page.url.pathname) === '/login'}
 	{@render children()}
 {:else if auth.isAuthenticated}
 	<AppShell>{@render children()}</AppShell>

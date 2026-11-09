@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/auth.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -18,7 +20,7 @@
 		loading = true;
 		try {
 			await auth.login(username, password);
-			goto('/dashboard');
+			goto(appPath('/dashboard'));
 		} catch (caught) {
 			error = caught instanceof Error ? caught.message : 'Login failed';
 		} finally {

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { page } from '$app/state';
 	import { api, ApiError } from '$lib/api/client';
 	import type { CaseDetail, ReasonCode } from '$lib/api/types';
@@ -113,7 +115,7 @@
 					<h2 class="text-sm font-semibold text-text">Application evidence</h2>
 					<a
 						class="font-mono text-xs text-primary-700 hover:underline"
-						href={`/decisions/${detail.decision_id}`}>View decision trace →</a
+						href={appPath(`/decisions/${detail.decision_id}`)}>View decision trace →</a
 					>
 				</div>
 				<div class="grid gap-3 lg:grid-cols-3">

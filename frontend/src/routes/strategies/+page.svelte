@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 	import type { Strategy } from '$lib/api/types';
@@ -59,7 +61,7 @@
 			{loading}
 			rowKey="id"
 			testId="strategies-table"
-			onRowClick={(row) => goto(`/strategies/${row.id}`)}
+			onRowClick={(row) => goto(appPath(`/strategies/${row.id}`))}
 			empty={{
 				title: 'No strategies',
 				hint: 'Strategies appear here after they are created through the existing API workflow.'

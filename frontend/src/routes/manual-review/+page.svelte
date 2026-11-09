@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { AlarmClock, Search } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
@@ -99,7 +101,7 @@
 			{loading}
 			rowKey="case_id"
 			testId="case-table"
-			onRowClick={(row) => goto(`/manual-review/${row.case_id}`)}
+			onRowClick={(row) => goto(appPath(`/manual-review/${row.case_id}`))}
 			empty={{ title: 'Queue is empty', hint: 'There are no review cases matching these filters.' }}
 		/>{/if}
 	{#if result && result.total > 0}<div class="mt-3">

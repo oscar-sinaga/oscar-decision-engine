@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { Check, ExternalLink, ShieldCheck, UserCog } from '@lucide/svelte';
 	import { api, ApiError } from '$lib/api/client';
 	import type {
@@ -223,7 +225,8 @@
 					</div>
 					{#if approval.simulation_ref}<a
 							class="mt-3 inline-flex items-center gap-1 font-mono text-[11px] text-primary-700 hover:underline"
-							href="/simulations">Simulation {approval.simulation_ref}<ExternalLink size={12} /></a
+							href={appPath(`/simulations`)}
+							>Simulation {approval.simulation_ref}<ExternalLink size={12} /></a
 						>{/if}
 					<div class="mt-4 flex justify-end gap-2">
 						<button

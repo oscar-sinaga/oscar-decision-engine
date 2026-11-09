@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { Plus, Search } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
@@ -67,7 +69,7 @@
 
 	{#snippet actions()}
 		{#if auth.hasPermission('rule.create')}
-			<Button href="/rules/new" size="sm"><Plus size={15} /> New rule</Button>
+			<Button href={appPath(`/rules/new`)} size="sm"><Plus size={15} /> New rule</Button>
 		{/if}
 	{/snippet}
 
@@ -118,12 +120,12 @@
 			{loading}
 			rowKey="id"
 			testId="rules-table"
-			onRowClick={(row) => goto(`/rules/${row.id}`)}
+			onRowClick={(row) => goto(appPath(`/rules/${row.id}`))}
 			empty={{
 				title: 'No rules found',
 				hint: 'Adjust the filters or create a new governed rule.',
 				actionLabel: auth.hasPermission('rule.create') ? 'New rule' : undefined,
-				onAction: auth.hasPermission('rule.create') ? () => goto('/rules/new') : undefined
+				onAction: auth.hasPermission('rule.create') ? () => goto(appPath('/rules/new')) : undefined
 			}}
 		/>
 	{/if}

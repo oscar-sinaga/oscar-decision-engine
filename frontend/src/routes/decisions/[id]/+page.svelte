@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { page } from '$app/state';
 	import { ArrowLeft, ExternalLink } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
@@ -37,7 +39,7 @@
 </script>
 
 {#snippet actions()}
-	<Button href="/decisions" variant="outline" size="sm"
+	<Button href={appPath(`/decisions`)} variant="outline" size="sm"
 		><ArrowLeft size={15} /> Back to decisions</Button
 	>
 {/snippet}
@@ -111,7 +113,7 @@
 							<dd>
 								<a
 									class="font-mono text-xs text-primary-700 hover:underline"
-									href={`/manual-review/${decision.manual_review_case_id}`}
+									href={appPath(`/manual-review/${decision.manual_review_case_id}`)}
 									>{decision.manual_review_case_id}</a
 								>
 							</dd>
@@ -169,8 +171,9 @@
 					{#if trace.strategy.strategy_id}<Button
 							variant="outline"
 							size="sm"
-							href={`/strategies/${trace.strategy.strategy_id}?version=${trace.strategy.version_id ?? ''}`}
-							>View executed flow <ExternalLink size={14} /></Button
+							href={appPath(
+								`/strategies/${trace.strategy.strategy_id}?version=${trace.strategy.version_id ?? ''}`
+							)}>View executed flow <ExternalLink size={14} /></Button
 						>{/if}
 				</div>
 				<Tabs.Content value="timeline"

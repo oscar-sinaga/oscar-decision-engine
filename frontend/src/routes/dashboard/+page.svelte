@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { ArrowRight, Search } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
@@ -327,7 +329,7 @@
 		<div class="min-w-0 xl:col-span-2">
 			<div class="mb-2 flex items-center justify-between">
 				<h2 class="text-sm font-semibold">Recent decisions</h2>
-				<Button variant="ghost" size="sm" href="/decisions"
+				<Button variant="ghost" size="sm" href={appPath(`/decisions`)}
 					>View all <ArrowRight size={14} /></Button
 				>
 			</div>
@@ -336,7 +338,7 @@
 					rows={recentRows}
 					loading={loadingRecent}
 					rowKey="decision_id"
-					onRowClick={(row) => goto(`/decisions/${row.decision_id}`)}
+					onRowClick={(row) => goto(appPath(`/decisions/${row.decision_id}`))}
 					empty={{ title: 'No recent decisions' }}
 				/>{/if}
 		</div>

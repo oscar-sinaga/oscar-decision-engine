@@ -187,3 +187,23 @@
 - **Reasoning:** The selected approach establishes one visual and interaction grammar while keeping the verified Svelte 5 domain logic intact. Vendored primitives make accessibility behavior inspectable and stable; semantic tokens prevent page-level palette drift; shared application components reduce repeated implementation; and retaining all route/API/test contracts limits regression risk.
 - **Consequences:** `frontend/src/lib/components/ui` is registry-owned source and should be reconciled through the shadcn-svelte CLI in reviewed batches. OSCAR-specific behavior belongs in `frontend/src/lib/ui` or route/domain components. New routes should use semantic tokens and shared page patterns. Every mutation needs feedback, destructive/governance actions require controlled confirmation, and browser validation remains a required workstation gate before integration. Dark mode, command palette, saved filters, and density controls remain deferred under FR7.
 - **Related documents/files:** `docs/frontend-redesign/*`, `frontend/components.json`, `frontend/src/routes/layout.css`, `frontend/src/lib/components/ui/*`, `frontend/src/lib/ui/*`, `frontend/src/routes/**`, `frontend/e2e/*`.
+
+## Tencent HTTPS workspace — 2026-11-09
+
+Operator explicitly authorized deployment to the existing 2-vCPU/4-GB VPS. Preserve its PostgreSQL and protected services; add a dedicated database/role, pool 3+1, API 192 MiB and web 96 MiB. Serve under /workspaces/decision-engine with ACC owner gating plus application JWT/RBAC. Patch devalue 5.9.4 without framework major changes. Generate secrets on the server and override the public development seed password. See [TENCENT_VPS.md](TENCENT_VPS.md). Local commits only; no GitHub push authorized by this exception.
+
+## Authorized GitHub synchronization (2026-11-09)
+
+The operator explicitly requested all new application/VPS changes be committed and pushed to GitHub. This authorizes a normal fast-forward push of the tested deployment changes plus this documentation update to main, overriding the earlier local-only restriction for this task. Verify GitHub, local and VPS source HEADs match after synchronization. The running application image remains based on code revision 7cccd6f; this follow-up changes documentation only. No service restart or database change is required.
+
+
+## 2026-11-10 ? integrate hardening without losing the Tencent deployment contract
+
+The operator requested merging outstanding commits and removing obsolete branches.
+Preserve both histories with merge commits rather than rebasing or squashing shared
+work. Combine hosted-environment validation with bounded database pools, retain all
+same-origin/base-path navigation, keep production login fields empty, and use a
+self-created FEATURE_CREATED audit event in the browser fixture. Delete a branch
+only after its current tip is an ancestor of main; keep a verified offline Git
+bundle as recovery evidence. CI must pass before the PR is merged. Source integration
+is separate from deploying new migrations into the existing Tencent database.

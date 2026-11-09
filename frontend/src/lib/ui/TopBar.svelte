@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath, appRoute } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ChevronDown, Menu, PanelLeft } from '@lucide/svelte';
@@ -34,7 +36,7 @@
 		new: 'New'
 	};
 
-	const routeParts = $derived(page.url.pathname.split('/').filter(Boolean));
+	const routeParts = $derived(appRoute(page.url.pathname).split('/').filter(Boolean));
 	const section = $derived.by(() => {
 		const first = routeParts[0] ?? '';
 		if (['dashboard', 'decisions'].includes(first)) return 'Monitor';
@@ -54,7 +56,7 @@
 
 	function logout(): void {
 		auth.logout();
-		goto('/login');
+		goto(appPath('/login'));
 	}
 </script>
 
@@ -85,12 +87,14 @@
 		<Breadcrumb.Root class="min-w-0">
 			<Breadcrumb.List class="flex-nowrap overflow-hidden text-xs">
 				<Breadcrumb.Item class="hidden sm:inline-flex">
-					<Breadcrumb.Link href="/dashboard">{section}</Breadcrumb.Link>
+					<Breadcrumb.Link href={appPath(`/dashboard`)}>{section}</Breadcrumb.Link>
 				</Breadcrumb.Item>
 				<Breadcrumb.Separator class="hidden sm:block" />
 				<Breadcrumb.Item>
 					{#if detail}
-						<Breadcrumb.Link href={`/${routeParts[0] ?? 'dashboard'}`}>{current}</Breadcrumb.Link>
+						<Breadcrumb.Link href={appPath(`/${routeParts[0] ?? 'dashboard'}`)}
+							>{current}</Breadcrumb.Link
+						>
 					{:else}
 						<Breadcrumb.Page>{current}</Breadcrumb.Page>
 					{/if}

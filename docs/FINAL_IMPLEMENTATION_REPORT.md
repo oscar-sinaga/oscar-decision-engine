@@ -211,3 +211,38 @@ variables. Back up and rehearse before applying Alembic revision `c1e5f09a64d2`.
 **Still outstanding:** GitHub branch protection (administrator rule); secrets manager and
 production database least privilege; real customer/LOS data contracts and privacy review;
 UAT/load/security testing and controlled deployment.
+
+## Tencent deployment preparation — 2026-11-09
+
+The operator-authorized deployment slice adds shared-IP reverse-proxy prefix support and bounded PostgreSQL pools without changing decision policy or audit/RBAC contracts. Backend 213 tests and frontend lint/check, 41 unit tests and production build passed. Production dependency audit is clear after devalue 5.9.4. See [TENCENT_VPS.md](TENCENT_VPS.md) and the shared operator report for exact source/image revisions, runtime browser verification, backup restores and live HTTPS status. Preparation alone is not a deployment claim.
+
+## Final local Docker acceptance (2026-11-09)
+
+All 11 Decision browser scenarios passed after fixing Nginx upstream ordering, preload header buffers and the static-asset rate-limit bucket. The audit UI test now creates its own synthetic business event, so a fresh seed works. Login production builds no longer prefill or advertise the development password. Under the target caps, API peak was 96 MiB and web peak 28 MiB, with no OOM/restarts. Job AI separately passed six desktop/mobile scenarios including PDF export. Live deployment and restore results are recorded in the operator report.
+
+## Authorized GitHub synchronization (2026-11-09)
+
+The operator explicitly requested all new application/VPS changes be committed and pushed to GitHub. This authorizes a normal fast-forward push of the tested deployment changes plus this documentation update to main, overriding the earlier local-only restriction for this task. Verify GitHub, local and VPS source HEADs match after synchronization. The running application image remains based on code revision 7cccd6f; this follow-up changes documentation only. No service restart or database change is required.
+
+## Authorized branch integration ? 2026-11-10
+
+The operator explicitly requested merging the latest Decision Engine changes and
+removing unnecessary branches. This authorizes a normal push to the existing PR
+branch, a history-preserving PR merge to main after CI, and deletion only of
+branches whose exact tips are contained in main. It does not authorize a production
+schema rollout or stopping existing VPS services.
+
+The candidate combines main `4d38580` with hardening `d452ce4` (20 outstanding
+commits). Five conflicts were resolved while preserving hosted credential checks,
+PostgreSQL pool 3+1, Tencent base paths, blank login fields, and a deterministic
+synthetic FEATURE_CREATED audit fixture. The devalue 5.9.4 patch remains locked.
+
+Local validation: Ruff format/lint and mypy clean across 143 files; all **378
+pytest tests** passed against an owned temporary PostgreSQL 17 database; frontend
+lint/check (0 errors/warnings), **41 Vitest tests**, and production build passed.
+Runtime dependency audit reports 0 findings; npm still reports inherited low/
+moderate development-tool findings. CI and browser validation gate the final merge.
+
+A complete Git bundle was verified before cleanup. Retired branch commits remain
+reachable through merge history. No deployment, production data deletion, service
+restart, or production migration is included in this repository-maintenance task.
