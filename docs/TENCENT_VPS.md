@@ -2,7 +2,10 @@
 
 The operator authorized installation on their existing Tencent VPS on 2026-11-09.
 This is an explicit exception to the repository's default no-deployment rule;
-it does not authorize pushing local commits to GitHub.
+the subsequent operator instruction on 2026-11-09 explicitly authorizes
+committing and pushing all application/VPS changes to the existing GitHub
+repositories. This scoped authorization overrides the default local-only rule
+for this synchronization; no force push or credential publication is authorized.
 
 - Public workbench: `https://150.109.17.147/workspaces/decision-engine/`.
   ACC administrator authentication gates all frontend and backend routes.

@@ -201,3 +201,7 @@ The operator-authorized deployment slice adds shared-IP reverse-proxy prefix sup
 ## Final local Docker acceptance (2026-11-09)
 
 All 11 Decision browser scenarios passed after fixing Nginx upstream ordering, preload header buffers and the static-asset rate-limit bucket. The audit UI test now creates its own synthetic business event, so a fresh seed works. Login production builds no longer prefill or advertise the development password. Under the target caps, API peak was 96 MiB and web peak 28 MiB, with no OOM/restarts. Job AI separately passed six desktop/mobile scenarios including PDF export. Live deployment and restore results are recorded in the operator report.
+
+## Authorized GitHub synchronization (2026-11-09)
+
+The operator explicitly requested all new application/VPS changes be committed and pushed to GitHub. This authorizes a normal fast-forward push of the tested deployment changes plus this documentation update to main, overriding the earlier local-only restriction for this task. Verify GitHub, local and VPS source HEADs match after synchronization. The running application image remains based on code revision 7cccd6f; this follow-up changes documentation only. No service restart or database change is required.

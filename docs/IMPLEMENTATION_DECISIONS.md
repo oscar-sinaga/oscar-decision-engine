@@ -191,3 +191,7 @@
 ## Tencent HTTPS workspace — 2026-11-09
 
 Operator explicitly authorized deployment to the existing 2-vCPU/4-GB VPS. Preserve its PostgreSQL and protected services; add a dedicated database/role, pool 3+1, API 192 MiB and web 96 MiB. Serve under /workspaces/decision-engine with ACC owner gating plus application JWT/RBAC. Patch devalue 5.9.4 without framework major changes. Generate secrets on the server and override the public development seed password. See [TENCENT_VPS.md](TENCENT_VPS.md). Local commits only; no GitHub push authorized by this exception.
+
+## Authorized GitHub synchronization (2026-11-09)
+
+The operator explicitly requested all new application/VPS changes be committed and pushed to GitHub. This authorizes a normal fast-forward push of the tested deployment changes plus this documentation update to main, overriding the earlier local-only restriction for this task. Verify GitHub, local and VPS source HEADs match after synchronization. The running application image remains based on code revision 7cccd6f; this follow-up changes documentation only. No service restart or database change is required.
