@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath, appRoute } from '$lib/app-path';
+
 	import { page } from '$app/state';
 	import {
 		BookOpen,
@@ -58,7 +60,9 @@
 	];
 
 	function isActive(href: string): boolean {
-		return page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
+		return (
+			appRoute(page.url.pathname) === href || appRoute(page.url.pathname).startsWith(`${href}/`)
+		);
 	}
 </script>
 
@@ -77,7 +81,7 @@
 			<div class="space-y-0.5">
 				{#each group.items as item (item.href)}
 					<a
-						href={item.href}
+						href={appPath(item.href)}
 						onclick={onNavigate}
 						aria-current={isActive(item.href) ? 'page' : undefined}
 						title={collapsed ? item.label : undefined}

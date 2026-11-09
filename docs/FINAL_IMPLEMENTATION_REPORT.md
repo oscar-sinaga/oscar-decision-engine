@@ -193,3 +193,11 @@ Acceptance found and fixed a local CORS mismatch between the documented `127.0.0
 ### Production readiness note
 
 Phase 3 is implementation- and workstation-acceptance-complete for the repository scope. Before production deployment, complete organization-specific security/performance testing, secret management, restore rehearsal, real adapter integration, policy-owner review of retired/active rules, UAT, and controlled environment promotion.
+
+## Tencent deployment preparation — 2026-11-09
+
+The operator-authorized deployment slice adds shared-IP reverse-proxy prefix support and bounded PostgreSQL pools without changing decision policy or audit/RBAC contracts. Backend 213 tests and frontend lint/check, 41 unit tests and production build passed. Production dependency audit is clear after devalue 5.9.4. See [TENCENT_VPS.md](TENCENT_VPS.md) and the shared operator report for exact source/image revisions, runtime browser verification, backup restores and live HTTPS status. Preparation alone is not a deployment claim.
+
+## Final local Docker acceptance (2026-11-09)
+
+All 11 Decision browser scenarios passed after fixing Nginx upstream ordering, preload header buffers and the static-asset rate-limit bucket. The audit UI test now creates its own synthetic business event, so a fresh seed works. Login production builds no longer prefill or advertise the development password. Under the target caps, API peak was 96 MiB and web peak 28 MiB, with no OOM/restarts. Job AI separately passed six desktop/mobile scenarios including PDF export. Live deployment and restore results are recorded in the operator report.

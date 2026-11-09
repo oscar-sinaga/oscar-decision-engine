@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { Search } from '@lucide/svelte';
 	import { api } from '$lib/api/client';
@@ -140,7 +142,7 @@
 			{loading}
 			rowKey="decision_id"
 			testId="decision-table"
-			onRowClick={(row) => goto(`/decisions/${row.decision_id}`)}
+			onRowClick={(row) => goto(appPath(`/decisions/${row.decision_id}`))}
 			empty={{
 				title: 'No decisions match these filters',
 				hint: 'Reset or broaden the search criteria.'

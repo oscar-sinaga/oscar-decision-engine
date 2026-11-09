@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { page } from '$app/state';
 	import {
 		Background,
@@ -611,7 +613,7 @@
 											<span class="truncate font-mono text-[11px]">{ruleCode}</span
 											>{#if ruleIdsByCode.get(ruleCode)}<a
 													class="shrink-0 text-primary-700 hover:underline"
-													href={`/rules/${ruleIdsByCode.get(ruleCode)}`}>Open rule →</a
+													href={appPath(`/rules/${ruleIdsByCode.get(ruleCode)}`)}>Open rule →</a
 												>{/if}
 										</li>{/each}
 								</ul>
@@ -619,14 +621,14 @@
 						{:else if selectedNode.data.nodeType === 'DECISION_TABLE' && selectedTableId}<a
 								class="block text-primary-700 hover:underline"
 								data-testid="node-open-table"
-								href={`/decision-tables/${selectedTableId}`}>Open table editor →</a
+								href={appPath(`/decision-tables/${selectedTableId}`)}>Open table editor →</a
 							>
 						{:else if selectedNode.data.nodeType === 'SCORECARD'}<p
 								class="text-[11px] text-text-muted"
 							>
 								Score bands are versioned through scorecards. See <a
 									class="text-primary-700 hover:underline"
-									href="/models">Model Registry</a
+									href={appPath(`/models`)}>Model Registry</a
 								>.
 							</p>{/if}
 						{#if !['START', 'END'].includes(selectedNode.data.nodeType)}<label

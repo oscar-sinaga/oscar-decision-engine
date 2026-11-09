@@ -10,8 +10,26 @@ async function login(page: import('@playwright/test').Page): Promise<void> {
 	await expect(page).toHaveURL(/\/dashboard$/);
 }
 
-test('audit row opens metadata and field-level diff drawer', async ({ page }) => {
+test('audit row opens metadata and field-level diff drawer', async ({ page, request }) => {
 	await login(page);
+	// A fresh seed intentionally has no business audit rows. Create our own
+	// synthetic audited feature instead of depending on a previous test run.
+	const token = await page.evaluate(() => localStorage.getItem('oscar.token'));
+	const created = await request.post(
+		`${process.env.OSCAR_API_BASE_URL ?? 'http://localhost:8000'}/v1/features`,
+		{
+			headers: { Authorization: `Bearer ${token}` },
+			data: {
+				path: `outputs.audit_e2e_${Date.now()}`,
+				label: 'Synthetic audit acceptance feature',
+				data_type: 'NUMBER',
+				source: 'RULE_OUTPUT',
+				category: 'DECISION',
+				writable: true
+			}
+		}
+	);
+	expect(created.status()).toBe(201);
 	await page.goto('/audit');
 	const firstRow = page.getByTestId('audit-table').locator('tbody tr').first();
 	await expect(firstRow).toBeVisible();

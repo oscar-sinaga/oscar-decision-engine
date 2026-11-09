@@ -66,3 +66,11 @@ None.
 ## Next Work
 
 No frontend redesign implementation phase remains. Run the 11 Playwright scenarios and capture the 19-route visual smoke set on the local Docker-backed workstation before merging or pushing; those browser/runtime steps were explicitly excluded from this execution environment. No push or deployment was performed.
+
+## Tencent installation slice — 2026-11-09
+
+Added configurable Svelte base paths, relative same-origin API support, bounded database pools, production Docker dependency separation and devalue 5.9.4. Backend 213 tests, frontend lint/check, 41 Vitest and production builds passed. See [TENCENT_VPS.md](TENCENT_VPS.md) and the shared operator report for browser and live deployment evidence. Earlier no-deployment records describe earlier phases, not this explicitly authorized task.
+
+## Final local Docker acceptance (2026-11-09)
+
+All 11 Decision browser scenarios passed after fixing Nginx upstream ordering, preload header buffers and the static-asset rate-limit bucket. The audit UI test now creates its own synthetic business event, so a fresh seed works. Login production builds no longer prefill or advertise the development password. Under the target caps, API peak was 96 MiB and web peak 28 MiB, with no OOM/restarts. Job AI separately passed six desktop/mobile scenarios including PDF export. Live deployment and restore results are recorded in the operator report.

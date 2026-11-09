@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { api, ApiError } from '$lib/api/client';
 	import type { SimulationResponse, Strategy, StrategyVersion } from '$lib/api/types';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
@@ -89,7 +91,7 @@
 	}
 </script>
 
-{#snippet actions()}<Button href="/simulations/batch" variant="outline" size="sm"
+{#snippet actions()}<Button href={appPath(`/simulations/batch`)} variant="outline" size="sm"
 		>Batch simulation</Button
 	>{/snippet}
 <PageHeader
@@ -103,10 +105,10 @@
 >
 	<a
 		class="rounded-control bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700"
-		href="/simulations">Single</a
+		href={appPath(`/simulations`)}>Single</a
 	><a
 		class="rounded-control px-3 py-1.5 text-xs font-medium text-text-muted hover:bg-surface-sunken"
-		href="/simulations/batch">Batch</a
+		href={appPath(`/simulations/batch`)}>Batch</a
 	>
 </nav>
 

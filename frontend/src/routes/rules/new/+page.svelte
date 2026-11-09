@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { goto } from '$app/navigation';
 	import { ArrowLeft, Save } from '@lucide/svelte';
 	import { api, ApiError } from '$lib/api/client';
@@ -96,7 +98,7 @@
 				: builderToJson(builderState);
 			const rule = await api<Rule>('/v1/rules', { body: { ...form, ...definition } });
 			toast.success('Rule created');
-			goto(`/rules/${rule.id}`);
+			goto(appPath(`/rules/${rule.id}`));
 		} catch (err) {
 			error = err;
 			toast.error(err instanceof ApiError ? err.message : 'Could not create rule');
@@ -106,7 +108,7 @@
 	}
 </script>
 
-{#snippet actions()}<Button href="/rules" variant="outline" size="sm"
+{#snippet actions()}<Button href={appPath(`/rules`)} variant="outline" size="sm"
 		><ArrowLeft size={15} /> Back to rules</Button
 	>{/snippet}
 <PageHeader

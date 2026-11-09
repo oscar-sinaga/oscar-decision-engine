@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { appPath } from '$lib/app-path';
+
 	import { page } from '$app/state';
 	import { ArrowLeft, Play, Save } from '@lucide/svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -237,7 +239,7 @@
 	);
 </script>
 
-{#snippet actions()}<Button href="/rules" variant="outline" size="sm"
+{#snippet actions()}<Button href={appPath(`/rules`)} variant="outline" size="sm"
 		><ArrowLeft size={15} /> Back to rules</Button
 	>{/snippet}
 {#if error}
