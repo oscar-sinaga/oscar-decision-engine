@@ -206,3 +206,52 @@ def test_interpreter_is_deterministic_and_has_no_forbidden_runtime_bridge() -> N
     forbidden_calls = ("eval" + "(", "exec" + "(", "compile" + "(")
     assert all(call not in text for call in forbidden_calls)
     assert "import ast" not in text
+
+
+@pytest.mark.parametrize(
+    ("expression", "payload", "expected"),
+    [
+        ("FALSE AND (monthly_income / 0 > 0)", {}, False),
+        ("TRUE OR (monthly_income / 0 > 0)", {}, True),
+        ("COALESCE(monthly_income, existing_monthly_obligation / 0)", {"monthly_income": 100}, 100),
+        ("COALESCE(NULL, monthly_income)", {"monthly_income": 100}, 100),
+        ("flag.active AND FALSE", {}, False),
+        ("flag.active OR TRUE", {}, True),
+    ],
+)
+def test_expression_lazy_boolean_and_coalesce(
+    expression: str, payload: dict[str, object], expected: object
+) -> None:
+    # The skipped expression is deliberately invalid at runtime. Evaluating
+    # the unnecessary branch would raise division-by-zero.
+    validated = validate_expression(expression, FEATURE_TYPES)
+    assert evaluate_expression(validated.root, payload) == expected
+
+
+def test_expression_membership_uses_strict_boolean_numeric_equality() -> None:
+    # Even when a caller supplies a feature with a wrong runtime type,
+    # boolean flags must never match numeric 1/0 in expression IN lists.
+    is_one = validate_expression("monthly_income IN (1)", FEATURE_TYPES)
+    is_zero = validate_expression("monthly_income NOT IN (0)", FEATURE_TYPES)
+    assert evaluate_expression(is_one.root, {"monthly_income": True}) is False
+    assert evaluate_expression(is_zero.root, {"monthly_income": False}) is True
+    assert evaluate_expression(is_one.root, {"monthly_income": 1}) is True
+    assert evaluate_expression(is_zero.root, {"monthly_income": 0}) is False
+
+
+def test_expression_arithmetic_overflow_is_controlled_not_persisted() -> None:
+    validated = validate_expression("monthly_income * monthly_income", FEATURE_TYPES)
+    with pytest.raises(ExpressionEvaluationError, match="non-finite"):
+        evaluate_expression(validated.root, {"monthly_income": 1e308})
+
+
+def test_expression_rejects_nonfinite_feature_from_internal_source() -> None:
+    validated = validate_expression("COALESCE(monthly_income, 1)", FEATURE_TYPES)
+    with pytest.raises(ExpressionEvaluationError, match="non-finite"):
+        evaluate_expression(validated.root, {"monthly_income": float("inf")})
+
+
+def test_intermediate_overflow_cannot_turn_into_boolean_approval() -> None:
+    validated = validate_expression("monthly_income * monthly_income > 0", FEATURE_TYPES)
+    with pytest.raises(ExpressionEvaluationError, match="non-finite"):
+        evaluate_expression(validated.root, {"monthly_income": 1e308})

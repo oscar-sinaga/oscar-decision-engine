@@ -13,17 +13,26 @@ This pack is the implementation handoff for **OSCAR Decision Engine**, an intern
 ## Running the Implemented System
 
 ```bash
-# Full stack (PostgreSQL + API + workbench) — migrations and synthetic seed run automatically
+# First: copy .env.example to .env and replace BOTH secret placeholders with random values.
+# Review docs/SECURITY_HARDENING.md before updating an existing PostgreSQL volume.
+cp .env.example .env
+# Edit .env: OSCAR_POSTGRES_PASSWORD and OSCAR_JWT_SECRET must not be placeholders.
+# Optional: explicitly enable synthetic demo seeding on a fresh, LOCAL database only.
+# OSCAR_ENABLE_DEMO_SEED=true and OSCAR_SEED_PASSWORD=<unique-demo-password>
 docker compose up -d --build
 # API:       http://localhost:8000  (OpenAPI at /docs)
-# Workbench: http://localhost:3000  (demo users below)
+# Workbench: http://localhost:3000
 ```
 
-Demo users (synthetic, password `OscarDemo123!`, override via `OSCAR_SEED_PASSWORD`):
-`admin`, `riskanalyst`, `riskmanager`, `underwriter`, `compliance`, `datascientist`,
-`engineer`, `auditor`, `los-client` (API client for `POST /v1/decisions`).
+Demo accounts are **not seeded by default**. For a new, disposable local database, opt in with
+`OSCAR_ENABLE_DEMO_SEED=true` and set `OSCAR_SEED_PASSWORD` in the ignored `.env` file.
+Synthetic roles include `admin`, `riskanalyst`, `riskmanager`, `underwriter`,
+`compliance`, `datascientist`, `engineer`, `auditor`, and `los-client`.
+Do not deploy these users or the local compose stack to an untrusted network.
 
-For local development and quality gates see `backend/README.md` and `frontend/README.md`.
+For local development and quality gates see `backend/README.md`, `frontend/README.md`, and
+`docs/SECURITY_HARDENING.md`. GitHub Actions validates backend, frontend, and browser E2E
+on pushes/PRs; branch protection must be enabled separately by a repository administrator.
 
 IDX iDecision is used as a local benchmark and visual reference. It is not the complete product scope to copy.
 

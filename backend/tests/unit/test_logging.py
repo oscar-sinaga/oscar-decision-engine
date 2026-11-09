@@ -83,3 +83,11 @@ def test_exception_logs_type_only_no_stack_trace() -> None:
     assert payload["exception_type"] == "RuntimeError"
     assert "Traceback" not in output
     assert "boom with secret detail" not in output
+
+
+def test_log_output_masks_scalar_extra_fields() -> None:
+    output = _format(_record("auth.failure", api_token="sensitive-scalar", nik="3170000000000001"))
+    parsed = json.loads(output)
+    assert parsed["api_token"] == REDACTED
+    assert parsed["nik"] == REDACTED
+    assert "sensitive-scalar" not in output

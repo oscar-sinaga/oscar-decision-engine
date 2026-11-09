@@ -2,8 +2,9 @@
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.engine.input_validation import validate_payload_json
 from app.shared.domain.enums import DecisionType, ExecutionMode, ProductType
 
 
@@ -27,6 +28,11 @@ class DecisionRequest(BaseModel):
     bureau: dict[str, Any] = Field(default_factory=dict)
     fraud: dict[str, Any] = Field(default_factory=dict)
     model_outputs: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _validate_json(self) -> "DecisionRequest":
+        validate_payload_json(self.model_dump())
+        return self
 
     def to_payload(self) -> dict[str, Any]:
         return self.model_dump(mode="json")

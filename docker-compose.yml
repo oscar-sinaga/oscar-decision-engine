@@ -1,12 +1,14 @@
+# Local-only stack. Supply OSCAR_POSTGRES_PASSWORD and OSCAR_JWT_SECRET via .env.
+# Published ports bind to loopback; this file is not an internet-facing deployment.
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: oscar
-      POSTGRES_PASSWORD: oscar_dev_password
+      POSTGRES_PASSWORD: ${OSCAR_POSTGRES_PASSWORD:?Set OSCAR_POSTGRES_PASSWORD in .env}
       POSTGRES_DB: oscar
     ports:
-      - "5455:5432"
+      - "127.0.0.1:5455:5432"
     volumes:
       - oscar_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,24 +20,32 @@ services:
   backend:
     build: ./backend
     environment:
-      OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:oscar_dev_password@postgres:5432/oscar
-      OSCAR_ENVIRONMENT: compose
-      OSCAR_JWT_SECRET: compose-dev-secret-not-for-production
+      OSCAR_DATABASE_URL: postgresql+asyncpg://oscar:${OSCAR_POSTGRES_PASSWORD:?Set OSCAR_POSTGRES_PASSWORD in .env}@postgres:5432/oscar
+      OSCAR_ENVIRONMENT: ${OSCAR_ENVIRONMENT:-development}
+      OSCAR_JWT_SECRET: ${OSCAR_JWT_SECRET:?Set OSCAR_JWT_SECRET in .env}
+      OSCAR_ENABLE_DEMO_SEED: ${OSCAR_ENABLE_DEMO_SEED:-false}
+      OSCAR_SEED_PASSWORD: ${OSCAR_SEED_PASSWORD:-}
       OSCAR_CORS_ORIGINS: '["http://localhost:5173","http://127.0.0.1:5173","http://localhost:4173","http://127.0.0.1:4173","http://localhost:3000","http://127.0.0.1:3000"]'
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
-    command: >
-      sh -c "uv run --no-sync alembic upgrade head &&
-             uv run --no-sync python -m app.seed &&
-             uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    command:
+      - sh
+      - -ec
+      - |
+        uv run --no-sync alembic upgrade head
+        if [ "$OSCAR_ENABLE_DEMO_SEED" = "true" ]; then
+          test -n "$OSCAR_SEED_PASSWORD" || { echo "Set OSCAR_SEED_PASSWORD for opt-in demo seeding"; exit 1; }
+          uv run --no-sync python -m app.seed
+        fi
+        exec uv run --no-sync uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - backend
 

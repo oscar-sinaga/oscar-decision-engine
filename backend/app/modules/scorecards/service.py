@@ -18,8 +18,9 @@ from app.engine.decision_table import find_overlapping_rows, parse_decision_tabl
 from app.engine.scorecard import parse_scorecard_config
 from app.modules.audit.service import record_audit_event
 from app.modules.auth.models import User
+from app.modules.governance.locking import lock_policy
 from app.modules.governance.service import (
-    ensure_maker_checker,
+    ensure_independent_approver,
     open_approval_request,
     resolve_approval_request,
 )
@@ -114,6 +115,7 @@ async def create_config(
     version_note: str,
     actor: User,
 ) -> tuple[Any, list[dict[str, Any]]]:
+    await lock_policy(session)
     warnings = validate_config(kind, config)
     duplicate = await session.scalar(
         select(kind.identity_model).where(kind.identity_model.code == code)
@@ -158,6 +160,7 @@ async def create_config_version(
     version_note: str,
     actor: User,
 ) -> tuple[Any, list[dict[str, Any]]]:
+    await lock_policy(session, entity)
     warnings = validate_config(kind, config)
     open_versions = [
         v
@@ -204,6 +207,7 @@ async def update_config_version(
     version_note: str,
     actor: User,
 ) -> tuple[Any, list[dict[str, Any]]]:
+    await lock_policy(session, entity, version)
     ensure_editable(version)
     warnings = validate_config(kind, config)
     before = {"config": version.config_json}
@@ -228,6 +232,7 @@ async def update_config_version(
 async def submit_config_version(
     kind: ConfigKind, session: AsyncSession, entity: Any, version: Any, actor: User
 ) -> Any:
+    await lock_policy(session, entity, version)
     before = version.status
     submit_for_approval(version)
     open_approval_request(
@@ -261,7 +266,15 @@ async def activate_config_version(
     actor: User,
     reason: str | None,
 ) -> Any:
-    ensure_maker_checker(version.created_by, actor)
+    await lock_policy(session, entity, version)
+    await ensure_independent_approver(
+        session,
+        version.created_by,
+        actor,
+        entity_type=f"{kind.entity_type}_VERSION",
+        entity_id=entity.code,
+        entity_version=str(version.version),
+    )
     previous_active = next((v for v in entity.versions if v.status == ConfigStatus.ACTIVE), None)
     before = version.status
     activate_version(version, previous_active)

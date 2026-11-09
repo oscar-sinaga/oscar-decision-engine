@@ -10,6 +10,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.engine.input_validation import finite_number, iso_date
 from app.shared.domain.enums import DecisionType
 
 
@@ -36,14 +37,29 @@ class Condition(BaseModel):
 
     field: str = Field(min_length=1, max_length=200)
     operator: Operator
-    value: Any = None
+    value: Any = Field(default=None, validate_default=True)
 
     @field_validator("value")
     @classmethod
     def _value_shape(cls, value: Any, info: Any) -> Any:
         operator = info.data.get("operator")
-        if operator in MEMBERSHIP_OPERATORS and not isinstance(value, list):
-            raise ValueError(f"operator '{operator}' requires a list value")
+        if operator in MEMBERSHIP_OPERATORS:
+            if not isinstance(value, list) or len(value) > 1000:
+                raise ValueError(f"operator '{operator}' requires a list of at most 1000 values")
+            items = value
+        else:
+            items = [value]
+        for item in items:
+            if item is not None and not isinstance(item, (str, bool, int, float)):
+                raise ValueError("condition values must be JSON scalars")
+            if (
+                isinstance(item, (int, float))
+                and not isinstance(item, bool)
+                and not finite_number(item)
+            ):
+                raise ValueError("condition numbers must be finite")
+        if operator in COMPARISON_OPERATORS and not (finite_number(value) or iso_date(value)):
+            raise ValueError("ordered comparisons require a finite number or an ISO date")
         return value
 
 

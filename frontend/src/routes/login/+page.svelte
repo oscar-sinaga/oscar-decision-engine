@@ -2,17 +2,15 @@
 	import { appPath } from '$lib/app-path';
 
 	import { goto } from '$app/navigation';
-	import { ChevronDown, ShieldCheck } from '@lucide/svelte';
 	import { auth } from '$lib/auth.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import * as Collapsible from '$lib/components/ui/collapsible';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import ErrorNote from '$lib/components/ErrorNote.svelte';
 
-	let username = $state('admin');
-	let password = $state(import.meta.env.DEV ? 'OscarDemo123!' : '');
+	let username = $state('');
+	let password = $state('');
 	let error = $state('');
 	let loading = $state(false);
 
@@ -75,23 +73,5 @@
 				</form>
 			</Card.Content>
 		</Card.Root>
-
-		{#if import.meta.env.DEV}
-			<Collapsible.Root class="mt-4 rounded-card border border-border bg-surface">
-				<Collapsible.Trigger
-					class="flex w-full items-center justify-between px-4 py-3 text-xs font-medium text-text hover:bg-surface-sunken"
-				>
-					<span class="flex items-center gap-2"><ShieldCheck size={15} /> Demo accounts</span>
-					<ChevronDown size={15} />
-				</Collapsible.Trigger>
-				<Collapsible.Content class="border-t border-border px-4 py-3 text-xs text-text-muted">
-					<p>
-						Users: admin, riskanalyst, riskmanager, underwriter, compliance, datascientist,
-						engineer, auditor.
-					</p>
-					<p class="mt-1">Demo password: <span class="font-mono text-text">OscarDemo123!</span></p>
-				</Collapsible.Content>
-			</Collapsible.Root>
-		{/if}
 	</div>
 </div>

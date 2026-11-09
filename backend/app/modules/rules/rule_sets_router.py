@@ -13,8 +13,11 @@ from app.modules.audit.service import record_audit_event
 from app.modules.auth.dependencies import require_permission
 from app.modules.auth.models import User
 from app.modules.auth.permissions import Permissions
+from app.modules.governance.locking import lock_policy
 from app.modules.rules.models import Rule, RuleSet, RuleSetMember
+from app.modules.strategies.models import StrategyNode, StrategyVersion
 from app.shared.database import get_session
+from app.shared.domain.enums import ConfigStatus, NodeType
 from app.shared.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 
 router = APIRouter(prefix="/rule-sets", tags=["rule-sets"])
@@ -107,6 +110,7 @@ async def create_rule_set(
     session: Session,
     user: User = require_permission(Permissions.RULE_CREATE),
 ) -> RuleSetResponse:
+    await lock_policy(session)
     duplicate = await session.scalar(select(RuleSet).where(RuleSet.code == body.code))
     if duplicate is not None:
         raise ConflictError(f"Rule set code '{body.code}' already exists")
@@ -136,7 +140,24 @@ async def replace_rule_set_members(
     session: Session,
     user: User = require_permission(Permissions.RULE_CREATE),
 ) -> RuleSetResponse:
+    await lock_policy(session)
     rule_set = await _get_rule_set(session, rule_set_id)
+    published = await session.scalar(
+        select(StrategyNode.id)
+        .join(StrategyVersion, StrategyNode.strategy_version_id == StrategyVersion.id)
+        .where(
+            StrategyNode.node_type == NodeType.RULE_SET,
+            StrategyNode.reference_code == rule_set.code,
+            StrategyVersion.status.in_(
+                [ConfigStatus.ACTIVE, ConfigStatus.PENDING_APPROVAL, ConfigStatus.RETIRED]
+            ),
+        )
+        .limit(1)
+    )
+    if published is not None:
+        raise ConflictError(
+            "Published rule-set membership is immutable; create a new set and strategy draft"
+        )
     rules = await _resolve_rules(session, body.rule_codes)
     before = [m.rule.rule_code for m in sorted(rule_set.members, key=lambda m: m.execution_order)]
     for member in list(rule_set.members):

@@ -195,3 +195,15 @@ Operator explicitly authorized deployment to the existing 2-vCPU/4-GB VPS. Prese
 ## Authorized GitHub synchronization (2026-11-09)
 
 The operator explicitly requested all new application/VPS changes be committed and pushed to GitHub. This authorizes a normal fast-forward push of the tested deployment changes plus this documentation update to main, overriding the earlier local-only restriction for this task. Verify GitHub, local and VPS source HEADs match after synchronization. The running application image remains based on code revision 7cccd6f; this follow-up changes documentation only. No service restart or database change is required.
+
+
+## 2026-11-10 ? integrate hardening without losing the Tencent deployment contract
+
+The operator requested merging outstanding commits and removing obsolete branches.
+Preserve both histories with merge commits rather than rebasing or squashing shared
+work. Combine hosted-environment validation with bounded database pools, retain all
+same-origin/base-path navigation, keep production login fields empty, and use a
+self-created FEATURE_CREATED audit event in the browser fixture. Delete a branch
+only after its current tip is an ancestor of main; keep a verified offline Git
+bundle as recovery evidence. CI must pass before the PR is merged. Source integration
+is separate from deploying new migrations into the existing Tencent database.

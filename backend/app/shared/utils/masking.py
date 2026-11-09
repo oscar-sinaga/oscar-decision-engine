@@ -44,6 +44,11 @@ SENSITIVE_KEY_TOKENS: tuple[str, ...] = (
     "birth_date",
     "date_of_birth",
     "mother_maiden",
+    "customer_id",
+    "applicant_id",
+    "full_name",
+    "birth_place",
+    "iban",
 )
 
 
@@ -52,11 +57,39 @@ def is_sensitive_key(key: str) -> bool:
     return any(token in normalized for token in SENSITIVE_KEY_TOKENS)
 
 
+_FIELD_REFERENCE_KEYS = ("field", "target", "feature", "feature_path", "output_target")
+_FIELD_VALUE_KEYS = {
+    "value",
+    "actual",
+    "expected",
+    "observed",
+    "left",
+    "right",
+    "resolved_value",
+    "calculated_value",
+    "input",
+    "result",
+}
+
+
 def redact(value: Any) -> Any:
-    """Recursively mask values held under sensitive keys in dicts/lists."""
+    """Mask sensitive keys and values associated with sensitive dotted feature paths.
+
+    Rule evaluation evidence often represents a feature as {"field": "<path>",
+    "actual": <raw value>}; masking by dictionary key alone misses these values.
+    """
     if isinstance(value, dict):
+        sensitive_reference = any(
+            isinstance(value.get(ref), str) and is_sensitive_key(value[ref])
+            for ref in _FIELD_REFERENCE_KEYS
+        )
         return {
-            key: (REDACTED if is_sensitive_key(str(key)) else redact(item))
+            key: (
+                REDACTED
+                if is_sensitive_key(str(key))
+                or (sensitive_reference and str(key) in _FIELD_VALUE_KEYS)
+                else redact(item)
+            )
             for key, item in value.items()
         }
     if isinstance(value, (list, tuple)):

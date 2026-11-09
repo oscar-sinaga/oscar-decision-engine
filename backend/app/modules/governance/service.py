@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.audit.models import AuditLog
 from app.modules.auth.models import User
 from app.modules.governance.models import ApprovalRequest
 from app.shared.domain.enums import ApprovalStatus
@@ -86,3 +87,37 @@ async def resolve_approval_request(
     request.decided_at = datetime.now(UTC)
     request.decision_reason = decision_reason
     return request
+
+
+async def ensure_independent_approver(
+    session: AsyncSession,
+    created_by: uuid.UUID | None,
+    approver: User,
+    *,
+    entity_type: str,
+    entity_id: str,
+    entity_version: str,
+) -> None:
+    """Reject approval by the creator, any recorded editor, or the submitter."""
+    ensure_maker_checker(created_by, approver)
+    contributed = await session.scalar(
+        select(AuditLog.id)
+        .where(
+            AuditLog.entity_type == entity_type,
+            AuditLog.entity_id == entity_id,
+            AuditLog.entity_version == entity_version,
+            AuditLog.actor_user_id == approver.id,
+            AuditLog.event_type.in_([f"{entity_type}_UPDATED", f"{entity_type}_SUBMITTED"]),
+        )
+        .limit(1)
+    )
+    pending = await pending_approval_request(
+        session,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        entity_version=entity_version,
+    )
+    if contributed is not None or (pending is not None and pending.requested_by == approver.id):
+        raise AuthorizationError(
+            "Maker-checker violation: editors and submitters cannot approve their change"
+        )
