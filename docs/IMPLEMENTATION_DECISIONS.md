@@ -207,3 +207,16 @@ self-created FEATURE_CREATED audit event in the browser fixture. Delete a branch
 only after its current tip is an ancestor of main; keep a verified offline Git
 bundle as recovery evidence. CI must pass before the PR is merged. Source integration
 is separate from deploying new migrations into the existing Tencent database.
+
+
+## Portable deployment package — 2026-11-11
+
+Added deploy/replica with new/existing PostgreSQL, owner-pinned private network
+validation, explicit migrations, fresh-only activation, rootless HTTPS, first-admin
+RBAC/audit bootstrap without demo data, backup and isolated restore validation.
+Actual local Docker builds, both DB modes, HTTPS login, bootstrap refusal, restore
+and memory cgroup checks passed. Eight operator tests pass. No domain/UI/lockfile
+changes and no VPS mutation. See REPLICA_VERIFICATION_20261111.md for evidence and
+limits. The user's standing instruction to commit/push application and deployment
+changes authorizes normal GitHub synchronization of this package; no production
+restart, schema rollout or branch deletion is included.

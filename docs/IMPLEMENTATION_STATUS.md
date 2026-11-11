@@ -119,3 +119,16 @@ moderate development-tool findings. CI and browser validation gate the final mer
 A complete Git bundle was verified before cleanup. Retired branch commits remain
 reachable through merge history. No deployment, production data deletion, service
 restart, or production migration is included in this repository-maintenance task.
+
+
+## Portable deployment package — 2026-11-11
+
+Added deploy/replica with new/existing PostgreSQL, owner-pinned private network
+validation, explicit migrations, fresh-only activation, rootless HTTPS, first-admin
+RBAC/audit bootstrap without demo data, backup and isolated restore validation.
+Actual local Docker builds, both DB modes, HTTPS login, bootstrap refusal, restore
+and memory cgroup checks passed. Eight operator tests pass. No domain/UI/lockfile
+changes and no VPS mutation. See REPLICA_VERIFICATION_20261111.md for evidence and
+limits. The user's standing instruction to commit/push application and deployment
+changes authorizes normal GitHub synchronization of this package; no production
+restart, schema rollout or branch deletion is included.

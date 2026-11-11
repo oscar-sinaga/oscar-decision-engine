@@ -1,0 +1,6 @@
+{
+  "kind": "decision",
+  "project": "oscar-decision-replica",
+  "database": "oscar_decision",
+  "db_user": "decision_app"
+}

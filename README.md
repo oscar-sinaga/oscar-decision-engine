@@ -139,3 +139,7 @@ Decision API
 ```
 
 Do not begin with the frontend or a visual flow builder.
+
+## Replikasi ke server baru
+
+Paket Compose produksi terpisah, pilihan PostgreSQL baru/existing, HTTPS, batas resource, backup dan uji restore: [panduan replikasi](deploy/replica/README.md).
