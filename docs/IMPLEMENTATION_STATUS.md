@@ -132,3 +132,16 @@ changes and no VPS mutation. See REPLICA_VERIFICATION_20261111.md for evidence a
 limits. The user's standing instruction to commit/push application and deployment
 changes authorizes normal GitHub synchronization of this package; no production
 restart, schema rollout or branch deletion is included.
+
+
+## Docker installation modes documented — 2026-11-11
+
+The root README now contains full new-host Docker instructions with and without
+Nginx, including existing database, TLS, SSH tunnel, credentials and backup steps.
+The direct mode publishes only loopback web/API ports and compiles the frontend
+against the direct API origin with matching CORS. The HTTPS Nginx mode remains
+the default for existing replica settings. No application domain, UI, dependency
+lock, migration or production service change is included. Local direct-mode
+Docker build/login/CORS, both DB modes and restore have passed. Nine operator
+tests pass. CI now verifies both proxy modes independently. The standing user
+instruction authorizes normal commit/push synchronization of these changes.

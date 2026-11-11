@@ -1,0 +1,19 @@
+{
+  "services": {
+    "web": {
+      "ports": [
+        "127.0.0.1:${REPLICA_DIRECT_WEB_PORT}:3000"
+      ],
+      "build": {
+        "args": {
+          "VITE_API_BASE_URL": "${REPLICA_DIRECT_API_ORIGIN}"
+        }
+      }
+    },
+    "api": {
+      "ports": [
+        "127.0.0.1:${REPLICA_DIRECT_API_PORT}:8000"
+      ]
+    }
+  }
+}

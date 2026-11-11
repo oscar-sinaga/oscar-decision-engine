@@ -42,3 +42,20 @@ audit ADMIN_BOOTSTRAPPED dibuat dalam satu transaksi. Bootstrap kedua ditolak;
 tidak ada akun/demo policy yang disisipkan dan JWT/login asli tetap dipakai.
 Frontend memakai API same-origin `/backend/v1`. Tidak ada perubahan domain,
 kontrak API, schema migration domain, dependency lock atau UI.
+
+
+## README installation modes — 11 November 2026
+
+README utama kini memuat langkah Docker lengkap untuk mode tanpa Nginx dan dengan
+Nginx, termasuk clone, prasyarat, secret, migrasi, alamat akses/tunnel, database
+existing, TLS dan backup. Web direct hanya mempublikasikan loopback; Job API tetap
+memerlukan API key dan Decision frontend memakai URL API/CORS langsung. ACC direct
+menjalankan panel/API dengan demo/browser/scheduled sample/gateway tidak aktif.
+Worker scraper tidak membutuhkan Nginx atau port HTTP pada kedua situasi host.
+
+Local Docker verification passed for each documented mode: actual image build,
+new/existing PostgreSQL, web access/authentication (where applicable), backup and
+real isolated restore. Direct mode starts no edge container. Nginx mode preserves
+CA-verified HTTPS and gateway authentication. Nine operator cases pass. CI now has
+independent proxy-mode jobs and requires actual kernel memory-controller limits.
+No Tencent runtime configuration, service, volume or scraping quota was changed.
